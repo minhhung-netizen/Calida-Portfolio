@@ -1,0 +1,34 @@
+# Tùy chọn: chạy pipeline trên GitHub Actions và commit dashboard.json
+# (dùng khi host giao diện tĩnh — GitHub Pages / Netlify / Vercel — không có server).
+name: Daily pipeline
+on:
+  schedule:
+    - cron: "30 9 * * 1-5"   # 16:30 giờ Việt Nam, thứ 2–6
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r pipeline/requirements.txt
+      - name: Service account
+        run: |
+          mkdir -p secrets
+          echo '${{ secrets.GOOGLE_SA_JSON }}' > secrets/service-account.json
+      - name: Pipeline
+        env:
+          GOOGLE_SA_FILE: secrets/service-account.json
+          PORTFOLIO_SHEET_ID: ${{ secrets.PORTFOLIO_SHEET_ID }}
+          FUNDS_SHEET_ID: ${{ secrets.FUNDS_SHEET_ID }}
+        run: python pipeline/run.py
+      - name: Commit
+        run: |
+          git config user.name "calida-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add web/data/dashboard.json data/input/*.xlsx
+          git diff --cached --quiet || git commit -m "data: $(date +%F)"
+          git push

@@ -1,0 +1,10 @@
+.env
+secrets/
+server/node_modules/
+data/calida.db
+data/*.tmp.db
+data/logs/
+data/inbox/*.jsonl
+__pycache__/
+
+.venv/

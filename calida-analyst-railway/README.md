@@ -1,0 +1,113 @@
+# Calida Analyst System
+
+Hệ thống phân tích gồm 6 trang: Tổng quan · Bản tin · Danh mục · Dòng tiền · Quỹ đầu tư · Báo cáo CTCK.
+
+```
+ NGUỒN                          EXCEL (data/input/)        DATABASE              GIAO DIỆN
+ ─────────────────────────      ───────────────────        ────────────          ─────────────────
+ vnstock ───────────────────►   market.xlsx    ─┐
+ Google Sheet Portfolio ────►   portfolio.xlsx  │
+ Google Sheet Fmarket DB ───►   funds.xlsx      ├─► build_db ─► calida.db ─► export_json ─► web/data/dashboard.json ─► web/index.html
+ Nhập tay / vendor ─────────►   flows.xlsx      │                                                   ▲
+ Nút "Thêm báo cáo" ─► inbox ►  reports.xlsx   ─┘                                                   │
+                                                                             server/index.js ───────┘  (/api/chat, /api/extract, /api/reports)
+```
+
+- **Excel là lớp dữ liệu gốc**: mở ra xem, sửa tay được. Pipeline chỉ **upsert theo khóa**, không xóa lịch sử.
+- **SQLite (`data/calida.db`)** được dựng lại toàn bộ từ Excel mỗi lần chạy, có kiểm tra cột, ngày và dòng trùng khóa.
+- **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
+
+## Cài đặt (Windows)
+
+1. Cài Python 3.10+ và Node.js 18+.
+2. Copy `.env.example` → `.env`, rồi điền các biến (xem mục Cấu hình).
+3. Chạy `run_pipeline.bat`. Lần đầu sẽ tự tạo `.venv` và cài thư viện.
+4. Chạy `start_server.bat`, sau đó mở http://localhost:8080.
+
+Muốn chạy thử ngay với dữ liệu mẫu (không cần API):
+```
+python pipeline/make_templates.py --sample --force
+python pipeline/run.py --build-only
+```
+
+## Lệnh pipeline
+
+| Lệnh | Việc làm |
+|---|---|
+| `python pipeline/run.py` | Chạy đầy đủ: Google Sheets → vnstock → inbox → DB → JSON |
+| `python pipeline/run.py --build-only` | Chỉ dựng lại DB + JSON từ Excel hiện có |
+| `python pipeline/run.py --no-prices` | Bỏ bước vnstock |
+| `python pipeline/make_templates.py` | Tạo template Excel trống. Mỗi file có sheet `_HUONG_DAN` mô tả cột |
+
+Mỗi bước lấy dữ liệu chạy độc lập: một nguồn lỗi thì các bước sau vẫn chạy trên dữ liệu cũ. Chỉ khi bước build/export lỗi, pipeline mới thoát với mã 1.
+
+## Nguồn dữ liệu
+
+| File / sheet | Nguồn | Tự động? |
+|---|---|---|
+| `market.xlsx / VNINDEX` | vnstock | ✅ |
+| `market.xlsx / VIEW, NEWS, EVENTS` | Nhập tay, hoặc ghi từ Bản Tin Ngày | ✍️ |
+| `flows.xlsx / *` | **Chưa có nguồn tự động.** Nhập từ bảng thống kê giao dịch theo nhóm NĐT | ✍️ |
+| `portfolio.xlsx / POSITIONS, TRANSACTIONS` | Google Sheet Portfolio Automation | ✅ |
+| `portfolio.xlsx / PRICES` | vnstock (các mã trong POSITIONS) | ✅ |
+| `portfolio.xlsx / SUMMARY` | Nhập tay: hiệu suất YTD, phân bổ tài sản | ✍️ |
+| `funds.xlsx / *` | Google Sheet Fmarket DB (pipeline Colab hiện có) | ✅ |
+| `reports.xlsx / *` | Nút "Thêm báo cáo" trên giao diện, hoặc nhập tay | ✅/✍️ |
+
+## Cấu hình cần chỉnh
+
+**1. Ánh xạ cột Google Sheet** – `pipeline/config.py` → `PORTFOLIO_MAP`, `FUNDS_MAP`.
+Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên cột chuẩn. Tiêu đề trong file hiện chỉ là **giả định**. Nếu sai, lần chạy đầu sẽ báo lỗi kèm danh sách tiêu đề thực tế để bạn sửa.
+
+**2. Service account** – tạo trong Google Cloud, bật Drive API, tải JSON về `secrets/service-account.json`. Sau đó share 2 sheet cho email của service account với quyền Viewer.
+
+**3. Đơn vị** – `WEIGHTS_AS_FRACTION` (tỷ trọng lưu dạng 0,12 hay 12) và `NAV_DIVISOR` (NAV tính theo đồng hay tỷ).
+
+**4. Gemini** – `GEMINI_API_KEY`, dùng cho hỏi đáp và trích xuất báo cáo (text hoặc PDF). Server tự thử lại khi gặp lỗi 429/5xx.
+
+## Triển khai
+
+**A. Một máy chủ (khuyến nghị)** – VPS hoặc máy Windows nội bộ chạy `node server/index.js`:
+- Server phục vụ giao diện và API.
+- Tự chạy pipeline lúc `PIPELINE_TIME` (T2–T6). Log nằm ở `data/logs/`.
+- Khi lưu báo cáo, server ghi vào `data/inbox/`, rồi dựng lại DB ngay.
+- Nên đặt `ACCESS_TOKEN` nếu mở ra internet.
+
+**B. Chỉ host tĩnh** (GitHub Pages / Netlify / Vercel):
+- Upload thư mục `web/`.
+- Bật `.github/workflows/pipeline.yml`, thêm các secret `GOOGLE_SA_JSON`, `PORTFOLIO_SHEET_ID`, `FUNDS_SHEET_ID`.
+- Hỏi đáp và "Thêm báo cáo" sẽ tự ẩn vì không có server.
+
+**C. Tách giao diện và API** – host `web/` ở một nơi, server ở nơi khác:
+- Đặt `API_BASE` trong `web/config.js`.
+- Bật CORS trên server cho domain giao diện.
+
+⚠ Nếu server chạy trên nền tảng có ổ đĩa tạm (Render, Railway…), cần gắn **persistent disk** cho thư mục `data/`. Nếu không, báo cáo đã lưu sẽ mất khi redeploy.
+
+## Quy tắc tính toán chính
+
+- **Cảnh báo danh mục** (tính trong giao diện):
+  - Cần xử lý: giá ≤ vùng vi phạm.
+  - Sát vùng vi phạm: giá ≤ vùng vi phạm × 1,03.
+  - Về vùng mua: Low nằm trong vùng mua.
+  - Đạt target: giá ≥ target.
+- **Hành động trong ngày**: các mã có trạng thái MUA / TĂNG TỶ TRỌNG / GIẢM TỶ TRỌNG.
+- **Quỹ**:
+  - Tỷ trọng ngành và cổ phiếu là bình quân gia quyền theo NAV, chỉ tính các quỹ có dữ liệu kỳ mới nhất.
+  - Mọi chỉ số Δ chỉ so sánh những quỹ có đủ cả 2 kỳ.
+  - Top cổ phiếu dựa trên top holdings công bố, nên tỷ trọng thực tế có thể cao hơn.
+- **Dòng tiền**:
+  - Ngày dữ liệu = ngày mới nhất trong INVESTOR_FLOW / VNINDEX / VIEW.
+  - MTD và YTD là tổng cộng dồn theo tháng và năm của ngày đó.
+- **Báo cáo CTCK**:
+  - Mỗi CTCK lấy báo cáo mới nhất để xác định quan điểm và target VN-Index.
+  - Đồng thuận cổ phiếu lấy khuyến nghị mới nhất của mỗi CTCK cho từng mã.
+
+## Cấu trúc thư mục
+
+```
+pipeline/   schema.py (định nghĩa cột) · config.py · fetch_*.py · import_inbox.py · build_db.py · export_json.py · run.py · make_templates.py
+data/       input/*.xlsx · inbox/ · calida.db · logs/
+web/        index.html · config.js · data/dashboard.json
+server/     index.js · package.json
+```

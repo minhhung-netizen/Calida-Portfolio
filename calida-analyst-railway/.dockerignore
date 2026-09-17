@@ -1,0 +1,10 @@
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+server/node_modules
+.env
+secrets
+data/logs
+data/inbox/*.jsonl
