@@ -40,6 +40,7 @@ const WEB_DIR = path.join(ROOT, "web");
 const JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
 const INBOX = path.join(ROOT, "data", "inbox", "reports.jsonl");
 const LOG_DIR = path.join(ROOT, "data", "logs");
+const AUDIT_LOG = path.join(LOG_DIR, "audit.jsonl");
 const USER_STORE_DIR = path.join(ROOT, "data", "auth");
 const USER_STORE = path.join(USER_STORE_DIR, "users.json");
 const ROLE_RANK = { viewer: 0, analyst: 1, admin: 2 };
@@ -48,6 +49,27 @@ const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
 fs.mkdirSync(path.dirname(INBOX), { recursive: true });
 fs.mkdirSync(LOG_DIR, { recursive: true });
 fs.mkdirSync(USER_STORE_DIR, { recursive: true });
+
+function audit(req, action, details = {}) {
+  const entry = {
+    at: new Date().toISOString(),
+    actor: req?.user?.u || "system",
+    action,
+    details,
+  };
+  try { fs.appendFileSync(AUDIT_LOG, `${JSON.stringify(entry)}\n`, "utf8"); }
+  catch (error) { console.error(`Không ghi được audit log: ${error.message}`); }
+}
+
+function recentAudit(limit = 30) {
+  try {
+    return fs.readFileSync(AUDIT_LOG, "utf8").trim().split(/\r?\n/).slice(-limit).reverse()
+      .map((line) => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
 
 function sameSecret(left, right) {
   const a = Buffer.from(String(left || ""));
@@ -352,6 +374,7 @@ app.post("/api/admin/users", requireRole("admin"), requireCsrf, writeLimit, (req
     const nextUsers = [...USERS, user];
     writeUserStore(nextUsers);
     USERS = nextUsers;
+    audit(req, "user.create", { username: user.username, role: user.role });
     return res.status(201).json({ ok: true, user: publicUser(user) });
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
@@ -380,6 +403,7 @@ app.patch("/api/admin/users/:username", requireRole("admin"), requireCsrf, write
     const nextUsers = USERS.map((user) => user.username === username ? updated : user);
     writeUserStore(nextUsers);
     USERS = nextUsers;
+    audit(req, "user.update", { username, role: updated.role, passwordReset: hasPassword });
     return res.json({ ok: true, user: publicUser(updated), reauthenticate: username === req.user.u && hasPassword });
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
@@ -394,6 +418,7 @@ app.delete("/api/admin/users/:username", requireRole("admin"), requireCsrf, writ
     const nextUsers = USERS.filter((user) => user.username !== username);
     writeUserStore(nextUsers);
     USERS = nextUsers;
+    audit(req, "user.delete", { username, role: current.role });
     return res.json({ ok: true });
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
@@ -450,8 +475,16 @@ function startPipeline(args, reason) {
     });
   });
   running = job.then(
-    (result) => { pipelineState = { ...pipelineState, status: "ok", finishedAt: new Date().toISOString() }; return result; },
-    (error) => { pipelineState = { ...pipelineState, status: "error", finishedAt: new Date().toISOString(), error: error.message }; throw error; },
+    (result) => {
+      pipelineState = { ...pipelineState, status: "ok", finishedAt: new Date().toISOString() };
+      audit(null, "pipeline.complete", { reason, status: "ok" });
+      return result;
+    },
+    (error) => {
+      pipelineState = { ...pipelineState, status: "error", finishedAt: new Date().toISOString(), error: error.message };
+      audit(null, "pipeline.complete", { reason, status: "error", error: error.message.slice(0, 300) });
+      throw error;
+    },
   ).finally(() => { running = null; });
   return running;
 }
@@ -501,8 +534,19 @@ const asList = (value) => Array.isArray(value) ? value : [];
 // ---------- application API ----------
 app.get("/api/status", (req, res) => {
   let asOf = null;
-  try { asOf = readData().asOf; } catch { /* Status remains available during a failed build. */ }
-  return res.json({ asOf, pipeline: { ...pipelineState, queuedJobs }, aiEnabled: Boolean(GEMINI_KEY) });
+  let freshness = [];
+  try {
+    const data = readData();
+    asOf = data.asOf;
+    freshness = data.meta?.freshness || [];
+  } catch { /* Status remains available during a failed build. */ }
+  return res.json({ asOf, freshness, pipeline: { ...pipelineState, queuedJobs }, aiEnabled: Boolean(GEMINI_KEY) });
+});
+
+app.get("/api/admin/operations", requireRole("admin"), (req, res) => {
+  let freshness = [];
+  try { freshness = readData().meta?.freshness || []; } catch { /* Report the pipeline state even without dashboard data. */ }
+  return res.json({ pipeline: { ...pipelineState, queuedJobs }, freshness, audit: recentAudit() });
 });
 
 app.post("/api/chat", requireRole("analyst"), requireCsrf, aiLimit, async (req, res) => {
@@ -572,6 +616,7 @@ app.post("/api/reports", requireRole("analyst"), requireCsrf, writeLimit, async 
       createdAt: new Date().toISOString(),
     };
     fs.appendFileSync(INBOX, `${JSON.stringify(clean)}\n`, "utf8");
+    audit(req, "report.create", { reportId: clean.id, broker: clean.broker, date: clean.date });
     await enqueuePipeline(["--build-only"], `lưu báo cáo ${clean.id}`);
     return res.json({ ok: true, id: clean.id });
   } catch (error) { return res.status(500).json({ error: error.message }); }
@@ -580,6 +625,7 @@ app.post("/api/reports", requireRole("analyst"), requireCsrf, writeLimit, async 
 app.post("/api/pipeline/run", requireRole("admin"), requireCsrf, pipelineLimit, (req, res) => {
   const args = req.body?.buildOnly === true ? ["--build-only"] : [];
   const wasQueued = queuedJobs > 0 || Boolean(running);
+  audit(req, "pipeline.queue", { mode: args.length ? "build-only" : "full", wasQueued });
   enqueuePipeline(args, "chạy tay qua API").catch((error) => console.error(error.message));
   return res.status(202).json({ ok: true, queued: wasQueued });
 });

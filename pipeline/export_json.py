@@ -234,6 +234,27 @@ def reports(con):
     return out
 
 
+# ------------------------------------------------------------------ data freshness
+def freshness(con):
+    """Ngày dữ liệu riêng từng nguồn để UI không lấy asOf chung làm dữ liệu mới giả."""
+    def latest(sql):
+        value = q(con, sql).iloc[0, 0]
+        return None if pd.isna(value) else str(value)
+
+    periods = q(con, "SELECT DISTINCT period FROM fund_summary").period.dropna().astype(str).tolist()
+    latest_fund_period = max(periods, key=_pkey) if periods else None
+
+    return [
+        {"id": "market", "label": "VN-Index & giá cổ phiếu", "value": latest("SELECT MAX(date) FROM vnindex")},
+        {"id": "strategy", "label": "Nhận định thị trường", "value": latest("SELECT MAX(date) FROM view")},
+        {"id": "flows", "label": "Dòng tiền", "value": latest("SELECT MAX(date) FROM investor_flow")},
+        {"id": "news", "label": "Tin tức", "value": latest("SELECT MAX(substr(published_at, 1, 10)) FROM news")},
+        {"id": "portfolio", "label": "Danh mục", "value": latest("SELECT MAX(date) FROM prices")},
+        {"id": "funds", "label": "Quỹ đầu tư", "value": latest_fund_period},
+        {"id": "reports", "label": "Báo cáo CTCK", "value": latest("SELECT MAX(date) FROM reports")},
+    ]
+
+
 def run():
     con = sqlite3.connect(DB_PATH)
     cands = [q(con, f"SELECT MAX(date) d FROM {t}").d.iloc[0] for t in ("investor_flow", "vnindex", "view")]
@@ -243,7 +264,8 @@ def run():
         "asOf": as_of,
         "meta": {"generatedAt": datetime.now().isoformat(timespec="seconds"),
                  "dbBuiltAt": meta.built_at.iloc[0] if len(meta) else None,
-                 "rows": dict(zip(meta.table, meta.rows.astype(int)))},
+                 "rows": dict(zip(meta.table, meta.rows.astype(int))),
+                 "freshness": freshness(con)},
         "market": market(con, as_of), "news": news(con, as_of), "events": events(con, as_of),
         "flows": flows(con, as_of), "portfolio": portfolio(con, as_of),
         "funds": funds(con), "reports": reports(con),

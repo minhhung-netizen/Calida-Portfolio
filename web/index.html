@@ -308,7 +308,7 @@ const PAGES=[
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
-  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,chat:[],chatBusy:false,adminUsers:null,adminError:""};
+  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,chat:[],chatBusy:false,adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
 function renderNav(){
   $("#nav").innerHTML=PAGES.filter(p=>!p.adminOnly||can("admin")).map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
@@ -320,6 +320,7 @@ function render(){
   $("#page").innerHTML=fn();
   if(STATE.page==="reports") paintChat();
   if(STATE.page==="admin"&&can("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
+  if(STATE.page==="admin"&&can("admin")&&!STATE.adminOps&&!STATE.adminOpsError) loadAdminOperations();
 }
 
 /* ============ PAGE: Tổng quan ============ */
@@ -594,12 +595,24 @@ function pgAdmin(){
     :`<div class="tbl-wrap"><table><thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><th>Quyền</th><th>Cập nhật</th><th></th></tr></thead><tbody>
       ${users.map(u=>`<tr><td class="t">${esc(u.username)}${u.username===CURRENT_USER?.username?' <span class="muted">(bạn)</span>':""}</td><td>${statusTag(roleLabel[u.role]||u.role)}</td><td style="white-space:normal;min-width:220px" class="muted">${esc(rolePermission[u.role]||"")}</td><td class="muted">${u.updatedAt?new Date(u.updatedAt).toLocaleDateString("vi-VN"):"—"}</td><td><button class="link" data-edit-user="${esc(u.username)}">Chỉnh sửa</button> <button class="link" data-delete-user="${esc(u.username)}" ${u.username===CURRENT_USER?.username?"disabled title=\"Không thể tự xóa\"":""}>Xóa</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Chưa có tài khoản.</td></tr>'}
     </tbody></table></div>`;
+  const ops=STATE.adminOps;
+  const operation=STATE.adminOpsError?`<div class="empty">${esc(STATE.adminOpsError)} <button class="link" id="reloadOps">Thử lại</button></div>`
+    :!ops?'<div class="empty">Đang tải trạng thái vận hành…</div>'
+    :(()=>{const p=ops.pipeline||{}, tag=p.status==="ok"?"bg-up":p.status==="error"?"bg-down":p.status==="running"?"bg-warn":"bg-neutral";
+      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","pipeline.queue":"Yêu cầu chạy pipeline","pipeline.complete":"Pipeline hoàn tất"};
+      const busy=p.status==="running"||p.queuedJobs>0;
+      return `<div class="grid" style="gap:14px"><div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
+        <p class="muted" style="margin:8px 0 0">${p.reason?`Lần gần nhất: ${esc(p.reason)}${p.finishedAt?` · ${new Date(p.finishedAt).toLocaleString("vi-VN")}`:""}`:"Chưa có lần chạy trong phiên này."}${p.error?`<br><span class="down">${esc(p.error)}</span>`:""}</p>
+        <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="runBuild" ${busy?"disabled":""}>Dựng lại dashboard</button><button class="btn ghost" id="runFull" ${busy?"disabled":""}>Đồng bộ toàn bộ nguồn</button><span class="muted" style="font-size:12px">Đồng bộ toàn bộ sẽ gọi Google Sheets và nguồn giá.</span></div></div>
+        <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
+        <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
   return `<h1>Quản trị tài khoản</h1><p class="sub">Tạo, chỉnh sửa, xóa tài khoản và phân quyền truy cập hệ thống.</p>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:14px">
       ${Object.entries(roleLabel).map(([role,label])=>`<div class="card"><b>${esc(label)}</b><p class="muted" style="margin:6px 0 0">${esc(rolePermission[role])}</p></div>`).join("")}
     </div>
     <div class="card">${head("users","Người dùng",'<button class="btn" id="addUser">Thêm tài khoản</button>')}${content}
-      <p class="muted" style="font-size:12px;margin:12px 0 0">Mật khẩu được băm trước khi lưu. Không thể xóa tài khoản đang đăng nhập hoặc admin cuối cùng.</p></div>`;
+      <p class="muted" style="font-size:12px;margin:12px 0 0">Mật khẩu được băm trước khi lưu. Không thể xóa tài khoản đang đăng nhập hoặc admin cuối cùng.</p></div>
+    <div class="card" style="margin-top:14px">${head("trend","Vận hành dữ liệu")}${operation}</div>`;
 }
 async function loadAdminUsers(){
   if(!can("admin")) return;
@@ -607,6 +620,19 @@ async function loadAdminUsers(){
   try{ const r=await api("/api/admin/users"); STATE.adminUsers=r.users||[]; }
   catch(e){ STATE.adminUsers=null; STATE.adminError=e.message; }
   if(STATE.page==="admin") render();
+}
+async function loadAdminOperations(){
+  if(!can("admin")) return;
+  STATE.adminOpsError="";
+  try{ STATE.adminOps=await api("/api/admin/operations"); }
+  catch(e){ STATE.adminOps=null; STATE.adminOpsError=e.message; }
+  if(STATE.page==="admin") render();
+}
+async function runPipeline(buildOnly){
+  const message=buildOnly?"Dựng lại dashboard từ dữ liệu hiện có?":"Đồng bộ toàn bộ nguồn dữ liệu? Thao tác có thể mất vài phút.";
+  if(!confirm(message)) return;
+  try{await api("/api/pipeline/run",{buildOnly}); STATE.adminOps=null; await loadAdminOperations();}
+  catch(e){alert("Không thể chạy pipeline: "+e.message);}
 }
 function openUserDialog(username=""){
   const existing=(STATE.adminUsers||[]).find(u=>u.username===username);
@@ -738,6 +764,9 @@ document.addEventListener("click",e=>{
   if(t.id==="addRep") openAdd();
   if(t.id==="addUser") openUserDialog();
   if(t.id==="reloadUsers"){STATE.adminUsers=null;STATE.adminError="";loadAdminUsers();}
+  if(t.id==="reloadOps"){STATE.adminOps=null;STATE.adminOpsError="";loadAdminOperations();}
+  if(t.id==="runBuild") runPipeline(true);
+  if(t.id==="runFull") runPipeline(false);
   if(t.id==="adminDlgClose") $("#adminDlg").close();
   if(t.id==="saveUser") saveUser(t.dataset.userId||"");
   if(t.id==="dlgClose") $("#addDlg").close();
