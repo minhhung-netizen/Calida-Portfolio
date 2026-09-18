@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime
 import pandas as pd
 from config import DB_PATH, INPUT_DIR
+from data_quality import raise_for_errors, validate
 from schema import SCHEMA, table_name
 
 
@@ -17,11 +18,10 @@ def to_date(s: pd.Series) -> pd.Series:
 
 def run() -> list:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    warnings, stats = [], []
+    warnings, stats, frames = [], [], {}
     tmp = DB_PATH.with_suffix(".tmp.db")
     if tmp.exists():
         tmp.unlink()
-    con = sqlite3.connect(tmp)
     for file, sheets in SCHEMA.items():
         path = INPUT_DIR / file
         book = pd.read_excel(path, sheet_name=None) if path.exists() else {}
@@ -45,17 +45,30 @@ def run() -> list:
             if dup:
                 warnings.append(f"{file}/{sh}: {dup} dòng trùng khóa {s['key']} → giữ dòng cuối")
                 df = df.drop_duplicates(subset=s["key"], keep="last")
+            frames[(file, sh)] = df
+
+    quality = validate(frames)
+    for issue in quality:
+        icon = "✖" if issue["level"] == "error" else "⚠"
+        print(f"  {icon} {issue['scope']}: {issue['message']} ({issue['count']} dòng)")
+    raise_for_errors(quality)
+
+    con = sqlite3.connect(tmp)
+    for file, sheets in SCHEMA.items():
+        for sh in sheets:
+            df = frames[(file, sh)]
             df.to_sql(table_name(sh), con, index=False)
             stats.append((table_name(sh), len(df)))
     pd.DataFrame(stats, columns=["table", "rows"]).assign(built_at=datetime.now().isoformat(timespec="seconds")) \
         .to_sql("_meta", con, index=False)
+    pd.DataFrame(quality, columns=["id", "level", "scope", "message", "count"]).to_sql("_quality", con, index=False)
     con.close()
     tmp.replace(DB_PATH)  # thay file DB một lần, server không đọc phải file dở dang
     for t, n in stats:
         print(f"  {t:<18} {n:>7} dòng")
     for w in warnings:
         print(f"  ⚠ {w}")
-    return warnings
+    return warnings + [f"{item['scope']}: {item['message']}" for item in quality if item["level"] == "warning"]
 
 
 if __name__ == "__main__":

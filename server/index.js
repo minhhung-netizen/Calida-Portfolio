@@ -553,8 +553,13 @@ app.get("/api/status", (req, res) => {
 
 app.get("/api/admin/operations", requireRole("admin"), (req, res) => {
   let freshness = [];
-  try { freshness = readData().meta?.freshness || []; } catch { /* Report the pipeline state even without dashboard data. */ }
-  return res.json({ pipeline: { ...pipelineState, queuedJobs }, freshness, audit: recentAudit() });
+  let quality = { status: "unknown", issues: [] };
+  try {
+    const data = readData();
+    freshness = data.meta?.freshness || [];
+    quality = data.meta?.quality || quality;
+  } catch { /* Report the pipeline state even without dashboard data. */ }
+  return res.json({ pipeline: { ...pipelineState, queuedJobs }, freshness, quality, audit: recentAudit() });
 });
 
 app.post("/api/chat", requireRole("analyst"), requireCsrf, aiLimit, async (req, res) => {

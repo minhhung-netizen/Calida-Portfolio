@@ -257,6 +257,17 @@ def freshness(con):
     ]
 
 
+def quality(con):
+    """Cảnh báo kiểm định dữ liệu để UI phân biệt dữ liệu hợp lệ và dữ liệu cần rà soát."""
+    try:
+        issues = q(con, "SELECT id, level, scope, message, count FROM _quality ORDER BY level DESC, scope")
+    except Exception:  # Database cũ trước khi có bảng kiểm định.
+        return {"status": "unknown", "issues": []}
+    rows = [{"id": item_id, "level": level, "scope": scope, "message": message, "count": int(count)}
+            for item_id, level, scope, message, count in issues.itertuples(index=False, name=None)]
+    return {"status": "warning" if rows else "ok", "issues": rows}
+
+
 def run():
     con = sqlite3.connect(DB_PATH)
     cands = [q(con, f"SELECT MAX(date) d FROM {t}").d.iloc[0] for t in ("investor_flow", "vnindex", "view")]
@@ -267,7 +278,7 @@ def run():
         "meta": {"generatedAt": datetime.now().isoformat(timespec="seconds"),
                  "dbBuiltAt": meta.built_at.iloc[0] if len(meta) else None,
                  "rows": dict(zip(meta.table, meta.rows.astype(int))),
-                 "freshness": freshness(con)},
+                 "freshness": freshness(con), "quality": quality(con)},
         "market": market(con, as_of), "news": news(con, as_of), "events": events(con, as_of),
         "flows": flows(con, as_of), "portfolio": portfolio(con, as_of),
         "funds": funds(con), "reports": reports(con),
