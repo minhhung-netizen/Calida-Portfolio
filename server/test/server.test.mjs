@@ -54,6 +54,12 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
 
   try {
     await waitFor(`${base}/api/health`, child);
+    const health = await request("/api/health");
+    assert.equal(health.status, 200);
+    assert.equal((await health.json()).service, "calida-analyst");
+    const ready = await request("/api/ready");
+    assert.equal(ready.status, 200);
+    assert.equal((await ready.json()).dashboard.ready, true);
     const login = await request("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: users[0].password }) });
     assert.equal(login.status, 200);
     const cookie = login.headers.get("set-cookie").split(";", 1)[0];

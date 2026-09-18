@@ -48,6 +48,7 @@ const USER_STORE = path.join(USER_STORE_DIR, "users.json");
 const ROLE_RANK = Object.freeze({ viewer: 0, analyst: 1, admin: 2 });
 const isRole = (role) => Object.hasOwn(ROLE_RANK, role);
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
+const STARTED_AT = new Date().toISOString();
 
 fs.mkdirSync(path.dirname(REPORT_JOBS), { recursive: true });
 fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -71,6 +72,25 @@ function recentAudit(limit = 30) {
   } catch (error) {
     if (error.code === "ENOENT") return [];
     throw error;
+  }
+}
+
+// Endpoint readiness phải nhẹ, không phụ thuộc vào Google Sheets/vnstock. Railway
+// dùng nó trong lúc deploy; lỗi một lần đồng bộ không được làm tiến trình web chết.
+function dashboardReadiness() {
+  try {
+    const stat = fs.statSync(JSON_PATH);
+    if (!stat.isFile() || stat.size === 0) throw new Error("dashboard.json rỗng");
+    const data = JSON.parse(fs.readFileSync(JSON_PATH, "utf8"));
+    if (!data || !Array.isArray(data.reports)) throw new Error("dashboard.json không đúng định dạng");
+    return {
+      ready: true,
+      asOf: data.asOf || null,
+      generatedAt: data.meta?.generatedAt || null,
+      updatedAt: stat.mtime.toISOString(),
+    };
+  } catch {
+    return { ready: false };
   }
 }
 
@@ -341,7 +361,18 @@ app.post("/api/auth/login", requireSameOrigin, loginLimit, (req, res) => {
   return res.json({ ok: true, user: { username: user.username, role: user.role } });
 });
 
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+// Liveness: luôn trả 2xx khi Node còn phục vụ được request.
+app.get("/api/health", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  return res.json({ ok: true, service: "calida-analyst", startedAt: STARTED_AT, uptimeSeconds: Math.floor(process.uptime()) });
+});
+
+// Readiness: Railway dùng endpoint này trước khi chuyển traffic sang deploy mới.
+app.get("/api/ready", (req, res) => {
+  const dashboard = dashboardReadiness();
+  res.set("Cache-Control", "no-store");
+  return res.status(dashboard.ready ? 200 : 503).json({ ok: dashboard.ready, dashboard });
+});
 
 app.use(protectSite);
 
@@ -548,7 +579,7 @@ app.get("/api/status", (req, res) => {
     asOf = data.asOf;
     freshness = data.meta?.freshness || [];
   } catch { /* Status remains available during a failed build. */ }
-  return res.json({ asOf, freshness, pipeline: { ...pipelineState, queuedJobs }, aiEnabled: Boolean(GEMINI_KEY) });
+  return res.json({ asOf, freshness, dashboard: dashboardReadiness(), pipeline: { ...pipelineState, queuedJobs }, aiEnabled: Boolean(GEMINI_KEY) });
 });
 
 app.get("/api/admin/operations", requireRole("admin"), (req, res) => {

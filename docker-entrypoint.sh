@@ -17,8 +17,16 @@ if [ -n "${GOOGLE_SA_JSON:-}" ]; then
   export GOOGLE_SA_FILE="${GOOGLE_SA_FILE:-/app/secrets/service-account.json}"
 fi
 
-# Rebuild the generated dashboard from persistent Excel data on each boot.
-echo "[startup] Rebuilding dashboard.json..."
-python3 /app/pipeline/run.py --build-only
+# Không chạy pipeline nặng ở mọi lần boot: khi một nguồn ngoài lỗi, Railway vẫn
+# có thể đưa web lên với dashboard hợp lệ đã có. Bật REBUILD_ON_BOOT=true chỉ
+# cho lần deploy mà operator chủ động muốn dựng lại từ dữ liệu trên Volume.
+if [ "${REBUILD_ON_BOOT:-false}" = "true" ]; then
+  echo "[startup] Rebuilding dashboard.json on operator request..."
+  if ! python3 /app/pipeline/run.py --build-only; then
+    echo "[startup] Pipeline rebuild failed; starting the web server with the last valid dashboard."
+  fi
+else
+  echo "[startup] Skipping rebuild (REBUILD_ON_BOOT=false)."
+fi
 
 exec node /app/server/index.js
