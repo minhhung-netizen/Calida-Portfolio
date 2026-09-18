@@ -308,7 +308,7 @@ const PAGES=[
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
-  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,chat:[],chatBusy:false,adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
+  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatBusy:false,adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
 function renderNav(){
   $("#nav").innerHTML=PAGES.filter(p=>!p.adminOnly||can("admin")).map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
@@ -326,10 +326,11 @@ function render(){
 /* ============ PAGE: Tổng quan ============ */
 function pgOverview(){
   const m=DATA.market, fl=DATA.flows.investors["Hôm nay"], st=portfolioStats(), f=DATA.funds||{updated:0,stockW:null};
+  const flowLabel=DATA.flows.asOf?`phiên ${fmtD(DATA.flows.asOf)}`:"phiên gần nhất";
   const agg=repAgg(repFilterWindow(30));
   const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
     <div class="card kpi"><div class="badge bg-brand">${svg("trend")}</div><div style="flex:1"><div class="l">VN-Index</div><div class="v">${nf(m.index,2)}</div><div class="${cls(m.chg)}">${sgn(m.chg,2)} (${sgn(m.pct,2,"%")})</div></div><div style="width:90px">${spark(m.spark,90,44)}</div></div>
-    <div class="card kpi"><div class="badge bg-down">${svg("flow")}</div><div><div class="l">Khối ngoại</div><div class="v ${cls(fl["Khối ngoại"])}">${sgn(fl["Khối ngoại"])} tỷ</div><div class="l">${fl["Khối ngoại"]<0?"Bán":"Mua"} ròng phiên hôm nay</div></div></div>
+    <div class="card kpi"><div class="badge bg-down">${svg("flow")}</div><div><div class="l">Khối ngoại</div><div class="v ${cls(fl["Khối ngoại"])}">${sgn(fl["Khối ngoại"])} tỷ</div><div class="l">${fl["Khối ngoại"]==null?"Chưa có dữ liệu":`${fl["Khối ngoại"]<0?"Bán":"Mua"} ròng ${flowLabel}`}</div></div></div>
     <div class="card kpi"><div class="badge bg-up">${svg("trend")}</div><div><div class="l">Hiệu suất danh mục</div><div class="v ${cls(DATA.portfolio.ytd)}">${sgn(DATA.portfolio.ytd,1,"%")}</div><div class="l">Từ đầu năm</div></div></div>
     <div class="card kpi"><div class="badge bg-brand">${svg("rep")}</div><div><div class="l">Đồng thuận CTCK (30 ngày)</div><div class="v">${nf(agg.vnMed)}</div><div class="l">Target VN-Index trung vị · ${agg.brokers.length} CTCK</div></div></div>
   </div>`;
@@ -357,7 +358,7 @@ function pgOverview(){
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:14px">
     ${shortcut("brief","doc","Bản tin",`${DATA.news.length} tin nổi bật | ${DATA.events.length} sự kiện`)}
     ${shortcut("portfolio","brief","Danh mục",`${st.open} mã đang mở | ${st.c["Cần xử lý"]} mã cần xử lý`)}
-    ${shortcut("flows","flow","Dòng tiền",`Khối ngoại ${fl["Khối ngoại"]<0?"bán":"mua"} ròng | Cá nhân ${fl["Cá nhân"]<0?"bán":"mua"} ròng`)}
+    ${shortcut("flows","flow","Dòng tiền",fl["Khối ngoại"]==null?"Chưa có dữ liệu dòng tiền":`Khối ngoại ${fl["Khối ngoại"]<0?"bán":"mua"} ròng | Cá nhân ${fl["Cá nhân"]<0?"bán":"mua"} ròng`)}
     ${shortcut("funds","fund","Quỹ đầu tư",`${f.updated} quỹ | ${nf(f.stockW,0)}% tỷ trọng CP`)}
     ${shortcut("reports","rep","Báo cáo CTCK",`${repFilterWindow(7).length} báo cáo 7 ngày | ${agg.risks.filter(r=>r.sev===3).length} rủi ro mức cao`)}
   </div>`;
@@ -449,7 +450,8 @@ const kpiCard=(ic,bg,v,l,c="")=>`<div class="card kpi"><div class="badge ${bg}">
 /* ============ PAGE: Dòng tiền ============ */
 function pgFlows(){
   const F=DATA.flows, today=F.investors["Hôm nay"], mtd=F.investors["MTD"], cur=F.investors[STATE.invTab];
-  const tot=Object.values(cur).reduce((s,v)=>s+Math.abs(v),0);
+  const tot=Object.values(cur).reduce((s,v)=>s+Math.abs(v||0),0)||1;
+  const flowLabel=F.asOf?`Dữ liệu phiên gần nhất: ${fmtD(F.asOf)}.`:"Chưa có dữ liệu dòng tiền.";
   const icons={"Khối ngoại":"flow","Tự doanh":"users","Cá nhân":"users","Tổ chức":"brief"};
   const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${["Khối ngoại","Tự doanh","Cá nhân","Tổ chức"].map(k=>`<div class="card kpi"><div class="badge ${today[k]<0?"bg-down":"bg-up"}">${svg(icons[k])}</div><div><div class="l">${k}</div><div class="v ${cls(today[k])}">${sgn(today[k])} tỷ</div><div class="l">Lũy kế tháng: <b class="${cls(mtd[k])}">${sgn(mtd[k])} tỷ</b></div></div></div>`).join("")}</div>`;
   const buys=F.tickers.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10), sells=F.tickers.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,10);
@@ -459,7 +461,7 @@ function pgFlows(){
   const bySector=[...F.sectors].sort((a,b)=>b.v-a.v);
   const topIn=bySector.slice(0,2).map(s=>esc(s.s).toLowerCase()).join(" và ");
   const foreignSells=F.tickers.filter(x=>x.main==="Khối ngoại"&&x.v<0).sort((a,b)=>a.v-b.v).slice(0,3).map(x=>esc(x.t)).join(", ");
-  return `<h1>Dòng tiền thị trường</h1><p class="sub">Theo dõi dòng tiền của các nhóm nhà đầu tư và xu hướng vận động vốn trên thị trường</p>${kpis}
+  return `<h1>Dòng tiền thị trường</h1><p class="sub">Theo dõi dòng tiền của các nhóm nhà đầu tư và xu hướng vận động vốn trên thị trường · ${flowLabel}</p>${kpis}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
     <div class="card">${head("users","Phân loại nhà đầu tư")}
       <div class="seg">${[["Hôm nay","Hôm nay"],["MTD","Từ đầu tháng"],["YTD","Từ đầu năm"]].map(([k,l])=>`<button data-invtab="${k}" aria-selected="${STATE.invTab===k}">${l}</button>`).join("")}</div>
@@ -699,6 +701,7 @@ function openAdd(existing=null){
     <textarea id="rawTxt" placeholder="…hoặc dán nội dung báo cáo tại đây"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn" id="extractBtn" ${API_OK?"":"disabled"}>Trích xuất</button><span class="muted" id="exStatus" style="font-size:12.5px">${API_OK?"":"Cần chạy server để dùng tính năng này."}</span></div>
     <div id="exForm"></div>`;
+  STATE.editingReportId=existing?.id||"";
   $("#addDlg").showModal();
   if(existing) renderExForm(existing,existing.id);
 }
@@ -712,7 +715,7 @@ async function extract(){
     const body=file?{pdfBase64:await fileB64(file),filename:file.name}:{text:raw};
     const r=await api("/api/extract",body);
     if(file&&!r.source) r.source=file.name;
-    $("#exStatus").textContent="Kiểm tra lại các trường rồi lưu."; renderExForm(r);
+    $("#exStatus").textContent="Kiểm tra lại các trường rồi lưu."; renderExForm(r,STATE.editingReportId);
   }catch(e){ $("#exStatus").textContent="Không trích xuất được: "+e.message; }
   $("#extractBtn").disabled=false;
 }
@@ -741,7 +744,7 @@ async function saveRep(){
     summary:g("summary")};
   const reportId=$("#saveRep").dataset.reportId||"";
   $("#saveRep").disabled=true; $("#saveStatus").textContent="Đang lưu và cập nhật database…";
-  try{ await api(reportId?`/api/reports/${encodeURIComponent(reportId)}`:"/api/reports",{report:rep},reportId?"PATCH":undefined); $("#addDlg").close(); await refresh(true); STATE.repPeriod="Tất cả"; STATE.repSel=reportId||null; render(); }
+  try{ const result=await api(reportId?`/api/reports/${encodeURIComponent(reportId)}`:"/api/reports",{report:rep},reportId?"PATCH":undefined); $("#addDlg").close(); STATE.editingReportId=""; await refresh(true); STATE.repPeriod="Tất cả"; STATE.repSel=result.id||reportId||null; render(); }
   catch(e){ $("#saveStatus").textContent="Không lưu được: "+e.message; $("#saveRep").disabled=false; }
 }
 function editReport(id){const report=DATA.reports.find(r=>r.id===id);if(report&&can("admin")) openAdd(report);}

@@ -81,21 +81,23 @@ def events(con, as_of):
 def flows(con, as_of):
     inv = q(con, "SELECT * FROM investor_flow WHERE date <= ?", as_of)
     inv["net_value"] = pd.to_numeric(inv.net_value, errors="coerce")
-    month, year = as_of[:7], as_of[:4]
+    flow_as_of = inv.date.max() if len(inv) else None
+    month, year = (flow_as_of or as_of)[:7], (flow_as_of or as_of)[:4]
 
     def agg(df):
         s = df.groupby("investor").net_value.sum()
-        return {k: num(s.get(k, 0), 0) for k in INVESTORS}
+        return {k: num(s.get(k), 0) if k in s.index else None for k in INVESTORS}
 
     dates = sorted(inv.date.unique())[-5:]
     hist = {"dates": [datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m") for d in dates]}
     for k in INVESTORS:
         hist[k] = [num(inv[(inv.date == d) & (inv.investor == k)].net_value.sum(), 0) for d in dates]
 
-    tk = q(con, "SELECT * FROM ticker_flow WHERE date = ?", as_of)
-    sc = q(con, "SELECT * FROM sector_flow WHERE date = ?", as_of)
+    tk = q(con, "SELECT * FROM ticker_flow WHERE date = ?", flow_as_of) if flow_as_of else q(con, "SELECT * FROM ticker_flow WHERE 1 = 0")
+    sc = q(con, "SELECT * FROM sector_flow WHERE date = ?", flow_as_of) if flow_as_of else q(con, "SELECT * FROM sector_flow WHERE 1 = 0")
     return {
-        "investors": {"Hôm nay": agg(inv[inv.date == as_of]), "MTD": agg(inv[inv.date.str[:7] == month]),
+        "asOf": flow_as_of,
+        "investors": {"Hôm nay": agg(inv[inv.date == flow_as_of]), "MTD": agg(inv[inv.date.str[:7] == month]),
                       "YTD": agg(inv[inv.date.str[:4] == year])},
         "history": hist,
         "tickers": [{"t": r.ticker, "v": num(r.net_value, 0), "main": r.main_investor,

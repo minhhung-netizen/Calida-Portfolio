@@ -50,7 +50,9 @@ def main():
                     raise RuntimeError("Không lấy được giá: " + ", ".join(failed))
             if not step("Giá vnstock", fetch_prices_strict):
                 source_failures.append("vnstock")
-    step("Nhập và quản lý báo cáo", import_inbox.run_all)
+    # Báo cáo được tạo/sửa/xóa qua web là dữ liệu nguồn. Không tiếp tục dựng
+    # dashboard nếu chưa ghi an toàn được các thay đổi này vào Excel.
+    step("Nhập và quản lý báo cáo", import_inbox.run_all, required=True)
     step("Build database", build_db.run, required=True)
     step("Xuất dashboard.json", export_json.run, required=True)
     if source_failures:

@@ -38,16 +38,18 @@ const SESSION_TTL_HOURS = Math.min(24 * 7, Math.max(1, Number(process.env.SESSIO
 const COOKIE_NAME = "calida_session";
 const WEB_DIR = path.join(ROOT, "web");
 const JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
-const INBOX = path.join(ROOT, "data", "inbox", "reports.jsonl");
-const REPORT_CHANGES = path.join(ROOT, "data", "inbox", "report_changes.jsonl");
-const LOG_DIR = path.join(ROOT, "data", "logs");
+// Có thể tách state khi kiểm thử; trên Railway mặc định vẫn là /app/data.
+const STATE_DIR = path.resolve(process.env.CALIDA_DATA_DIR || path.join(ROOT, "data"));
+const REPORT_JOBS = path.join(STATE_DIR, "inbox", "report_jobs.jsonl");
+const LOG_DIR = path.join(STATE_DIR, "logs");
 const AUDIT_LOG = path.join(LOG_DIR, "audit.jsonl");
-const USER_STORE_DIR = path.join(ROOT, "data", "auth");
+const USER_STORE_DIR = path.join(STATE_DIR, "auth");
 const USER_STORE = path.join(USER_STORE_DIR, "users.json");
-const ROLE_RANK = { viewer: 0, analyst: 1, admin: 2 };
+const ROLE_RANK = Object.freeze({ viewer: 0, analyst: 1, admin: 2 });
+const isRole = (role) => Object.hasOwn(ROLE_RANK, role);
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
 
-fs.mkdirSync(path.dirname(INBOX), { recursive: true });
+fs.mkdirSync(path.dirname(REPORT_JOBS), { recursive: true });
 fs.mkdirSync(LOG_DIR, { recursive: true });
 fs.mkdirSync(USER_STORE_DIR, { recursive: true });
 
@@ -96,14 +98,14 @@ function matchesPassword(password, storedHash) {
 function validateNewUser(username, password, role) {
   if (!USERNAME_RE.test(username)) throw new Error("Tên đăng nhập chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang (3–64 ký tự)");
   if (typeof password !== "string" || password.length < 12 || password.length > 200) throw new Error("Mật khẩu phải có từ 12 đến 200 ký tự");
-  if (!(role in ROLE_RANK)) throw new Error("Vai trò phải là viewer, analyst hoặc admin");
+  if (!isRole(role)) throw new Error("Vai trò phải là viewer, analyst hoặc admin");
 }
 
 function asStoredUser(user, createdAt = new Date().toISOString()) {
   const username = String(user?.username || "").trim();
   const password = String(user?.password || "");
   const role = String(user?.role || "").toLowerCase();
-  if (!USERNAME_RE.test(username) || !password || password.length > 200 || !(role in ROLE_RANK)) {
+  if (!USERNAME_RE.test(username) || !password || password.length > 200 || !isRole(role)) {
     throw new Error("CALIDA_USERS_JSON cần username hợp lệ, password và role viewer/analyst/admin");
   }
   return {
@@ -121,7 +123,7 @@ function validateStoredUsers(users) {
   const seen = new Set();
   for (const user of users) {
     const [scheme, salt, hash, ...rest] = String(user?.passwordHash || "").split("$");
-    if (!USERNAME_RE.test(user?.username || "") || !(user?.role in ROLE_RANK) || scheme !== "scrypt" || !salt || !hash || rest.length || !user?.sessionVersion || seen.has(user.username)) {
+    if (!USERNAME_RE.test(user?.username || "") || !isRole(user?.role) || scheme !== "scrypt" || !salt || !hash || rest.length || !user?.sessionVersion || seen.has(user.username)) {
       throw new Error("Kho người dùng không hợp lệ; hãy khôi phục users.json từ bản backup Railway Volume");
     }
     seen.add(user.username);
@@ -170,8 +172,8 @@ let USERS = loadUsers();
 const authEnabled = () => USERS.length > 0;
 const SESSION_SECRET = process.env.SESSION_SECRET || (ACCESS_TOKEN
   ? crypto.createHash("sha256").update(`calida-session:${ACCESS_TOKEN}`).digest("hex")
-  : "");
-if (authEnabled() && !process.env.SESSION_SECRET) console.warn("SESSION_SECRET chưa được đặt; phiên sẽ dùng secret dẫn xuất từ ACCESS_TOKEN. Hãy đặt SESSION_SECRET riêng trên Railway.");
+  : authEnabled() ? crypto.randomBytes(32).toString("base64url") : "");
+if (authEnabled() && !process.env.SESSION_SECRET) console.warn("SESSION_SECRET chưa được đặt; phiên sẽ bị đăng xuất khi service khởi động lại. Hãy đặt SESSION_SECRET riêng trên Railway.");
 
 function parseCookies(header = "") {
   return header.split(";").reduce((all, pair) => {
@@ -209,7 +211,7 @@ function readSession(req) {
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     const user = USERS.find((entry) => entry.username === payload?.u);
-    if (!payload || typeof payload.u !== "string" || !(payload.r in ROLE_RANK) || typeof payload.c !== "string" || !Number.isFinite(payload.e) || payload.e <= Date.now() / 1000 || !user || user.role !== payload.r || user.sessionVersion !== payload.v) return null;
+    if (!payload || typeof payload.u !== "string" || !isRole(payload.r) || typeof payload.c !== "string" || !Number.isFinite(payload.e) || payload.e <= Date.now() / 1000 || !user || user.role !== payload.r || user.sessionVersion !== payload.v) return null;
     return payload;
   } catch { return null; }
 }
@@ -259,7 +261,7 @@ function requireCsrf(req, res, next) {
 function requireRole(role) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: "Cần đăng nhập" });
-    if (ROLE_RANK[req.user.r] < ROLE_RANK[role]) return res.status(403).json({ error: "Bạn không có quyền thực hiện thao tác này" });
+    if (!isRole(req.user.r) || !isRole(role) || ROLE_RANK[req.user.r] < ROLE_RANK[role]) return res.status(403).json({ error: "Bạn không có quyền thực hiện thao tác này" });
     return next();
   };
 }
@@ -345,7 +347,7 @@ app.use(protectSite);
 
 app.get("/api/auth/me", (req, res) => {
   res.set("Cache-Control", "no-store");
-  return res.json({ user: { username: req.user.u, role: req.user.r }, csrfToken: req.user.c, expiresAt: new Date(req.user.e * 1000).toISOString() });
+  return res.json({ user: { username: req.user.u, role: req.user.r }, csrfToken: req.user.c, expiresAt: authEnabled() ? new Date(req.user.e * 1000).toISOString() : null });
 });
 
 app.post("/api/auth/logout", requireCsrf, (req, res) => {
@@ -390,7 +392,7 @@ app.patch("/api/admin/users/:username", requireRole("admin"), requireCsrf, write
     const hasPassword = typeof input.password === "string" && input.password.length > 0;
     if (!hasRole && !hasPassword) return res.status(400).json({ error: "Chưa có thay đổi nào để lưu" });
     const role = hasRole ? String(input.role || "").toLowerCase() : current.role;
-    if (!(role in ROLE_RANK)) return res.status(400).json({ error: "Vai trò phải là viewer, analyst hoặc admin" });
+    if (!isRole(role)) return res.status(400).json({ error: "Vai trò phải là viewer, analyst hoặc admin" });
     if (username === req.user.u && role !== current.role) return res.status(400).json({ error: "Không thể tự thay đổi vai trò của chính mình" });
     if (current.role === "admin" && role !== "admin" && adminCount() <= 1) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một admin" });
     if (hasPassword) validateNewUser(username, input.password, role);
@@ -493,7 +495,12 @@ function startPipeline(args, reason) {
 function enqueuePipeline(args, reason) {
   queuedJobs += 1;
   const job = pipelineQueue.catch(() => {}).then(() => startPipeline(args, reason));
-  pipelineQueue = job.finally(() => { queuedJobs -= 1; });
+  // Queue phải luôn trở về trạng thái resolved: request gọi job vẫn nhận lỗi,
+  // còn hàng đợi tiếp tục chạy tác vụ sau và Node không có rejection bị bỏ quên.
+  pipelineQueue = job.then(
+    () => { queuedJobs -= 1; },
+    () => { queuedJobs -= 1; },
+  );
   return job;
 }
 
@@ -623,7 +630,7 @@ function currentReport(id) {
 app.post("/api/reports", requireRole("analyst"), requireCsrf, writeLimit, async (req, res) => {
   try {
     const clean = cleanReport(req.body?.report, `U${Date.now().toString(36)}${crypto.randomBytes(8).toString("hex")}`);
-    fs.appendFileSync(INBOX, `${JSON.stringify(clean)}\n`, "utf8");
+    fs.appendFileSync(REPORT_JOBS, `${JSON.stringify({ action: "upsert", id: clean.id, report: clean })}\n`, "utf8");
     audit(req, "report.create", { reportId: clean.id, broker: clean.broker, date: clean.date });
     await enqueuePipeline(["--build-only"], `lưu báo cáo ${clean.id}`);
     return res.json({ ok: true, id: clean.id });
@@ -635,7 +642,7 @@ app.patch("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, asy
     const id = String(req.params.id || "");
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || !currentReport(id)) return res.status(404).json({ error: "Không tìm thấy báo cáo" });
     const clean = cleanReport(req.body?.report, id);
-    fs.appendFileSync(REPORT_CHANGES, `${JSON.stringify({ action: "upsert", id, report: clean })}\n`, "utf8");
+    fs.appendFileSync(REPORT_JOBS, `${JSON.stringify({ action: "upsert", id, report: clean })}\n`, "utf8");
     audit(req, "report.update", { reportId: id, broker: clean.broker, date: clean.date });
     await enqueuePipeline(["--build-only"], `cập nhật báo cáo ${id}`);
     return res.json({ ok: true, id });
@@ -647,7 +654,7 @@ app.delete("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, as
     const id = String(req.params.id || "");
     const existing = /^[A-Za-z0-9_-]{1,80}$/.test(id) ? currentReport(id) : null;
     if (!existing) return res.status(404).json({ error: "Không tìm thấy báo cáo" });
-    fs.appendFileSync(REPORT_CHANGES, `${JSON.stringify({ action: "delete", id })}\n`, "utf8");
+    fs.appendFileSync(REPORT_JOBS, `${JSON.stringify({ action: "delete", id })}\n`, "utf8");
     audit(req, "report.delete", { reportId: id, broker: existing.broker, date: existing.date });
     await enqueuePipeline(["--build-only"], `xóa báo cáo ${id}`);
     return res.json({ ok: true, id });

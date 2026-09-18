@@ -16,9 +16,10 @@ def _load_env():
         os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 _load_env()
 
-INPUT_DIR = ROOT / "data" / "input"
-INBOX_DIR = ROOT / "data" / "inbox"
-DB_PATH = ROOT / "data" / "calida.db"
+DATA_DIR = Path(os.getenv("CALIDA_DATA_DIR", ROOT / "data")).resolve()
+INPUT_DIR = DATA_DIR / "input"
+INBOX_DIR = DATA_DIR / "inbox"
+DB_PATH = DATA_DIR / "calida.db"
 JSON_OUT = ROOT / "web" / "data" / "dashboard.json"
 
 # ---- Google Sheets (đọc bằng Drive API export) ----

@@ -1,11 +1,20 @@
-"""Chuyển báo cáo lưu từ giao diện (data/inbox/reports.jsonl) vào reports.xlsx."""
+"""Chuyển các yêu cầu báo cáo từ inbox vào reports.xlsx một cách không mất dữ liệu."""
 import json
-import pandas as pd
-from config import INBOX_DIR
-from xlsx_io import read_sheet, upsert, write_sheets
+from pathlib import Path
+from uuid import uuid4
 
-INBOX = INBOX_DIR / "reports.jsonl"
-CHANGES = INBOX_DIR / "report_changes.jsonl"
+import pandas as pd
+
+from config import INBOX_DIR
+from xlsx_io import read_sheet, write_sheets
+
+
+# report_jobs là hàng đợi hiện hành. Hai file cũ vẫn được đọc để nâng cấp
+# Railway Volume mà không làm mất yêu cầu đã được ghi trước khi triển khai bản này.
+JOBS = INBOX_DIR / "report_jobs.jsonl"
+LEGACY_INBOX = INBOX_DIR / "reports.jsonl"
+LEGACY_CHANGES = INBOX_DIR / "report_changes.jsonl"
+SHEETS = ("REPORTS", "REPORT_STOCKS", "REPORT_SECTORS", "REPORT_RISKS")
 
 
 def report_frames(report):
@@ -28,63 +37,101 @@ def report_frames(report):
     }
 
 
-def apply_changes():
-    """Áp dụng sửa/xóa báo cáo vào Excel nguồn bằng một lần ghi atomic."""
-    if not CHANGES.exists() or not CHANGES.read_text(encoding="utf-8").strip():
-        return 0
-    changes = [json.loads(line) for line in CHANGES.read_text(encoding="utf-8").splitlines() if line.strip()]
-    frames = {sheet: read_sheet("reports.xlsx", sheet) for sheet in ("REPORTS", "REPORT_STOCKS", "REPORT_SECTORS", "REPORT_RISKS")}
-    for change in changes:
-        action, rid = change.get("action"), str(change.get("id", ""))
-        if not rid or action not in ("upsert", "delete"):
-            raise ValueError("Thay đổi báo cáo trong inbox không hợp lệ")
-        frames["REPORTS"] = frames["REPORTS"][frames["REPORTS"].id.astype(str) != rid]
-        for sheet in ("REPORT_STOCKS", "REPORT_SECTORS", "REPORT_RISKS"):
-            frames[sheet] = frames[sheet][frames[sheet].report_id.astype(str) != rid]
-        if action == "upsert":
-            report = change.get("report")
-            if not isinstance(report, dict) or str(report.get("id", "")) != rid:
-                raise ValueError("Payload cập nhật báo cáo không hợp lệ")
-            for sheet, new in report_frames(report).items():
-                if not new.empty:
-                    frames[sheet] = pd.concat([frames[sheet], new], ignore_index=True)
-    write_sheets("reports.xlsx", frames)
-    archive = INBOX_DIR / "report_changes_imported.jsonl"
-    with archive.open("a", encoding="utf-8") as f:
-        f.write(CHANGES.read_text(encoding="utf-8"))
-    CHANGES.write_text("", encoding="utf-8")
-    print(f"  Đã áp dụng {len(changes)} thay đổi báo cáo")
-    return len(changes)
+def claim(path: Path):
+    """Tách atomically phần inbox hiện tại để request mới luôn ghi vào file mới."""
+    if not path.exists() or not path.read_text(encoding="utf-8").strip():
+        return None
+    claimed = path.with_name(f".{path.stem}.processing-{uuid4().hex}{path.suffix}")
+    path.replace(claimed)
+    return claimed
 
 
-def run():
-    if not INBOX.exists() or not INBOX.read_text(encoding="utf-8").strip():
-        print("  Inbox trống"); return 0
-    reps, stocks, sectors, risks = [], [], [], []
-    for line in INBOX.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        r = json.loads(line)
-        reps.append({k: r.get(k) for k in ["id", "broker", "date", "type", "title", "stance", "horizon", "summary", "source"]}
-                    | {"vn_target": r.get("vnTarget")})
-        stocks += [{"report_id": r["id"], "ticker": s["t"], "rec": s.get("rec"), "target": s.get("target")} for s in r.get("stocks", [])]
-        sectors += [{"report_id": r["id"], "sector": s, "view": "OW"} for s in r.get("ow", [])]
-        sectors += [{"report_id": r["id"], "sector": s, "view": "UW"} for s in r.get("uw", [])]
-        risks += [{"report_id": r["id"], "topic": k["k"], "severity": k.get("s", 2)} for k in r.get("risks", [])]
-    upsert("reports.xlsx", "REPORTS", pd.DataFrame(reps))
-    for sh, rows in [("REPORT_STOCKS", stocks), ("REPORT_SECTORS", sectors), ("REPORT_RISKS", risks)]:
-        if rows:
-            upsert("reports.xlsx", sh, pd.DataFrame(rows))
-    archive = INBOX_DIR / "reports_imported.jsonl"
-    with archive.open("a", encoding="utf-8") as f:
-        f.write(INBOX.read_text(encoding="utf-8"))
-    INBOX.write_text("", encoding="utf-8")
-    print(f"  Đã nhập {len(reps)} báo cáo từ inbox")
-    return len(reps)
+def pending_files(path: Path):
+    """Lấy cả các lô còn dở dang sau một lần pipeline bị dừng."""
+    previous = sorted(path.parent.glob(f".{path.stem}.processing-*{path.suffix}"))
+    current = claim(path)
+    return previous + ([current] if current else [])
+
+
+def read_jsonl(path: Path):
+    try:
+        return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Inbox báo cáo lỗi JSON ({path.name}, dòng {error.lineno})") from error
+
+
+def remove_report(frames, report_id):
+    frames["REPORTS"] = frames["REPORTS"][frames["REPORTS"].id.astype(str) != report_id]
+    for sheet in SHEETS[1:]:
+        frames[sheet] = frames[sheet][frames[sheet].report_id.astype(str) != report_id]
+
+
+def apply_job(frames, job):
+    action, report_id = job.get("action"), str(job.get("id", ""))
+    if action not in ("upsert", "delete") or not report_id:
+        raise ValueError("Thay đổi báo cáo trong inbox không hợp lệ")
+    remove_report(frames, report_id)
+    if action == "upsert":
+        report = job.get("report")
+        if not isinstance(report, dict) or str(report.get("id", "")) != report_id:
+            raise ValueError("Payload cập nhật báo cáo không hợp lệ")
+        for sheet, rows in report_frames(report).items():
+            if not rows.empty:
+                frames[sheet] = pd.concat([frames[sheet], rows], ignore_index=True)
+
+
+def legacy_jobs(path: Path, kind: str):
+    """Chuyển định dạng inbox cũ sang cùng hàng đợi mới, vẫn giữ đúng thứ tự file."""
+    rows = read_jsonl(path)
+    if kind == "create":
+        return [{"action": "upsert", "id": str(row.get("id", "")), "report": row} for row in rows]
+    return rows
+
+
+def archive_and_remove(path: Path, archive_name: str):
+    archive = INBOX_DIR / archive_name
+    with archive.open("a", encoding="utf-8") as file:
+        file.write(path.read_text(encoding="utf-8"))
+    path.unlink()
 
 
 def run_all():
-    return run() + apply_changes()
+    INBOX_DIR.mkdir(parents=True, exist_ok=True)
+    batches = []
+    for path, kind, archive in (
+        (LEGACY_INBOX, "create", "reports_imported.jsonl"),
+        (LEGACY_CHANGES, "change", "report_changes_imported.jsonl"),
+        (JOBS, "change", "report_jobs_imported.jsonl"),
+    ):
+        batches.extend((claimed, kind, archive) for claimed in pending_files(path))
+    if not batches:
+        print("  Inbox trống")
+        return 0
+
+    # Đọc và kiểm tra toàn bộ trước khi chạm vào Excel; file processing được giữ
+    # nguyên khi có lỗi để operator có thể sửa/retry mà không mất yêu cầu.
+    parsed = [(path, archive, legacy_jobs(path, kind)) for path, kind, archive in batches]
+    frames = {sheet: read_sheet("reports.xlsx", sheet) for sheet in SHEETS}
+    count = 0
+    for _, _, jobs in parsed:
+        for job in jobs:
+            apply_job(frames, job)
+            count += 1
+    write_sheets("reports.xlsx", frames)
+    for path, archive, _ in parsed:
+        archive_and_remove(path, archive)
+    print(f"  Đã áp dụng {count} thay đổi báo cáo")
+    return count
+
+
+def run():
+    """Tương thích ngược với các lệnh gọi cũ."""
+    return run_all()
+
+
+def apply_changes():
+    """Tương thích ngược với các lệnh gọi cũ."""
+    return run_all()
 
 
 if __name__ == "__main__":

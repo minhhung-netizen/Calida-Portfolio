@@ -28,8 +28,12 @@ jobs:
         run: |
           node --check server/index.js
           node -e "const fs=require('fs'); const html=fs.readFileSync('web/index.html','utf8'); const script=html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/); if (!script) throw new Error('Inline script not found'); new Function(script[1]);"
+      - name: Test server authentication and report queue
+        run: npm test --prefix server
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Validate Python pipeline syntax
-        run: python -c "import ast, pathlib; [ast.parse(p.read_text(encoding='utf-8')) for p in pathlib.Path('pipeline').glob('*.py')]"
+      - name: Test Python report importer
+        run: |
+          python -m pip install "pandas>=2.0" "openpyxl>=3.1"
+          python -m unittest pipeline/test_import_inbox.py
