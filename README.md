@@ -13,7 +13,7 @@ Hệ thống phân tích gồm 6 trang: Tổng quan · Bản tin · Danh mục �
                                                                              server/index.js ───────┘  (/api/chat, /api/extract, /api/reports)
 ```
 
-- **Excel là lớp dữ liệu gốc**: mở ra xem, sửa tay được. Pipeline chỉ **upsert theo khóa**, không xóa lịch sử.
+- **Excel là lớp dữ liệu gốc**: mở ra xem, sửa tay được. Pipeline chỉ **upsert theo khóa**, không xóa lịch sử; admin có thể cập nhật hoặc xóa báo cáo từ giao diện và thay đổi sẽ đi qua pipeline về `reports.xlsx`.
 - **SQLite (`data/calida.db`)** được dựng lại toàn bộ từ Excel mỗi lần chạy, có kiểm tra cột, ngày và dòng trùng khóa.
 - **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
 
@@ -71,12 +71,13 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
 - Server phục vụ giao diện và API.
 - Tự chạy pipeline lúc `PIPELINE_TIME` (T2–T6). Log nằm ở `data/logs/`.
 - Khi lưu báo cáo, server ghi vào `data/inbox/`, rồi dựng lại DB ngay.
+- Admin có thể sửa/xóa báo cáo trong thư viện; mỗi thay đổi được đưa vào inbox, áp dụng atomic vào `reports.xlsx` rồi mới dựng lại dashboard.
 - Đặt `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` khi mở ra internet; phiên đăng nhập dùng cookie `HttpOnly`.
 - Xem `RAILWAY_DEPLOY.md` trước khi deploy Railway, đặc biệt phần Volume, backup và nguồn dữ liệu chính.
 
 **B. Chỉ host tĩnh** (GitHub Pages / Netlify / Vercel):
 - Upload thư mục `web/`.
-- Bật `.github/workflows/pipeline.yml`, thêm các secret `GOOGLE_SA_JSON`, `PORTFOLIO_SHEET_ID`, `FUNDS_SHEET_ID`.
+- Chỉ khi thực sự dùng host tĩnh, tạo repository variable `ENABLE_STATIC_PIPELINE=true`, rồi thêm các secret `GOOGLE_SA_JSON`, `PORTFOLIO_SHEET_ID`, `FUNDS_SHEET_ID`. Workflow này mặc định bị tắt để tránh commit dữ liệu Railway Volume về GitHub.
 - Hỏi đáp và "Thêm báo cáo" sẽ tự ẩn vì không có server.
 
 **C. Tách giao diện và API** – host `web/` ở một nơi, server ở nơi khác:

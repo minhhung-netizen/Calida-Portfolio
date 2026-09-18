@@ -575,7 +575,8 @@ function pgReports(){
 }
 const fmtD=d=>{const [y,m,dd]=d.split("-");return `${dd}/${m}/${y}`;};
 function repDetail(r){
-  return `<div class="box" style="margin-bottom:12px"><div class="row"><b style="flex:1">${esc(r.title)}</b>${statusTag(r.stance)}<button class="icon-btn" data-rsel="" aria-label="Đóng">✕</button></div>
+  const actions=can("admin")?`<button class="link" data-edit-rep="${esc(r.id)}">Chỉnh sửa</button><button class="link" data-delete-rep="${esc(r.id)}">Xóa</button>`:"";
+  return `<div class="box" style="margin-bottom:12px"><div class="row"><b style="flex:1">${esc(r.title)}</b>${statusTag(r.stance)}${actions}<button class="icon-btn" data-rsel="" aria-label="Đóng">✕</button></div>
     <div class="muted" style="font-size:12.5px">${esc(r.broker)} · ${fmtD(r.date)} · ${esc(r.type)} · Tầm nhìn ${esc(r.horizon||"—")}${r.vnTarget?` · Target VN-Index ${nf(r.vnTarget)}`:""}</div>
     <p class="prose" style="margin-top:8px">${esc(r.summary)}</p>
     <div class="label-sm">Tăng tỷ trọng ${r.ow.map(s=>`<span class="chip" style="margin:0">${esc(s)}</span>`).join("")||"—"}</div>
@@ -599,7 +600,7 @@ function pgAdmin(){
   const operation=STATE.adminOpsError?`<div class="empty">${esc(STATE.adminOpsError)} <button class="link" id="reloadOps">Thử lại</button></div>`
     :!ops?'<div class="empty">Đang tải trạng thái vận hành…</div>'
     :(()=>{const p=ops.pipeline||{}, tag=p.status==="ok"?"bg-up":p.status==="error"?"bg-down":p.status==="running"?"bg-warn":"bg-neutral";
-      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","pipeline.queue":"Yêu cầu chạy pipeline","pipeline.complete":"Pipeline hoàn tất"};
+      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","report.update":"Cập nhật báo cáo","report.delete":"Xóa báo cáo","pipeline.queue":"Yêu cầu chạy pipeline","pipeline.complete":"Pipeline hoàn tất"};
       const busy=p.status==="running"||p.queuedJobs>0;
       return `<div class="grid" style="gap:14px"><div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
         <p class="muted" style="margin:8px 0 0">${p.reason?`Lần gần nhất: ${esc(p.reason)}${p.finishedAt?` · ${new Date(p.finishedAt).toLocaleString("vi-VN")}`:""}`:"Chưa có lần chạy trong phiên này."}${p.error?`<br><span class="down">${esc(p.error)}</span>`:""}</p>
@@ -690,15 +691,16 @@ async function ask(text){
   STATE.chatBusy=false; if(STATE.page==="reports") paintChat();
 }
 
-function openAdd(){
+function openAdd(existing=null){
   if(!can("analyst")) return;
-  $("#addBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Thêm báo cáo</h2><button class="icon-btn" id="dlgClose" aria-label="Đóng">✕</button></div>
-    <p class="muted" style="margin:4px 0 12px">Tải file PDF hoặc dán nội dung báo cáo. Hệ thống trích xuất các trường để bạn kiểm tra trước khi lưu.</p>
+  $("#addBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">${existing?"Chỉnh sửa báo cáo":"Thêm báo cáo"}</h2><button class="icon-btn" id="dlgClose" aria-label="Đóng">✕</button></div>
+    <p class="muted" style="margin:4px 0 12px">${existing?"Thay đổi sẽ được ghi vào Excel nguồn và dựng lại dashboard.":"Tải file PDF hoặc dán nội dung báo cáo. Hệ thống trích xuất các trường để bạn kiểm tra trước khi lưu."}</p>
     <label class="btn ghost" style="display:inline-block;margin-bottom:8px">Chọn file PDF<input type="file" id="pdfIn" accept="application/pdf" hidden></label> <span id="pdfName" class="muted"></span>
     <textarea id="rawTxt" placeholder="…hoặc dán nội dung báo cáo tại đây"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn" id="extractBtn" ${API_OK?"":"disabled"}>Trích xuất</button><span class="muted" id="exStatus" style="font-size:12.5px">${API_OK?"":"Cần chạy server để dùng tính năng này."}</span></div>
     <div id="exForm"></div>`;
   $("#addDlg").showModal();
+  if(existing) renderExForm(existing,existing.id);
 }
 const fileB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=()=>rej(new Error("Không đọc được file"));r.readAsDataURL(f);});
 async function extract(){
@@ -714,7 +716,7 @@ async function extract(){
   }catch(e){ $("#exStatus").textContent="Không trích xuất được: "+e.message; }
   $("#extractBtn").disabled=false;
 }
-function renderExForm(r){
+function renderExForm(r,reportId=""){
   const f=(k,l,v)=>`<label>${l}<input data-f="${k}" value="${esc(v??"")}"></label>`;
   $("#exForm").innerHTML=`<div class="fgrid" style="margin-top:14px">
     ${f("broker","CTCK",r.broker)}${f("date","Ngày (YYYY-MM-DD)",r.date)}
@@ -726,7 +728,7 @@ function renderExForm(r){
     ${f("risks","Rủi ro (chủ đề:mức; …)",(r.risks||[]).map(k=>`${k.k}:${k.s}`).join("; "))}
     ${f("horizon","Tầm nhìn",r.horizon)}${f("source","Nguồn / tên file",r.source)}
     <label style="grid-column:1/-1">Tóm tắt<textarea data-f="summary" style="height:70px">${esc(r.summary)}</textarea></label></div>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="saveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveRep">Lưu báo cáo</button></div>`;
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="saveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveRep" data-report-id="${esc(reportId)}">${reportId?"Lưu thay đổi":"Lưu báo cáo"}</button></div>`;
 }
 async function saveRep(){
   const g=k=>$(`#exForm [data-f="${k}"]`).value.trim(), sp=s=>s?s.split(/[,;]/).map(x=>x.trim()).filter(Boolean):[];
@@ -737,9 +739,16 @@ async function saveRep(){
     stocks:g("stocks").split(";").map(x=>x.trim()).filter(Boolean).map(x=>{const [t,rec,tg]=x.split(":");return {t:(t||"").trim().toUpperCase(),rec:(rec||"").trim().toUpperCase(),target:parseFloat((tg||"").replace(",","."))||null};}).filter(s=>s.t),
     risks:g("risks").split(";").map(x=>x.trim()).filter(Boolean).map(x=>{const [k,s]=x.split(":");return {k:k.trim(),s:Math.min(3,Math.max(1,parseInt(s)||2))};}),
     summary:g("summary")};
+  const reportId=$("#saveRep").dataset.reportId||"";
   $("#saveRep").disabled=true; $("#saveStatus").textContent="Đang lưu và cập nhật database…";
-  try{ await api("/api/reports",{report:rep}); $("#addDlg").close(); await refresh(true); STATE.repPeriod="Tất cả"; render(); }
+  try{ await api(reportId?`/api/reports/${encodeURIComponent(reportId)}`:"/api/reports",{report:rep},reportId?"PATCH":undefined); $("#addDlg").close(); await refresh(true); STATE.repPeriod="Tất cả"; STATE.repSel=reportId||null; render(); }
   catch(e){ $("#saveStatus").textContent="Không lưu được: "+e.message; $("#saveRep").disabled=false; }
+}
+function editReport(id){const report=DATA.reports.find(r=>r.id===id);if(report&&can("admin")) openAdd(report);}
+async function deleteReport(id){
+  const report=DATA.reports.find(r=>r.id===id); if(!report||!can("admin")||!confirm(`Xóa báo cáo “${report.title}”? Thao tác này không thể hoàn tác.`)) return;
+  try{await api(`/api/reports/${encodeURIComponent(id)}`,undefined,"DELETE"); STATE.repSel=null; await refresh(true); render();}
+  catch(e){alert("Không xóa được báo cáo: "+e.message);}
 }
 
 /* ============ events ============ */
@@ -758,6 +767,8 @@ document.addEventListener("click",e=>{
   if(d.rt){STATE.repType=d.rt;render();}
   if("rsel" in d){STATE.repSel=d.rsel||null;render();}
   if(d.ask){ask(d.ask);}
+  if(d.editRep){editReport(d.editRep);}
+  if(d.deleteRep){deleteReport(d.deleteRep);}
   if(d.editUser){openUserDialog(d.editUser);}
   if(d.deleteUser){deleteUser(d.deleteUser);}
   if(t.id==="chatSend"){const v=$("#chatIn").value;$("#chatIn").value="";ask(v);}

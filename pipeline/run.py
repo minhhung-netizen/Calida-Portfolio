@@ -50,7 +50,7 @@ def main():
                     raise RuntimeError("Không lấy được giá: " + ", ".join(failed))
             if not step("Giá vnstock", fetch_prices_strict):
                 source_failures.append("vnstock")
-    step("Nhập báo cáo từ inbox", import_inbox.run)
+    step("Nhập và quản lý báo cáo", import_inbox.run_all)
     step("Build database", build_db.run, required=True)
     step("Xuất dashboard.json", export_json.run, required=True)
     if source_failures:

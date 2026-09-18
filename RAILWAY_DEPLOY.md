@@ -66,4 +66,5 @@ Sau đó mở domain Railway.
 - Một lần pipeline thất bại khi lấy Google Sheets hoặc vnstock sẽ trả mã lỗi, nhưng dashboard vẫn được dựng từ dữ liệu có sẵn. Kiểm tra log Railway và `/api/status` sau mỗi lượt chạy.
 - Admin có thể vào **Quản trị → Vận hành dữ liệu** để xem độ mới của từng nguồn, nhật ký thao tác và chạy pipeline. Chỉ dùng **Đồng bộ toàn bộ nguồn** khi cần lấy mới Google Sheets/vnstock; **Dựng lại dashboard** chỉ dùng Excel đã có trên Volume.
 - Nhật ký thao tác nằm trong `/app/data/logs/audit.jsonl`, theo Volume backup. Nhật ký không ghi mật khẩu hoặc secrets.
-- Không bật `.github/workflows/pipeline.yml` cùng với Railway cho dữ liệu thật: workflow này commit các workbook trong `data/input/` về Git, còn Railway tiếp tục dùng Volume riêng. Chỉ dùng workflow này cho phương án host tĩnh với dữ liệu không nhạy cảm.
+- Admin có thể sửa/xóa báo cáo trong thư viện. Thay đổi được lưu tạm trong inbox, áp dụng atomic vào `reports.xlsx`, rồi pipeline dựng lại dashboard.
+- Không bật `.github/workflows/pipeline.yml` cùng với Railway cho dữ liệu thật: workflow chỉ chạy nếu repository variable `ENABLE_STATIC_PIPELINE=true`, vì nó commit các workbook trong `data/input/` về Git. Chỉ bật cho phương án host tĩnh với dữ liệu không nhạy cảm.

@@ -9,6 +9,9 @@ permissions:
   contents: write
 jobs:
   run:
+    # Railway uses its Volume as the source of truth. Enable this only for an
+    # intentionally static deployment by creating repository variable ENABLE_STATIC_PIPELINE=true.
+    if: vars.ENABLE_STATIC_PIPELINE == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

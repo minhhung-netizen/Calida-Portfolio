@@ -1,0 +1,35 @@
+name: Verify application
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax-and-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --prefix server --omit=dev
+      - name: Validate Node server and browser script
+        run: |
+          node --check server/index.js
+          node -e "const fs=require('fs'); const html=fs.readFileSync('web/index.html','utf8'); const script=html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/); if (!script) throw new Error('Inline script not found'); new Function(script[1]);"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate Python pipeline syntax
+        run: python -c "import ast, pathlib; [ast.parse(p.read_text(encoding='utf-8')) for p in pathlib.Path('pipeline').glob('*.py')]"

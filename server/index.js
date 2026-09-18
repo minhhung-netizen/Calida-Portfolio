@@ -39,6 +39,7 @@ const COOKIE_NAME = "calida_session";
 const WEB_DIR = path.join(ROOT, "web");
 const JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
 const INBOX = path.join(ROOT, "data", "inbox", "reports.jsonl");
+const REPORT_CHANGES = path.join(ROOT, "data", "inbox", "report_changes.jsonl");
 const LOG_DIR = path.join(ROOT, "data", "logs");
 const AUDIT_LOG = path.join(LOG_DIR, "audit.jsonl");
 const USER_STORE_DIR = path.join(ROOT, "data", "auth");
@@ -596,30 +597,61 @@ app.post("/api/extract", requireRole("analyst"), requireCsrf, extractLimit, asyn
 
 const TYPES = ["Chiến lược", "Vĩ mô", "Ngành", "Doanh nghiệp"];
 const STANCES = ["Tích cực", "Trung lập", "Thận trọng", "Tiêu cực"];
+function cleanReport(report, id) {
+  if (!report || typeof report !== "object" || Array.isArray(report)) throw Object.assign(new Error("Báo cáo không hợp lệ"), { status: 400 });
+  const errors = [];
+  if (typeof report.broker !== "string" || !report.broker.trim()) errors.push("thiếu CTCK");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(report.date || "")) errors.push("ngày phải dạng YYYY-MM-DD");
+  if (!TYPES.includes(report.type)) errors.push("loại báo cáo không hợp lệ");
+  if (!STANCES.includes(report.stance)) errors.push("quan điểm không hợp lệ");
+  if (errors.length) throw Object.assign(new Error(errors.join("; ")), { status: 400 });
+  return {
+    id,
+    broker: report.broker.trim().slice(0, 120), date: report.date, type: report.type, title: String(report.title || "").slice(0, 300),
+    stance: report.stance, vnTarget: Number(report.vnTarget) || null, horizon: String(report.horizon || "").slice(0, 120), source: String(report.source || "").slice(0, 500), summary: String(report.summary || "").slice(0, 2000),
+    ow: asList(report.ow).map(String).map((value) => value.trim()).filter(Boolean).slice(0, 30), uw: asList(report.uw).map(String).map((value) => value.trim()).filter(Boolean).slice(0, 30),
+    stocks: asList(report.stocks).filter((stock) => stock && typeof stock === "object" && /^[A-Z0-9]{3,4}$/.test(String(stock.t || ""))).slice(0, 100).map((stock) => ({ t: String(stock.t).toUpperCase(), rec: String(stock.rec || "").slice(0, 30), target: Number(stock.target) || null })),
+    risks: asList(report.risks).filter((risk) => risk && typeof risk === "object" && String(risk.k || "").trim()).slice(0, 50).map((risk) => ({ k: String(risk.k).trim().slice(0, 200), s: Math.min(3, Math.max(1, Number(risk.s) || 2)) })),
+  };
+}
+
+function currentReport(id) {
+  try { return readData().reports.find((report) => report.id === id); }
+  catch { return null; }
+}
+
 app.post("/api/reports", requireRole("analyst"), requireCsrf, writeLimit, async (req, res) => {
   try {
-    const report = req.body?.report;
-    if (!report || typeof report !== "object" || Array.isArray(report)) return res.status(400).json({ error: "Báo cáo không hợp lệ" });
-    const errors = [];
-    if (typeof report.broker !== "string" || !report.broker.trim()) errors.push("thiếu CTCK");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(report.date || "")) errors.push("ngày phải dạng YYYY-MM-DD");
-    if (!TYPES.includes(report.type)) errors.push("loại báo cáo không hợp lệ");
-    if (!STANCES.includes(report.stance)) errors.push("quan điểm không hợp lệ");
-    if (errors.length) return res.status(400).json({ error: errors.join("; ") });
-    const clean = {
-      id: `U${Date.now().toString(36)}${crypto.randomBytes(8).toString("hex")}`,
-      broker: report.broker.trim().slice(0, 120), date: report.date, type: report.type, title: String(report.title || "").slice(0, 300),
-      stance: report.stance, vnTarget: Number(report.vnTarget) || null, horizon: String(report.horizon || "").slice(0, 120), source: String(report.source || "").slice(0, 500), summary: String(report.summary || "").slice(0, 2000),
-      ow: asList(report.ow).map(String).map((value) => value.trim()).filter(Boolean).slice(0, 30), uw: asList(report.uw).map(String).map((value) => value.trim()).filter(Boolean).slice(0, 30),
-      stocks: asList(report.stocks).filter((stock) => stock && typeof stock === "object" && /^[A-Z0-9]{3,4}$/.test(String(stock.t || ""))).slice(0, 100).map((stock) => ({ t: String(stock.t).toUpperCase(), rec: String(stock.rec || "").slice(0, 30), target: Number(stock.target) || null })),
-      risks: asList(report.risks).filter((risk) => risk && typeof risk === "object" && String(risk.k || "").trim()).slice(0, 50).map((risk) => ({ k: String(risk.k).trim().slice(0, 200), s: Math.min(3, Math.max(1, Number(risk.s) || 2)) })),
-      createdAt: new Date().toISOString(),
-    };
+    const clean = cleanReport(req.body?.report, `U${Date.now().toString(36)}${crypto.randomBytes(8).toString("hex")}`);
     fs.appendFileSync(INBOX, `${JSON.stringify(clean)}\n`, "utf8");
     audit(req, "report.create", { reportId: clean.id, broker: clean.broker, date: clean.date });
     await enqueuePipeline(["--build-only"], `lưu báo cáo ${clean.id}`);
     return res.json({ ok: true, id: clean.id });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
+});
+
+app.patch("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, async (req, res) => {
+  try {
+    const id = String(req.params.id || "");
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || !currentReport(id)) return res.status(404).json({ error: "Không tìm thấy báo cáo" });
+    const clean = cleanReport(req.body?.report, id);
+    fs.appendFileSync(REPORT_CHANGES, `${JSON.stringify({ action: "upsert", id, report: clean })}\n`, "utf8");
+    audit(req, "report.update", { reportId: id, broker: clean.broker, date: clean.date });
+    await enqueuePipeline(["--build-only"], `cập nhật báo cáo ${id}`);
+    return res.json({ ok: true, id });
+  } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
+});
+
+app.delete("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, async (req, res) => {
+  try {
+    const id = String(req.params.id || "");
+    const existing = /^[A-Za-z0-9_-]{1,80}$/.test(id) ? currentReport(id) : null;
+    if (!existing) return res.status(404).json({ error: "Không tìm thấy báo cáo" });
+    fs.appendFileSync(REPORT_CHANGES, `${JSON.stringify({ action: "delete", id })}\n`, "utf8");
+    audit(req, "report.delete", { reportId: id, broker: existing.broker, date: existing.date });
+    await enqueuePipeline(["--build-only"], `xóa báo cáo ${id}`);
+    return res.json({ ok: true, id });
+  } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post("/api/pipeline/run", requireRole("admin"), requireCsrf, pipelineLimit, (req, res) => {
