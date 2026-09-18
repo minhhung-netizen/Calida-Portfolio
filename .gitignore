@@ -5,6 +5,7 @@ data/calida.db
 data/*.tmp.db
 data/logs/
 data/inbox/*.jsonl
+data/auth/
 __pycache__/
 
 .venv/

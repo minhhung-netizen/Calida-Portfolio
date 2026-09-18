@@ -29,7 +29,7 @@ Tối thiểu cho server:
 
 - `GEMINI_API_KEY` (nếu dùng chat/extract)
 - `GEMINI_MODEL=gemini-2.5-flash`
-- `ACCESS_TOKEN=<một mật khẩu mạnh>` nếu chỉ dùng một tài khoản admin, hoặc `CALIDA_USERS_JSON` nếu cần các vai trò `viewer`, `analyst`, `admin`
+- `ACCESS_TOKEN=<một mật khẩu mạnh>` để tạo admin ban đầu, hoặc `CALIDA_USERS_JSON` nếu muốn khai báo nhiều tài khoản ban đầu
 - `SESSION_SECRET=<chuỗi ngẫu nhiên dài, khác ACCESS_TOKEN>`
 - `SESSION_TTL_HOURS=8`
 - `SESSION_COOKIE_SECURE=auto`
@@ -45,7 +45,9 @@ Nếu pipeline đọc Google Sheets:
 
 Các biến khác lấy theo `.env.example`.
 
-Không đặt `ACCESS_TOKEN`, `SESSION_SECRET`, `GOOGLE_SA_JSON` hoặc mật khẩu trong Git. Khi `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` được cấu hình, mọi trang, API và `dashboard.json` đều yêu cầu đăng nhập. `viewer` chỉ xem dữ liệu; `analyst` dùng AI và thêm báo cáo; `admin` có thêm quyền chạy pipeline.
+Không đặt `ACCESS_TOKEN`, `SESSION_SECRET`, `GOOGLE_SA_JSON` hoặc mật khẩu trong Git. Khi `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` được cấu hình, mọi trang, API và `dashboard.json` đều yêu cầu đăng nhập. `viewer` chỉ xem dữ liệu; `analyst` dùng AI và thêm báo cáo; `admin` có thêm quyền chạy pipeline và quản lý tài khoản.
+
+Sau khi đăng nhập bằng admin, mở **Quản trị** ở thanh bên để tạo, sửa vai trò, đặt lại mật khẩu hoặc xóa tài khoản. Hệ thống lưu mật khẩu ở dạng băm trong `/app/data/auth/users.json` trên Railway Volume; sau lần thay đổi đầu tiên, kho này là nguồn tài khoản chính thay cho `ACCESS_TOKEN`/`CALIDA_USERS_JSON`. Không commit thư mục `data/auth/` và cần có Volume backup trước khi vận hành.
 
 ## 5. Lần deploy đầu
 

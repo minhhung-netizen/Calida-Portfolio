@@ -40,10 +40,14 @@ const WEB_DIR = path.join(ROOT, "web");
 const JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
 const INBOX = path.join(ROOT, "data", "inbox", "reports.jsonl");
 const LOG_DIR = path.join(ROOT, "data", "logs");
+const USER_STORE_DIR = path.join(ROOT, "data", "auth");
+const USER_STORE = path.join(USER_STORE_DIR, "users.json");
 const ROLE_RANK = { viewer: 0, analyst: 1, admin: 2 };
+const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
 
 fs.mkdirSync(path.dirname(INBOX), { recursive: true });
 fs.mkdirSync(LOG_DIR, { recursive: true });
+fs.mkdirSync(USER_STORE_DIR, { recursive: true });
 
 function sameSecret(left, right) {
   const a = Buffer.from(String(left || ""));
@@ -51,34 +55,100 @@ function sameSecret(left, right) {
   return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
 }
 
-function loadUsers() {
-  const raw = process.env.CALIDA_USERS_JSON;
-  if (!raw) return ACCESS_TOKEN ? [{ username: "admin", password: ACCESS_TOKEN, role: "admin" }] : [];
-  let parsed;
-  try { parsed = JSON.parse(raw); }
-  catch { throw new Error("CALIDA_USERS_JSON phải là một JSON array hợp lệ"); }
-  if (!Array.isArray(parsed) || !parsed.length) throw new Error("CALIDA_USERS_JSON phải chứa ít nhất một người dùng");
-  const users = parsed.map((user) => ({
-    username: String(user?.username || "").trim(),
-    password: String(user?.password || ""),
-    role: String(user?.role || "").toLowerCase(),
-  }));
+function passwordHash(password) {
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.scryptSync(password, salt, 64);
+  return `scrypt$${salt.toString("base64url")}$${hash.toString("base64url")}`;
+}
+
+function matchesPassword(password, storedHash) {
+  const [scheme, salt, expected, ...rest] = String(storedHash || "").split("$");
+  if (scheme !== "scrypt" || !salt || !expected || rest.length) return false;
+  try {
+    const actual = crypto.scryptSync(password, Buffer.from(salt, "base64url"), 64);
+    return sameSecret(actual.toString("base64url"), expected);
+  } catch { return false; }
+}
+
+function validateNewUser(username, password, role) {
+  if (!USERNAME_RE.test(username)) throw new Error("Tên đăng nhập chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang (3–64 ký tự)");
+  if (typeof password !== "string" || password.length < 12 || password.length > 200) throw new Error("Mật khẩu phải có từ 12 đến 200 ký tự");
+  if (!(role in ROLE_RANK)) throw new Error("Vai trò phải là viewer, analyst hoặc admin");
+}
+
+function asStoredUser(user, createdAt = new Date().toISOString()) {
+  const username = String(user?.username || "").trim();
+  const password = String(user?.password || "");
+  const role = String(user?.role || "").toLowerCase();
+  if (!USERNAME_RE.test(username) || !password || password.length > 200 || !(role in ROLE_RANK)) {
+    throw new Error("CALIDA_USERS_JSON cần username hợp lệ, password và role viewer/analyst/admin");
+  }
+  return {
+    username,
+    role,
+    passwordHash: passwordHash(password),
+    sessionVersion: crypto.randomBytes(16).toString("base64url"),
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function validateStoredUsers(users) {
+  if (!Array.isArray(users) || !users.length) throw new Error("Danh sách người dùng phải có ít nhất một tài khoản");
   const seen = new Set();
   for (const user of users) {
-    if (!/^[a-zA-Z0-9._-]{3,64}$/.test(user.username) || !user.password || !(user.role in ROLE_RANK) || seen.has(user.username)) {
-      throw new Error("Mỗi người dùng trong CALIDA_USERS_JSON cần username duy nhất, password và role viewer/analyst/admin");
+    const [scheme, salt, hash, ...rest] = String(user?.passwordHash || "").split("$");
+    if (!USERNAME_RE.test(user?.username || "") || !(user?.role in ROLE_RANK) || scheme !== "scrypt" || !salt || !hash || rest.length || !user?.sessionVersion || seen.has(user.username)) {
+      throw new Error("Kho người dùng không hợp lệ; hãy khôi phục users.json từ bản backup Railway Volume");
     }
     seen.add(user.username);
   }
+  if (!users.some((user) => user.role === "admin")) throw new Error("Kho người dùng phải có ít nhất một admin");
   return users;
 }
 
-const USERS = loadUsers();
-const AUTH_ENABLED = USERS.length > 0;
+function readUserStore() {
+  if (!fs.existsSync(USER_STORE)) return null;
+  let parsed;
+  try { parsed = JSON.parse(fs.readFileSync(USER_STORE, "utf8")); }
+  catch { throw new Error("Không đọc được data/auth/users.json"); }
+  return validateStoredUsers(parsed?.users);
+}
+
+function loadBootstrapUsers() {
+  const raw = process.env.CALIDA_USERS_JSON;
+  let parsed;
+  if (!raw) parsed = ACCESS_TOKEN ? [{ username: "admin", password: ACCESS_TOKEN, role: "admin" }] : [];
+  else {
+    try { parsed = JSON.parse(raw); }
+    catch { throw new Error("CALIDA_USERS_JSON phải là một JSON array hợp lệ"); }
+  }
+  if (!Array.isArray(parsed)) throw new Error("CALIDA_USERS_JSON phải là một JSON array hợp lệ");
+  if (!parsed.length) return [];
+  const seen = new Set();
+  return parsed.map((user) => {
+    const stored = asStoredUser(user);
+    if (seen.has(stored.username)) throw new Error("CALIDA_USERS_JSON chứa username trùng lặp");
+    seen.add(stored.username);
+    return stored;
+  });
+}
+
+function loadUsers() { return readUserStore() || loadBootstrapUsers(); }
+
+function writeUserStore(users) {
+  validateStoredUsers(users);
+  const temp = `${USER_STORE}.${crypto.randomUUID()}.tmp`;
+  fs.writeFileSync(temp, `${JSON.stringify({ version: 1, users }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(temp, USER_STORE);
+}
+
+let USERS = loadUsers();
+const authEnabled = () => USERS.length > 0;
 const SESSION_SECRET = process.env.SESSION_SECRET || (ACCESS_TOKEN
   ? crypto.createHash("sha256").update(`calida-session:${ACCESS_TOKEN}`).digest("hex")
   : "");
-if (AUTH_ENABLED && !process.env.SESSION_SECRET) console.warn("SESSION_SECRET chưa được đặt; phiên sẽ dùng secret dẫn xuất từ ACCESS_TOKEN. Hãy đặt SESSION_SECRET riêng trên Railway.");
+if (authEnabled() && !process.env.SESSION_SECRET) console.warn("SESSION_SECRET chưa được đặt; phiên sẽ dùng secret dẫn xuất từ ACCESS_TOKEN. Hãy đặt SESSION_SECRET riêng trên Railway.");
 
 function parseCookies(header = "") {
   return header.split(";").reduce((all, pair) => {
@@ -99,6 +169,7 @@ function issueSession(user) {
   const payload = {
     u: user.username,
     r: user.role,
+    v: user.sessionVersion,
     e: Math.floor(Date.now() / 1000) + SESSION_TTL_HOURS * 3600,
     c: crypto.randomBytes(24).toString("base64url"),
   };
@@ -107,14 +178,15 @@ function issueSession(user) {
 }
 
 function readSession(req) {
-  if (!AUTH_ENABLED) return { u: "local", r: "admin", e: Number.MAX_SAFE_INTEGER, c: "local" };
+  if (!authEnabled()) return { u: "local", r: "admin", e: Number.MAX_SAFE_INTEGER, c: "local" };
   const value = parseCookies(req.headers.cookie)[COOKIE_NAME];
   if (!value || !SESSION_SECRET) return null;
   const [encoded, signature, ...rest] = value.split(".");
   if (!encoded || !signature || rest.length || !sameSecret(sign(encoded), signature)) return null;
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
-    if (!payload || typeof payload.u !== "string" || !(payload.r in ROLE_RANK) || typeof payload.c !== "string" || !Number.isFinite(payload.e) || payload.e <= Date.now() / 1000) return null;
+    const user = USERS.find((entry) => entry.username === payload?.u);
+    if (!payload || typeof payload.u !== "string" || !(payload.r in ROLE_RANK) || typeof payload.c !== "string" || !Number.isFinite(payload.e) || payload.e <= Date.now() / 1000 || !user || user.role !== payload.r || user.sessionVersion !== payload.v) return null;
     return payload;
   } catch { return null; }
 }
@@ -217,7 +289,7 @@ app.use(helmet({
 app.use(express.json({ limit: `${Math.max(1, MAX_UPLOAD_MB + 8)}mb` }));
 
 function protectSite(req, res, next) {
-  if (!AUTH_ENABLED) { req.user = readSession(req); return next(); }
+  if (!authEnabled()) { req.user = readSession(req); return next(); }
   const session = readSession(req);
   if (session) { req.user = session; return next(); }
   if (req.path.startsWith("/api/")) return res.status(401).json({ error: "Cần đăng nhập" });
@@ -226,17 +298,17 @@ function protectSite(req, res, next) {
 
 // ---------- authentication ----------
 app.get("/login", (req, res) => {
-  if (!AUTH_ENABLED || readSession(req)) return res.redirect(302, "/");
+  if (!authEnabled() || readSession(req)) return res.redirect(302, "/");
   res.set("Cache-Control", "no-store");
   return res.sendFile(path.join(WEB_DIR, "login.html"));
 });
 
 app.post("/api/auth/login", requireSameOrigin, loginLimit, (req, res) => {
-  if (!AUTH_ENABLED) return res.status(404).json({ error: "Đăng nhập chưa được cấu hình" });
+  if (!authEnabled()) return res.status(404).json({ error: "Đăng nhập chưa được cấu hình" });
   const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   const candidates = username ? USERS.filter((user) => user.username === username) : (USERS.length === 1 ? USERS : []);
-  const user = candidates.find((candidate) => sameSecret(password, candidate.password));
+  const user = candidates.find((candidate) => matchesPassword(password, candidate.passwordHash));
   if (!user) return res.status(401).json({ error: "Tên đăng nhập hoặc mật khẩu không đúng" });
   const session = issueSession(user);
   res.set("Cache-Control", "no-store");
@@ -256,6 +328,74 @@ app.get("/api/auth/me", (req, res) => {
 app.post("/api/auth/logout", requireCsrf, (req, res) => {
   res.clearCookie(COOKIE_NAME, sessionCookieOptions(req));
   return res.json({ ok: true });
+});
+
+// ---------- administration: users and access roles ----------
+const publicUser = (user) => ({ username: user.username, role: user.role, createdAt: user.createdAt, updatedAt: user.updatedAt });
+const findUser = (username) => USERS.find((user) => user.username === username);
+const adminCount = (users = USERS) => users.filter((user) => user.role === "admin").length;
+
+app.get("/api/admin/users", requireRole("admin"), (req, res) => {
+  res.set("Cache-Control", "no-store");
+  return res.json({ users: USERS.map(publicUser) });
+});
+
+app.post("/api/admin/users", requireRole("admin"), requireCsrf, writeLimit, (req, res) => {
+  try {
+    const input = req.body?.user || {};
+    const username = String(input.username || "").trim();
+    const password = typeof input.password === "string" ? input.password : "";
+    const role = String(input.role || "").toLowerCase();
+    validateNewUser(username, password, role);
+    if (findUser(username)) return res.status(409).json({ error: "Tên đăng nhập đã tồn tại" });
+    const user = asStoredUser({ username, password, role });
+    const nextUsers = [...USERS, user];
+    writeUserStore(nextUsers);
+    USERS = nextUsers;
+    return res.status(201).json({ ok: true, user: publicUser(user) });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+app.patch("/api/admin/users/:username", requireRole("admin"), requireCsrf, writeLimit, (req, res) => {
+  try {
+    const username = String(req.params.username || "").trim();
+    const current = findUser(username);
+    if (!current) return res.status(404).json({ error: "Không tìm thấy tài khoản" });
+    const input = req.body?.user || {};
+    const hasRole = Object.prototype.hasOwnProperty.call(input, "role");
+    const hasPassword = typeof input.password === "string" && input.password.length > 0;
+    if (!hasRole && !hasPassword) return res.status(400).json({ error: "Chưa có thay đổi nào để lưu" });
+    const role = hasRole ? String(input.role || "").toLowerCase() : current.role;
+    if (!(role in ROLE_RANK)) return res.status(400).json({ error: "Vai trò phải là viewer, analyst hoặc admin" });
+    if (username === req.user.u && role !== current.role) return res.status(400).json({ error: "Không thể tự thay đổi vai trò của chính mình" });
+    if (current.role === "admin" && role !== "admin" && adminCount() <= 1) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một admin" });
+    if (hasPassword) validateNewUser(username, input.password, role);
+    const updated = {
+      ...current,
+      role,
+      passwordHash: hasPassword ? passwordHash(input.password) : current.passwordHash,
+      sessionVersion: (hasPassword || role !== current.role) ? crypto.randomBytes(16).toString("base64url") : current.sessionVersion,
+      updatedAt: new Date().toISOString(),
+    };
+    const nextUsers = USERS.map((user) => user.username === username ? updated : user);
+    writeUserStore(nextUsers);
+    USERS = nextUsers;
+    return res.json({ ok: true, user: publicUser(updated), reauthenticate: username === req.user.u && hasPassword });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+app.delete("/api/admin/users/:username", requireRole("admin"), requireCsrf, writeLimit, (req, res) => {
+  try {
+    const username = String(req.params.username || "").trim();
+    const current = findUser(username);
+    if (!current) return res.status(404).json({ error: "Không tìm thấy tài khoản" });
+    if (username === req.user.u) return res.status(400).json({ error: "Không thể tự xóa tài khoản đang đăng nhập" });
+    if (current.role === "admin" && adminCount() <= 1) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một admin" });
+    const nextUsers = USERS.filter((user) => user.username !== username);
+    writeUserStore(nextUsers);
+    USERS = nextUsers;
+    return res.json({ ok: true });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
 // ---------- pipeline runner ----------
@@ -481,7 +621,7 @@ function scheduleDaily() {
 
 const server = app.listen(PORT, () => {
   console.log(`Calida Analyst chạy tại cổng ${PORT}`);
-  if (!AUTH_ENABLED) console.warn("⚠ Chưa có ACCESS_TOKEN hoặc CALIDA_USERS_JSON: web đang mở công khai.");
+  if (!authEnabled()) console.warn("⚠ Chưa có ACCESS_TOKEN hoặc CALIDA_USERS_JSON: web đang mở công khai.");
   if (!GEMINI_KEY) console.log("⚠ Chưa có GEMINI_API_KEY: hỏi đáp và trích xuất sẽ báo lỗi");
   if (!fs.existsSync(JSON_PATH)) console.log("⚠ Chưa có web/data/dashboard.json — chạy: python pipeline/run.py");
   scheduleDaily();

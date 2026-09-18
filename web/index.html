@@ -156,6 +156,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 </div>
 
 <dialog id="addDlg"><div class="dlg" id="addBody"></div></dialog>
+<dialog id="adminDlg"><div class="dlg" id="adminBody"></div></dialog>
 
 <script src="config.js"></script>
 <script>
@@ -169,10 +170,10 @@ let API_OK = false;
 let CURRENT_USER = null;
 let CSRF_TOKEN = "";
 const can = role => ({viewer:0,analyst:1,admin:2}[CURRENT_USER?.role] ?? -1) >= ({viewer:0,analyst:1,admin:2}[role] ?? 99);
-const api = (path, body) => fetch(CFG.API_BASE + path, {
-  method: body ? "POST" : "GET",
-  headers: Object.assign({"Content-Type":"application/json"}, body && CSRF_TOKEN ? {"x-csrf-token":CSRF_TOKEN} : {}),
-  body: body ? JSON.stringify(body) : undefined
+const api = (path, body, method = body ? "POST" : "GET") => fetch(CFG.API_BASE + path, {
+  method,
+  headers: Object.assign({"Content-Type":"application/json"}, method !== "GET" && CSRF_TOKEN ? {"x-csrf-token":CSRF_TOKEN} : {}),
+  body: body === undefined ? undefined : JSON.stringify(body)
 }).then(async r => {
   if (r.status === 401) {
     location.assign("/login");
@@ -213,6 +214,7 @@ const I = {
   cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   news:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/>',
   users:'<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15c3 0 5 2 5 4"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56V20.3h-3v-.08A1.7 1.7 0 0 0 10.66 18.66a1.7 1.7 0 0 0-1.88.34l-.06.06L6.6 16.94l.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.04H5.3v-3h.14A1.7 1.7 0 0 0 7 9.92a1.7 1.7 0 0 0-.34-1.88l-.06-.06L8.72 5.86l.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7v-.08h3v.08a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.04h.08v3h-.08A1.7 1.7 0 0 0 19.4 15z"/>',
   shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',
   plus:'<path d="M12 5v14M5 12h14"/>'
 };
@@ -302,20 +304,22 @@ const PAGES=[
   {id:"portfolio",label:"Danh mục",icon:"brief"},
   {id:"flows",label:"Dòng tiền",icon:"flow"},
   {id:"funds",label:"Quỹ đầu tư",icon:"fund"},
-  {id:"reports",label:"Báo cáo CTCK",icon:"rep"}
+  {id:"reports",label:"Báo cáo CTCK",icon:"rep"},
+  {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
-  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,chat:[],chatBusy:false};
+  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,chat:[],chatBusy:false,adminUsers:null,adminError:""};
 
 function renderNav(){
-  $("#nav").innerHTML=PAGES.map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
+  $("#nav").innerHTML=PAGES.filter(p=>!p.adminOnly||can("admin")).map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
 }
-function go(id){ STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
+function go(id){ if(id==="admin"&&!can("admin")) return; STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
 function render(){
   renderNav();
-  const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports}[STATE.page]||pgOverview;
+  const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,admin:pgAdmin}[STATE.page]||pgOverview;
   $("#page").innerHTML=fn();
   if(STATE.page==="reports") paintChat();
+  if(STATE.page==="admin"&&can("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
 }
 
 /* ============ PAGE: Tổng quan ============ */
@@ -579,6 +583,66 @@ function repDetail(r){
     <div class="label-sm">Rủi ro ${r.risks.map(k=>`<span class="chip risk" style="margin:0">${esc(k.k)}</span>`).join("")}</div></div>`;
 }
 
+/* ============ Administration ============ */
+const roleLabel={viewer:"Chỉ xem",analyst:"Phân tích",admin:"Quản trị viên"};
+const rolePermission={viewer:"Xem dashboard và thư viện báo cáo",analyst:"Xem dữ liệu, dùng AI và thêm báo cáo",admin:"Toàn quyền dữ liệu, pipeline và quản lý tài khoản"};
+function pgAdmin(){
+  if(!can("admin")) return `<div class="card"><h1>Không có quyền truy cập</h1><p class="prose">Khu vực này chỉ dành cho quản trị viên.</p></div>`;
+  const users=STATE.adminUsers;
+  const content=STATE.adminError?`<div class="empty">${esc(STATE.adminError)} <button class="link" id="reloadUsers">Thử lại</button></div>`
+    :!users?'<div class="empty">Đang tải danh sách tài khoản…</div>'
+    :`<div class="tbl-wrap"><table><thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><th>Quyền</th><th>Cập nhật</th><th></th></tr></thead><tbody>
+      ${users.map(u=>`<tr><td class="t">${esc(u.username)}${u.username===CURRENT_USER?.username?' <span class="muted">(bạn)</span>':""}</td><td>${statusTag(roleLabel[u.role]||u.role)}</td><td style="white-space:normal;min-width:220px" class="muted">${esc(rolePermission[u.role]||"")}</td><td class="muted">${u.updatedAt?new Date(u.updatedAt).toLocaleDateString("vi-VN"):"—"}</td><td><button class="link" data-edit-user="${esc(u.username)}">Chỉnh sửa</button> <button class="link" data-delete-user="${esc(u.username)}" ${u.username===CURRENT_USER?.username?"disabled title=\"Không thể tự xóa\"":""}>Xóa</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Chưa có tài khoản.</td></tr>'}
+    </tbody></table></div>`;
+  return `<h1>Quản trị tài khoản</h1><p class="sub">Tạo, chỉnh sửa, xóa tài khoản và phân quyền truy cập hệ thống.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:14px">
+      ${Object.entries(roleLabel).map(([role,label])=>`<div class="card"><b>${esc(label)}</b><p class="muted" style="margin:6px 0 0">${esc(rolePermission[role])}</p></div>`).join("")}
+    </div>
+    <div class="card">${head("users","Người dùng",'<button class="btn" id="addUser">Thêm tài khoản</button>')}${content}
+      <p class="muted" style="font-size:12px;margin:12px 0 0">Mật khẩu được băm trước khi lưu. Không thể xóa tài khoản đang đăng nhập hoặc admin cuối cùng.</p></div>`;
+}
+async function loadAdminUsers(){
+  if(!can("admin")) return;
+  STATE.adminError="";
+  try{ const r=await api("/api/admin/users"); STATE.adminUsers=r.users||[]; }
+  catch(e){ STATE.adminUsers=null; STATE.adminError=e.message; }
+  if(STATE.page==="admin") render();
+}
+function openUserDialog(username=""){
+  const existing=(STATE.adminUsers||[]).find(u=>u.username===username);
+  const self=existing?.username===CURRENT_USER?.username;
+  const selected=existing?.role||"viewer";
+  $("#adminBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">${existing?"Chỉnh sửa tài khoản":"Thêm tài khoản"}</h2><button class="icon-btn" id="adminDlgClose" aria-label="Đóng">✕</button></div>
+    <p class="muted" style="margin:4px 0 12px">${existing?"Để trống mật khẩu nếu không muốn thay đổi. Đổi mật khẩu của chính bạn sẽ yêu cầu đăng nhập lại.":"Mật khẩu cần có ít nhất 12 ký tự."}</p>
+    <div class="fgrid"><label>Tên đăng nhập<input id="adminUsername" value="${esc(existing?.username||"")}" ${existing?"disabled":""} autocomplete="username"></label>
+      <label>Vai trò<select id="adminRole" ${self?"disabled":""}>${Object.entries(roleLabel).map(([role,label])=>`<option value="${role}" ${role===selected?"selected":""}>${esc(label)}</option>`).join("")}</select></label>
+      <label style="grid-column:1/-1">${existing?"Mật khẩu mới (tùy chọn)":"Mật khẩu"}<input id="adminPassword" type="password" autocomplete="new-password" ${existing?"":"required"}></label></div>
+    ${self?'<p class="muted" style="font-size:12px">Bạn không thể tự hạ quyền tài khoản để tránh mất quyền quản trị.</p>':""}
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="adminSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveUser" data-user-id="${esc(existing?.username||"")}">${existing?"Lưu thay đổi":"Tạo tài khoản"}</button></div>`;
+  $("#adminDlg").showModal();
+}
+async function saveUser(username=""){
+  const password=$("#adminPassword").value;
+  const role=$("#adminRole").value;
+  const name=username||$("#adminUsername").value.trim();
+  const status=$("#adminSaveStatus");
+  if(!username&&!/^[a-zA-Z0-9._-]{3,64}$/.test(name)){status.textContent="Tên đăng nhập cần 3–64 ký tự: chữ, số, ., _ hoặc -.";return;}
+  if((!username||password)&&password.length<12){status.textContent="Mật khẩu cần ít nhất 12 ký tự.";return;}
+  $("#saveUser").disabled=true; status.textContent="Đang lưu…";
+  try{
+    const result=username
+      ?await api(`/api/admin/users/${encodeURIComponent(username)}`,{user:{role,password}},"PATCH")
+      :await api("/api/admin/users",{user:{username:name,password,role}});
+    $("#adminDlg").close(); STATE.adminUsers=null; await loadAdminUsers();
+    if(result.reauthenticate) location.assign("/login");
+  }catch(e){status.textContent="Không lưu được: "+e.message; $("#saveUser").disabled=false;}
+}
+async function deleteUser(username){
+  if(!confirm(`Xóa tài khoản ${username}? Thao tác này không thể hoàn tác.`)) return;
+  try{await api(`/api/admin/users/${encodeURIComponent(username)}`,undefined,"DELETE"); STATE.adminUsers=null; await loadAdminUsers();}
+  catch(e){alert("Không xóa được: "+e.message);}
+}
+
 /* ============ Chatbot + thêm báo cáo (qua server /api) ============ */
 const SUGGEST=["CTCK nào thận trọng nhất và vì sao?","Đồng thuận target VN-Index cuối năm là bao nhiêu?","Rủi ro nào được nhiều CTCK cảnh báo nhất?","Các CTCK nói gì về HPG?"];
 function paintChat(){
@@ -668,8 +732,14 @@ document.addEventListener("click",e=>{
   if(d.rt){STATE.repType=d.rt;render();}
   if("rsel" in d){STATE.repSel=d.rsel||null;render();}
   if(d.ask){ask(d.ask);}
+  if(d.editUser){openUserDialog(d.editUser);}
+  if(d.deleteUser){deleteUser(d.deleteUser);}
   if(t.id==="chatSend"){const v=$("#chatIn").value;$("#chatIn").value="";ask(v);}
   if(t.id==="addRep") openAdd();
+  if(t.id==="addUser") openUserDialog();
+  if(t.id==="reloadUsers"){STATE.adminUsers=null;STATE.adminError="";loadAdminUsers();}
+  if(t.id==="adminDlgClose") $("#adminDlg").close();
+  if(t.id==="saveUser") saveUser(t.dataset.userId||"");
   if(t.id==="dlgClose") $("#addDlg").close();
   if(t.id==="extractBtn") extract();
   if(t.id==="saveRep") saveRep();
@@ -714,10 +784,11 @@ async function refresh(force){
     const health=await api("/api/health");
     const auth=await api("/api/auth/me");
     API_OK=!!health.ok; CURRENT_USER=auth.user; CSRF_TOKEN=auth.csrfToken||"";
-    paintHeader(); if(STATE.page==="reports") render();
+    if(STATE.page==="admin"&&!can("admin")) STATE.page="overview";
+    paintHeader(); render();
   }catch(e){ API_OK=false; }
   if(CFG.REFRESH_MINUTES>0) setInterval(()=>refresh(false), CFG.REFRESH_MINUTES*60000);
-  window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page){STATE.page=h;render();}});
+  window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page&&!(h==="admin"&&!can("admin"))){STATE.page=h;render();}});
 })();
 </script>
 </body>
