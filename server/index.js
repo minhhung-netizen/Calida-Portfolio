@@ -141,7 +141,11 @@ function requestIsSameOrigin(req) {
   if (!origin) return true;
   try {
     const url = new URL(origin);
-    return url.host === req.get("host") && url.protocol === req.protocol;
+    // Railway terminates TLS before forwarding traffic to Node. Comparing
+    // req.protocol here can therefore reject a legitimate HTTPS browser
+    // request that reaches this process as HTTP. The Origin host still gives
+    // us the cross-site request protection needed by the CSRF guard.
+    return url.host.toLowerCase() === String(req.get("host") || "").toLowerCase();
   } catch { return false; }
 }
 
