@@ -323,14 +323,24 @@ function render(){
   if(STATE.page==="admin"&&can("admin")&&!STATE.adminOps&&!STATE.adminOpsError) loadAdminOperations();
 }
 
+function latestFlowValues(flows){
+  if(flows.asOf) return flows.investors["Hôm nay"];
+  const history=flows.history||{};
+  return Object.fromEntries(["Cá nhân","Tổ chức","Tự doanh","Khối ngoại"].map(k=>[k,history[k]?.at(-1)??null]));
+}
+function flowDateLabel(flows){
+  if(flows.asOf) return `phiên ${fmtD(flows.asOf)}`;
+  return flows.history?.dates?.at(-1) ? `phiên ${flows.history.dates.at(-1)}` : null;
+}
+
 /* ============ PAGE: Tổng quan ============ */
 function pgOverview(){
-  const m=DATA.market, fl=DATA.flows.investors["Hôm nay"], st=portfolioStats(), f=DATA.funds||{updated:0,stockW:null};
-  const flowLabel=DATA.flows.asOf?`phiên ${fmtD(DATA.flows.asOf)}`:"phiên gần nhất";
+  const m=DATA.market, fl=latestFlowValues(DATA.flows), st=portfolioStats(), f=DATA.funds||{updated:0,stockW:null};
+  const flowLabel=flowDateLabel(DATA.flows);
   const agg=repAgg(repFilterWindow(30));
   const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
     <div class="card kpi"><div class="badge bg-brand">${svg("trend")}</div><div style="flex:1"><div class="l">VN-Index</div><div class="v">${nf(m.index,2)}</div><div class="${cls(m.chg)}">${sgn(m.chg,2)} (${sgn(m.pct,2,"%")})</div></div><div style="width:90px">${spark(m.spark,90,44)}</div></div>
-    <div class="card kpi"><div class="badge bg-down">${svg("flow")}</div><div><div class="l">Khối ngoại</div><div class="v ${cls(fl["Khối ngoại"])}">${sgn(fl["Khối ngoại"])} tỷ</div><div class="l">${fl["Khối ngoại"]==null?"Chưa có dữ liệu":`${fl["Khối ngoại"]<0?"Bán":"Mua"} ròng ${flowLabel}`}</div></div></div>
+    <div class="card kpi"><div class="badge bg-down">${svg("flow")}</div><div><div class="l">Khối ngoại</div><div class="v ${cls(fl["Khối ngoại"])}">${sgn(fl["Khối ngoại"])} tỷ</div><div class="l">${fl["Khối ngoại"]==null?"Chưa có dữ liệu":`${fl["Khối ngoại"]<0?"Bán":fl["Khối ngoại"]>0?"Mua":"Cân bằng"} ròng ${flowLabel||"phiên gần nhất"}`}</div></div></div>
     <div class="card kpi"><div class="badge bg-up">${svg("trend")}</div><div><div class="l">Hiệu suất danh mục</div><div class="v ${cls(DATA.portfolio.ytd)}">${sgn(DATA.portfolio.ytd,1,"%")}</div><div class="l">Từ đầu năm</div></div></div>
     <div class="card kpi"><div class="badge bg-brand">${svg("rep")}</div><div><div class="l">Đồng thuận CTCK (30 ngày)</div><div class="v">${nf(agg.vnMed)}</div><div class="l">Target VN-Index trung vị · ${agg.brokers.length} CTCK</div></div></div>
   </div>`;
@@ -449,9 +459,9 @@ const kpiCard=(ic,bg,v,l,c="")=>`<div class="card kpi"><div class="badge ${bg}">
 
 /* ============ PAGE: Dòng tiền ============ */
 function pgFlows(){
-  const F=DATA.flows, today=F.investors["Hôm nay"], mtd=F.investors["MTD"], cur=F.investors[STATE.invTab];
+  const F=DATA.flows, today=latestFlowValues(F), mtd=F.investors["MTD"], cur=STATE.invTab==="Hôm nay"?today:F.investors[STATE.invTab];
   const tot=Object.values(cur).reduce((s,v)=>s+Math.abs(v||0),0)||1;
-  const flowLabel=F.asOf?`Dữ liệu phiên gần nhất: ${fmtD(F.asOf)}.`:"Chưa có dữ liệu dòng tiền.";
+  const latestLabel=flowDateLabel(F), flowLabel=latestLabel?`Dữ liệu ${latestLabel}.`:"Chưa có dữ liệu dòng tiền.";
   const icons={"Khối ngoại":"flow","Tự doanh":"users","Cá nhân":"users","Tổ chức":"brief"};
   const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${["Khối ngoại","Tự doanh","Cá nhân","Tổ chức"].map(k=>`<div class="card kpi"><div class="badge ${today[k]<0?"bg-down":"bg-up"}">${svg(icons[k])}</div><div><div class="l">${k}</div><div class="v ${cls(today[k])}">${sgn(today[k])} tỷ</div><div class="l">Lũy kế tháng: <b class="${cls(mtd[k])}">${sgn(mtd[k])} tỷ</b></div></div></div>`).join("")}</div>`;
   const buys=F.tickers.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10), sells=F.tickers.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,10);
@@ -464,7 +474,7 @@ function pgFlows(){
   return `<h1>Dòng tiền thị trường</h1><p class="sub">Theo dõi dòng tiền của các nhóm nhà đầu tư và xu hướng vận động vốn trên thị trường · ${flowLabel}</p>${kpis}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
     <div class="card">${head("users","Phân loại nhà đầu tư")}
-      <div class="seg">${[["Hôm nay","Hôm nay"],["MTD","Từ đầu tháng"],["YTD","Từ đầu năm"]].map(([k,l])=>`<button data-invtab="${k}" aria-selected="${STATE.invTab===k}">${l}</button>`).join("")}</div>
+      <div class="seg">${[["Hôm nay",latestLabel?"Phiên gần nhất":"Hôm nay"],["MTD","Từ đầu tháng"],["YTD","Từ đầu năm"]].map(([k,l])=>`<button data-invtab="${k}" aria-selected="${STATE.invTab===k}">${l}</button>`).join("")}</div>
       <table><thead><tr><th>Nhà đầu tư</th><th class="num">Giá trị (tỷ)</th><th class="num">Tỷ trọng</th><th>Xu hướng</th></tr></thead><tbody>
       ${Object.entries(cur).map(([k,v])=>`<tr><td>${k}</td><td class="num ${cls(v)}"><b>${sgn(v)}</b></td><td class="num">${nf(Math.abs(v)/tot*100,1)}%</td><td style="min-width:100px"><div class="bar"><i style="width:${Math.abs(v)/tot*100}%;background:${v>0?"var(--up)":"var(--down)"}"></i></div></td></tr>`).join("")}</tbody></table>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Tỷ trọng = |giá trị ròng| / tổng |giá trị ròng| của 4 nhóm.</p></div>
@@ -481,10 +491,10 @@ function pgFlows(){
         <div class="heat"><div></div>${H.dates.map(d=>`<div class="muted" style="text-align:center">${d}</div>`).join("")}
         ${["Cá nhân","Tổ chức","Tự doanh","Khối ngoại"].map(k=>`<div>${k}</div>${H[k].map((v,i)=>`<div class="c" style="background:${heatColor(v)}" title="${k} ${H.dates[i]}: ${sgn(v)} tỷ"></div>`).join("")}`).join("")}</div>
         <div class="row muted" style="font-size:11.5px;margin-top:10px;flex-wrap:wrap;gap:12px"><span>■ <span class="up">Mua ≥ 300 tỷ</span></span><span>Mua nhẹ</span><span>Bán nhẹ</span><span class="down">■ Bán ≥ 200 tỷ</span></div></div>
-      <div class="card">${head("target","Điểm nhấn hôm nay")}<ul class="list">
-        <li>Cá nhân ${today["Cá nhân"]>0?"mua":"bán"} ròng ${sgn(today["Cá nhân"])} tỷ, tập trung vào ${topIn}.</li>
-        <li>Khối ngoại ${today["Khối ngoại"]>0?"mua":"bán"} ròng ${sgn(today["Khối ngoại"])} tỷ, tập trung ở ${foreignSells}.</li>
-        <li>Lũy kế tháng, khối ngoại ${mtd["Khối ngoại"]<0?"bán":"mua"} ròng ${nf(Math.abs(mtd["Khối ngoại"]))} tỷ.</li></ul></div>
+      <div class="card">${head("target",latestLabel?"Điểm nhấn phiên gần nhất":"Điểm nhấn dòng tiền")}<ul class="list">${latestLabel?`
+        <li>Cá nhân ${today["Cá nhân"]>0?"mua":today["Cá nhân"]<0?"bán":"cân bằng"} ròng ${sgn(today["Cá nhân"])} tỷ${topIn?`, tập trung vào ${topIn}`:""}.</li>
+        <li>Khối ngoại ${today["Khối ngoại"]>0?"mua":today["Khối ngoại"]<0?"bán":"cân bằng"} ròng ${sgn(today["Khối ngoại"])} tỷ${foreignSells?`, tập trung ở ${foreignSells}`:""}.</li>
+        <li>Lũy kế tháng, khối ngoại ${mtd["Khối ngoại"]<0?"bán":mtd["Khối ngoại"]>0?"mua":"cân bằng"} ròng ${nf(Math.abs(mtd["Khối ngoại"]))} tỷ.</li>`:"<li>Chưa có dữ liệu dòng tiền để tạo điểm nhấn.</li>"}</ul></div>
     </div>
   </div>`;
 }
