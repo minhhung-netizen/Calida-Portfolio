@@ -149,7 +149,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
   <main>
     <div class="topbar">
       <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Tìm mã cổ phiếu, báo cáo, quỹ đầu tư…" aria-label="Tìm kiếm"></label>
-      <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><div class="avatar">C</div></div>
+      <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><button class="link" id="logoutBtn" title="Đăng xuất">Đăng xuất</button><div class="avatar" id="userAvatar">C</div></div>
     </div>
     <div id="page"></div>
   </main>
@@ -166,14 +166,17 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 const CFG = Object.assign({DATA_URL:"data/dashboard.json", API_BASE:"", REFRESH_MINUTES:5}, window.CALIDA_CONFIG||{});
 let DATA = null;
 let API_OK = false;
+let CURRENT_USER = null;
+let CSRF_TOKEN = "";
+const can = role => ({viewer:0,analyst:1,admin:2}[CURRENT_USER?.role] ?? -1) >= ({viewer:0,analyst:1,admin:2}[role] ?? 99);
 const api = (path, body) => fetch(CFG.API_BASE + path, {
   method: body ? "POST" : "GET",
-  headers: Object.assign({"Content-Type":"application/json"}, localStorage.getItem("calida_token") ? {"x-access-token": localStorage.getItem("calida_token")} : {}),
+  headers: Object.assign({"Content-Type":"application/json"}, body && CSRF_TOKEN ? {"x-csrf-token":CSRF_TOKEN} : {}),
   body: body ? JSON.stringify(body) : undefined
 }).then(async r => {
   if (r.status === 401) {
-    const t = prompt("Nhập mã truy cập của hệ thống:");
-    if (t) { localStorage.setItem("calida_token", t); return api(path, body); }
+    location.assign("/login");
+    throw new Error("Phiên đăng nhập đã hết hạn");
   }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || ("Lỗi máy chủ " + r.status));
@@ -329,12 +332,12 @@ function pgOverview(){
       <h3 style="margin:4px 0">Diễn biến hiện tại</h3><p class="prose" style="margin-top:4px">${esc(m.today)}</p>
       <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><div class="box"><div class="l">Hỗ trợ</div><div class="v up">${range(m.support)}</div></div><div class="box"><div class="l">Kháng cự</div><div class="v down">${range(m.resist)}</div></div></div>
       <div class="label-sm">Tâm lý thị trường <span class="tag bg-up">${esc(m.sentiment)}</span></div>
-      <div class="label-sm">Nhóm ngành đáng chú ý</div><div>${m.focusSectors.map(s=>`<span class="chip">${s}</span>`).join("")}</div>`
+      <div class="label-sm">Nhóm ngành đáng chú ý</div><div>${m.focusSectors.map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div>`
     : `
       <h3 style="margin:4px 0">Nhận định tuần</h3><p class="prose" style="margin-top:4px">${esc(m.week)}</p>
       <div class="box" style="margin-top:12px"><div class="l">Vùng kỳ vọng</div><div class="v">${range(m.expected)}</div></div>
-      <div class="label-sm">Nhóm ngành ưu tiên</div><div>${m.focusSectors.map(s=>`<span class="chip">${s}</span>`).join("")}</div>
-      <div class="label-sm">Rủi ro & sự kiện cần theo dõi</div><div>${m.risks.map(s=>`<span class="chip risk">${s}</span>`).join("")}</div>`;
+      <div class="label-sm">Nhóm ngành ưu tiên</div><div>${m.focusSectors.map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div>
+      <div class="label-sm">Rủi ro & sự kiện cần theo dõi</div><div>${m.risks.map(s=>`<span class="chip risk">${esc(s)}</span>`).join("")}</div>`;
   return `<h1>Tổng quan</h1><p class="sub">Nắm nhanh thị trường và hành động trọng tâm</p>${kpis}
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin-top:14px">
     <div class="card">${head("doc","Nhận định thị trường")}
@@ -356,7 +359,7 @@ function pgOverview(){
 }
 function repFilterWindow(d){ const a=new Date(DATA.asOf); return DATA.reports.filter(r=>(a-new Date(r.date))/864e5<=d); }
 const shortcut=(pg,ic,t,s)=>`<button class="card" data-go="${pg}" style="text-align:left"><div class="row"><div class="ic" style="background:var(--brand-soft);color:var(--brand)">${svg(ic)}</div><b style="font-size:16px">${t}</b><span class="link" style="pointer-events:none">›</span></div><div class="muted" style="margin-top:8px;font-size:13px">${s}</div></button>`;
-const actionTable=rows=>`<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th>Hành động</th><th>Vùng giá</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="t">${r.t}</td><td>${statusTag(r.a)}</td><td>${r.z}</td></tr>`).join("")}</tbody></table></div>`;
+const actionTable=rows=>`<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th>Hành động</th><th>Vùng giá</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="t">${esc(r.t)}</td><td>${statusTag(r.a)}</td><td>${esc(r.z)}</td></tr>`).join("")}</tbody></table></div>`;
 
 /* ============ PAGE: Bản tin ============ */
 function pgBrief(){
@@ -371,8 +374,8 @@ function pgBrief(){
       <p class="prose">${esc(m.today)}</p></div>
     <div class="card">${head("flow","Nhận định tuần")}<p class="prose" style="margin-top:0">${esc(m.week)}</p>
       <div class="box" style="margin-top:12px"><div class="l">Vùng kỳ vọng</div><div class="v">${range(m.expected)}</div></div>
-      <div class="label-sm">Nhóm ngành ưu tiên</div><div>${m.focusSectors.map(s=>`<span class="chip">${s}</span>`).join("")}</div>
-      <div class="label-sm">Rủi ro & sự kiện cần theo dõi</div><div>${m.risks.map(s=>`<span class="chip risk">${s}</span>`).join("")}</div></div>
+      <div class="label-sm">Nhóm ngành ưu tiên</div><div>${m.focusSectors.map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div>
+      <div class="label-sm">Rủi ro & sự kiện cần theo dõi</div><div>${m.risks.map(s=>`<span class="chip risk">${esc(s)}</span>`).join("")}</div></div>
     <div class="card">${head("news","Tin tức nổi bật")}
       <div class="seg" role="tablist">${["Thế giới","Trong nước","Doanh nghiệp"].map(t=>`<button role="tab" data-newstab="${t}" aria-selected="${STATE.newsTab===t}">${t}</button>`).join("")}</div>
       ${DATA.news.filter(n=>n.tab===STATE.newsTab).map(n=>`<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start"><div style="flex:1">${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(n.title)}</a>`:esc(n.title)}</div><div class="muted" style="font-size:12px;text-align:right;min-width:80px">${esc(n.src)}<br>${ago(n.at)}</div></div>`).join("")||'<div class="empty">Chưa có tin trong mục này hôm nay.</div>'}</div>
@@ -382,12 +385,12 @@ function pgBrief(){
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
         <div class="box" style="background:var(--up-soft)"><b class="up">Ngắn hạn</b><p class="prose" style="margin-top:6px">${esc(m.strategyShort)}</p></div>
         <div class="box" style="background:var(--warn-soft)"><b class="warn">Trung & dài hạn</b><p class="prose" style="margin-top:6px">${esc(m.strategyLong)}</p></div></div>
-      <div class="label-sm">Ngành tiêu điểm ${m.focusSectors.map(s=>`<span class="chip" style="margin:0">${s}</span>`).join("")}</div></div>
+      <div class="label-sm">Ngành tiêu điểm ${m.focusSectors.map(s=>`<span class="chip" style="margin:0">${esc(s)}</span>`).join("")}</div></div>
     <div class="card">${head("flow","Theo dõi dòng tiền",goLink("flows"))}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
         <div><div class="label-sm" style="margin-top:0">Nhà đầu tư (tỷ)</div>${Object.entries(inv).map(([k,v])=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1">${k}</span><b class="${cls(v)}">${sgn(v)}</b></div>`).join("")}</div>
-        <div><div class="label-sm" style="margin-top:0">Top mua ròng</div>${buys.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${x.t}</b><span class="up">${sgn(x.v)}</span></div>`).join("")}</div>
-        <div><div class="label-sm" style="margin-top:0">Top bán ròng</div>${sells.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${x.t}</b><span class="down">${sgn(x.v)}</span></div>`).join("")}</div>
+        <div><div class="label-sm" style="margin-top:0">Top mua ròng</div>${buys.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${esc(x.t)}</b><span class="up">${sgn(x.v)}</span></div>`).join("")}</div>
+        <div><div class="label-sm" style="margin-top:0">Top bán ròng</div>${sells.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${esc(x.t)}</b><span class="down">${sgn(x.v)}</span></div>`).join("")}</div>
       </div></div>
   </div>
   <div class="card" style="margin-top:14px">${head("cal","Sự kiện cần theo dõi")}${DATA.events.length?"":'<div class="empty">Chưa có sự kiện nào từ hôm nay trở đi trong sheet EVENTS.</div>'}
@@ -411,9 +414,10 @@ function pgPortfolio(){
       ${P.history.map(h=>`<tr><td>${h.d}</td><td class="t">${h.t}</td><td>${esc(h.a)}</td><td>${h.p}</td><td class="muted">${esc(h.note)}</td></tr>`).join("")}</tbody></table></div></div>`;
   } else {
     const table=`<div class="card">${head("brief","Danh mục hiện tại")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th>Ngành</th><th>Trạng thái</th><th class="num">Giá hiện tại</th><th>Vùng mua</th><th class="num">Target</th><th class="num">Vi phạm</th><th class="num">Hiệu suất</th><th>Cảnh báo</th></tr></thead><tbody>
-      ${P.positions.map(p=>{const pf=perf(p), sg=signals(p); return `<tr class="click ${STATE.pfSel===p.t?"sel":""}" data-pfsel="${p.t}" tabindex="0"><td class="t">${p.t}</td><td>${p.sector}</td><td>${statusTag(p.status)}</td><td class="num">${p.price==null?'<span class="muted" title="Chưa có giá trong PRICES">—</span>':nf(p.price,1)}</td><td>${range(p.buy)}</td><td class="num">${nf(p.target,1)}</td><td class="num">${nf(p.stop,1)}</td><td class="num ${cls(pf)}">${pf==null?"—":sgn(pf,1,"%")}</td><td>${sg.map(s=>`<span class="tag ${s==="Cần xử lý"?"bg-down":s==="Sát vùng vi phạm"?"bg-warn":"bg-up"}">${s}</span>`).join(" ")||'<span class="muted">—</span>'}</td></tr>`}).join("")}</tbody></table></div></div>`;
-    const sel=P.positions.find(p=>p.t===STATE.pfSel)||P.positions[0], pf=perf(sel);
-    const brokerCalls=repAgg(DATA.reports).stocks.find(s=>s.t===sel.t);
+      ${P.positions.map(p=>{const pf=perf(p), sg=signals(p); return `<tr class="click ${STATE.pfSel===p.t?"sel":""}" data-pfsel="${esc(p.t)}" tabindex="0"><td class="t">${esc(p.t)}</td><td>${esc(p.sector)}</td><td>${statusTag(p.status)}</td><td class="num">${p.price==null?'<span class="muted" title="Chưa có giá trong PRICES">—</span>':nf(p.price,1)}</td><td>${range(p.buy)}</td><td class="num">${nf(p.target,1)}</td><td class="num">${nf(p.stop,1)}</td><td class="num ${cls(pf)}">${pf==null?"—":sgn(pf,1,"%")}</td><td>${sg.map(s=>`<span class="tag ${s==="Cần xử lý"?"bg-down":s==="Sát vùng vi phạm"?"bg-warn":"bg-up"}">${esc(s)}</span>`).join(" ")||'<span class="muted">—</span>'}</td></tr>`}).join("")}</tbody></table></div></div>`;
+    const selected=P.positions.find(p=>p.t===STATE.pfSel)||P.positions[0];
+    const sel={...selected,t:esc(selected.t)}, pf=perf(selected);
+    const brokerCalls=repAgg(DATA.reports).stocks.find(s=>s.t===selected.t);
     const detailBody = STATE.pfDetailTab==="Tổng quan" ? `<dl><dt>Giá hiện tại</dt><dd>${nf(sel.price,1)} <span class="${cls(sel.chg)}">${sgn(sel.chg,1)}</span></dd><dt>Danh mục</dt><dd>${esc(sel.book||"—")}</dd><dt>Ngày khuyến nghị</dt><dd>${sel.recDate}</dd><dt>Giá vốn</dt><dd>${nf(sel.cost,2)}</dd><dt>Vùng mua</dt><dd>${range(sel.buy)}</dd><dt>Target</dt><dd>${nf(sel.target,1)}</dd><dt>Vùng vi phạm</dt><dd>${nf(sel.stop,1)}</dd><dt>Hiệu suất</dt><dd class="${cls(pf)}">${pf==null?"Chưa mua":sgn(pf,1,"%")}</dd></dl>`
       : STATE.pfDetailTab==="Luận điểm" ? `<p class="prose" style="margin:0">${esc(sel.thesis)}</p>`
       : brokerCalls ? `<table><thead><tr><th>CTCK</th><th>KN</th><th class="num">Target</th></tr></thead><tbody>${Object.entries(brokerCalls.calls).map(([b,c])=>`<tr><td>${esc(b)}</td><td>${statusTag(c.rec)}</td><td class="num">${nf(c.target,1)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Chưa có báo cáo CTCK nào nhắc tới ${sel.t}.</div>`;
@@ -444,12 +448,12 @@ function pgFlows(){
   const icons={"Khối ngoại":"flow","Tự doanh":"users","Cá nhân":"users","Tổ chức":"brief"};
   const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${["Khối ngoại","Tự doanh","Cá nhân","Tổ chức"].map(k=>`<div class="card kpi"><div class="badge ${today[k]<0?"bg-down":"bg-up"}">${svg(icons[k])}</div><div><div class="l">${k}</div><div class="v ${cls(today[k])}">${sgn(today[k])} tỷ</div><div class="l">Lũy kế tháng: <b class="${cls(mtd[k])}">${sgn(mtd[k])} tỷ</b></div></div></div>`).join("")}</div>`;
   const buys=F.tickers.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10), sells=F.tickers.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,10);
-  const rank=(rows)=>`<table><thead><tr><th>#</th><th>Mã</th><th class="num">Giá trị (tỷ)</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="t">${x.t}</td><td class="num ${cls(x.v)}">${sgn(x.v)}</td></tr>`).join("")}</tbody></table>`;
+  const rank=(rows)=>`<table><thead><tr><th>#</th><th>Mã</th><th class="num">Giá trị (tỷ)</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="t">${esc(x.t)}</td><td class="num ${cls(x.v)}">${sgn(x.v)}</td></tr>`).join("")}</tbody></table>`;
   const H=F.history, heatColor=v=>v>=300?"var(--up)":v>0?"color-mix(in srgb,var(--up) 35%,transparent)":v>-200?"color-mix(in srgb,var(--down) 30%,transparent)":"var(--down)";
-  const tagInv=k=>`<span class="tag ${k==="Cá nhân"?"bg-up":k==="Khối ngoại"?"bg-brand":k==="Tự doanh"?"bg-down":"bg-warn"}">${k}</span>`;
+  const tagInv=k=>`<span class="tag ${k==="Cá nhân"?"bg-up":k==="Khối ngoại"?"bg-brand":k==="Tự doanh"?"bg-down":"bg-warn"}">${esc(k)}</span>`;
   const bySector=[...F.sectors].sort((a,b)=>b.v-a.v);
-  const topIn=bySector.slice(0,2).map(s=>s.s.toLowerCase()).join(" và ");
-  const foreignSells=F.tickers.filter(x=>x.main==="Khối ngoại"&&x.v<0).sort((a,b)=>a.v-b.v).slice(0,3).map(x=>x.t).join(", ");
+  const topIn=bySector.slice(0,2).map(s=>esc(s.s).toLowerCase()).join(" và ");
+  const foreignSells=F.tickers.filter(x=>x.main==="Khối ngoại"&&x.v<0).sort((a,b)=>a.v-b.v).slice(0,3).map(x=>esc(x.t)).join(", ");
   return `<h1>Dòng tiền thị trường</h1><p class="sub">Theo dõi dòng tiền của các nhóm nhà đầu tư và xu hướng vận động vốn trên thị trường</p>${kpis}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
     <div class="card">${head("users","Phân loại nhà đầu tư")}
@@ -462,9 +466,9 @@ function pgFlows(){
   </div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:14px">
     <div class="card">${head("pie","Dòng tiền theo ngành")}<div class="tbl-wrap"><table><thead><tr><th>Ngành</th><th class="num">Giá trị (tỷ)</th><th class="num">Thay đổi</th><th class="num">Tỷ trọng GTGD</th></tr></thead><tbody>
-      ${bySector.map(s=>`<tr><td>${s.s}</td><td class="num ${cls(s.v)}">${sgn(s.v)}</td><td class="num ${cls(s.chg)}">${sgn(s.chg,1,"%")}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div></div>
+      ${bySector.map(s=>`<tr><td>${esc(s.s)}</td><td class="num ${cls(s.v)}">${sgn(s.v)}</td><td class="num ${cls(s.chg)}">${sgn(s.chg,1,"%")}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div></div>
     <div class="card">${head("brief","Dòng tiền theo cổ phiếu")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá trị (tỷ)</th><th>NĐT chính</th><th>Ghi chú</th></tr></thead><tbody>
-      ${[...F.tickers].sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,10).map(x=>`<tr><td class="t">${x.t}</td><td class="num ${cls(x.v)}">${sgn(x.v)}</td><td>${tagInv(x.main)}</td><td class="muted">${esc(x.note||"—")}</td></tr>`).join("")}</tbody></table></div></div>
+      ${[...F.tickers].sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,10).map(x=>`<tr><td class="t">${esc(x.t)}</td><td class="num ${cls(x.v)}">${sgn(x.v)}</td><td>${tagInv(x.main)}</td><td class="muted">${esc(x.note||"—")}</td></tr>`).join("")}</tbody></table></div></div>
     <div class="grid">
       <div class="card">${head("cal","Diễn biến 5 phiên theo nhóm NĐT")}
         <div class="heat"><div></div>${H.dates.map(d=>`<div class="muted" style="text-align:center">${d}</div>`).join("")}
@@ -487,27 +491,27 @@ function pgFunds(){
   const topS=f.sectors.slice(0,5);
   const hasPrev=!!f.prevPeriod;
   return `<div class="row" style="flex-wrap:wrap;align-items:flex-end"><div style="flex:1"><h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><p class="sub">Theo dõi dòng tiền và danh mục của các quỹ mở</p></div>
-    <div class="row" style="margin-bottom:16px;gap:10px"><span class="muted">Kỳ báo cáo</span><b class="box" style="padding:6px 14px">${f.period}</b><span class="tag ${f.updated<f.total?"bg-warn":"bg-up"}">${f.updated}/${f.total} quỹ đã cập nhật</span></div></div>
+    <div class="row" style="margin-bottom:16px;gap:10px"><span class="muted">Kỳ báo cáo</span><b class="box" style="padding:6px 14px">${esc(f.period)}</b><span class="tag ${f.updated<f.total?"bg-warn":"bg-up"}">${f.updated}/${f.total} quỹ đã cập nhật</span></div></div>
   <div class="card"><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
     ${kp(f.updated,"quỹ có dữ liệu kỳ này")}${kp(nf(f.nav)+" tỷ","Tổng NAV")}${kp(nf(f.stockW,1)+"%","Tỷ trọng cổ phiếu")}${kp(nf(f.cashW,2)+"%","Tiền mặt")}
     ${kp(hasPrev?sgn(f.dStockW,2," đ.%"):"—","Δ tỷ trọng CP",cls(f.dStockW))}${kp(hasPrev?sgn(f.dStockVal)+" tỷ":"—","Δ giá trị CP",cls(f.dStockVal))}</div>
-    <p class="muted" style="font-size:12px;margin:10px 0 0">Tỷ trọng là bình quân gia quyền theo NAV của ${f.updated} quỹ có dữ liệu kỳ ${f.period}. Các chỉ số Δ chỉ so sánh những quỹ có đủ dữ liệu cả kỳ ${f.period} và ${f.prevPeriod||"trước"}.</p></div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Tỷ trọng là bình quân gia quyền theo NAV của ${f.updated} quỹ có dữ liệu kỳ ${esc(f.period)}. Các chỉ số Δ chỉ so sánh những quỹ có đủ dữ liệu cả kỳ ${esc(f.period)} và ${esc(f.prevPeriod||"trước")}.</p></div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
-    <div class="card">${head("pie","Top ngành theo tỷ trọng NAV")}<table><thead><tr><th>Ngành</th><th class="num">Tỷ trọng</th></tr></thead><tbody>${topS.map(s=>`<tr><td>${s.s}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div>
-    <div class="card">${head("brief","Top cổ phiếu theo tỷ trọng NAV")}<table><thead><tr><th>Mã</th><th class="num">Tỷ trọng</th><th>Danh mục Calida</th></tr></thead><tbody>${f.stocks.slice(0,5).map(s=>`<tr><td class="t">${s.t}</td><td class="num">${nf(s.w,2)}%</td><td>${priceOf(s.t)?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")}</tbody></table>
+    <div class="card">${head("pie","Top ngành theo tỷ trọng NAV")}<table><thead><tr><th>Ngành</th><th class="num">Tỷ trọng</th></tr></thead><tbody>${topS.map(s=>`<tr><td>${esc(s.s)}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div>
+    <div class="card">${head("brief","Top cổ phiếu theo tỷ trọng NAV")}<table><thead><tr><th>Mã</th><th class="num">Tỷ trọng</th><th>Danh mục Calida</th></tr></thead><tbody>${f.stocks.slice(0,5).map(s=>`<tr><td class="t">${esc(s.t)}</td><td class="num">${nf(s.w,2)}%</td><td>${priceOf(s.t)?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")}</tbody></table>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Tính từ top holdings công bố của từng quỹ, nên tỷ trọng thực tế có thể cao hơn.</p></div>
-    <div class="card">${head("trend","Biến động theo ngành (Δ tỷ trọng)")}${secDelta.length?`<table><thead><tr><th>Ngành</th><th class="num">Δ tỷ trọng</th></tr></thead><tbody>${secDelta.map(s=>`<tr><td>${s.d>0?'<span class="up">▲</span>':'<span class="down">▼</span>'} ${s.s}</td><td class="num ${cls(s.d)}">${sgn(s.d,2," đ.%")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Cần ít nhất 2 kỳ dữ liệu để so sánh.</div>'}</div>
+    <div class="card">${head("trend","Biến động theo ngành (Δ tỷ trọng)")}${secDelta.length?`<table><thead><tr><th>Ngành</th><th class="num">Δ tỷ trọng</th></tr></thead><tbody>${secDelta.map(s=>`<tr><td>${s.d>0?'<span class="up">▲</span>':'<span class="down">▼</span>'} ${esc(s.s)}</td><td class="num ${cls(s.d)}">${sgn(s.d,2," đ.%")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Cần ít nhất 2 kỳ dữ liệu để so sánh.</div>'}</div>
   </div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
     <div class="card">${head("flow","Dòng tiền theo quỹ")}<div class="grid" style="grid-template-columns:1fr 1fr">
-      <div><div class="tag bg-up" style="display:block;margin-bottom:6px">Tăng tỷ trọng CP</div><table><tbody>${f.fundUp.map(x=>`<tr><td>${x.f}</td><td class="num up">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div>
-      <div><div class="tag bg-down" style="display:block;margin-bottom:6px">Giảm tỷ trọng CP</div><table><tbody>${f.fundDown.map(x=>`<tr><td>${x.f}</td><td class="num down">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div></div></div>
-    <div class="card">${head("users","Top quỹ theo NAV")}<div class="tbl-wrap"><table><thead><tr><th>Quỹ</th><th class="num">NAV (tỷ)</th><th class="num">Hiệu suất YTD</th><th class="num">Tỷ trọng CP</th></tr></thead><tbody>${f.top.slice(0,5).map(x=>`<tr><td class="t">${x.f}</td><td class="num">${nf(x.nav)}</td><td class="num ${cls(x.ytd)}">${sgn(x.ytd,1,"%")}</td><td class="num">${nf(x.cp,1)}%</td></tr>`).join("")}</tbody></table></div></div>
+      <div><div class="tag bg-up" style="display:block;margin-bottom:6px">Tăng tỷ trọng CP</div><table><tbody>${f.fundUp.map(x=>`<tr><td>${esc(x.f)}</td><td class="num up">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div>
+      <div><div class="tag bg-down" style="display:block;margin-bottom:6px">Giảm tỷ trọng CP</div><table><tbody>${f.fundDown.map(x=>`<tr><td>${esc(x.f)}</td><td class="num down">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div></div></div>
+    <div class="card">${head("users","Top quỹ theo NAV")}<div class="tbl-wrap"><table><thead><tr><th>Quỹ</th><th class="num">NAV (tỷ)</th><th class="num">Hiệu suất YTD</th><th class="num">Tỷ trọng CP</th></tr></thead><tbody>${f.top.slice(0,5).map(x=>`<tr><td class="t">${esc(x.f)}</td><td class="num">${nf(x.nav)}</td><td class="num ${cls(x.ytd)}">${sgn(x.ytd,1,"%")}</td><td class="num">${nf(x.cp,1)}%</td></tr>`).join("")}</tbody></table></div></div>
     <div class="card">${head("doc","Điểm nhấn tháng")}<ul class="list">
-      ${hasPrev?`<li><b>Tăng mạnh nhất:</b> ${secDelta.filter(s=>s.d>0).slice(0,2).map(s=>`${s.s} (${sgn(s.d,2)} đ.%)`).join(", ")||"không có"}.</li>
-      <li><b>Giảm mạnh nhất:</b> ${secDelta.filter(s=>s.d<0).slice(0,2).map(s=>`${s.s} (${sgn(s.d,2)} đ.%)`).join(", ")||"không có"}.</li>
+      ${hasPrev?`<li><b>Tăng mạnh nhất:</b> ${secDelta.filter(s=>s.d>0).slice(0,2).map(s=>`${esc(s.s)} (${sgn(s.d,2)} đ.%)`).join(", ")||"không có"}.</li>
+      <li><b>Giảm mạnh nhất:</b> ${secDelta.filter(s=>s.d<0).slice(0,2).map(s=>`${esc(s.s)} (${sgn(s.d,2)} đ.%)`).join(", ")||"không có"}.</li>
       <li><b>NAV ${sgn(f.navPrevChgPct,1,"%")}</b> (${sgn(f.navPrevChg)} tỷ) trên nhóm quỹ có đủ 2 kỳ; tỷ trọng cổ phiếu ${sgn(f.dStockW,2)} đ.%.</li>`:"<li>Cần thêm kỳ trước để so sánh biến động.</li>"}
-      <li><b>Trùng với Calida:</b> ${f.stocks.filter(s=>priceOf(s.t)).map(s=>s.t).join(", ")||"không có mã nào"} nằm trong top nắm giữ của quỹ mở.</li>
+      <li><b>Trùng với Calida:</b> ${f.stocks.filter(s=>priceOf(s.t)).map(s=>esc(s.t)).join(", ")||"không có mã nào"} nằm trong top nắm giữ của quỹ mở.</li>
       ${f.updated<f.total?`<li><b>Còn thiếu:</b> ${f.total-f.updated} quỹ chưa có báo cáo kỳ ${f.period}.</li>`:""}</ul></div>
   </div>`;
 }
@@ -515,12 +519,13 @@ function pgFunds(){
 /* ============ PAGE: Báo cáo CTCK ============ */
 function pgReports(){
   const list=repFilter(), A=repAgg(list);
+  const canWrite=can("analyst");
   const stanceTot=Object.values(A.stanceCnt).reduce((s,v)=>s+v,0)||1;
   const stanceCol={"Tích cực":"var(--up)","Trung lập":"#9AA6C2","Thận trọng":"var(--warn)","Tiêu cực":"var(--down)"};
   const filters=`<div class="row" style="flex-wrap:wrap;gap:10px;margin-bottom:14px">
     <div class="tabs" style="margin:0">${["7 ngày","30 ngày","Tất cả"].map(t=>`<button data-rp="${t}" aria-selected="${STATE.repPeriod===t}">${t}</button>`).join("")}</div>
     <div class="tabs" style="margin:0">${["Tất cả","Chiến lược","Vĩ mô","Ngành","Doanh nghiệp"].map(t=>`<button data-rt="${t}" aria-selected="${STATE.repType===t}">${t}</button>`).join("")}</div>
-    <button class="btn" id="addRep" style="margin-left:auto">+ Thêm báo cáo</button></div>`;
+    ${canWrite?'<button class="btn" id="addRep" style="margin-left:auto">+ Thêm báo cáo</button>':'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>'}</div>`;
   const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
     ${kpiCard("rep","bg-brand",list.length,"báo cáo trong kỳ")}
     ${kpiCard("users","bg-brand",A.brokers.length,"công ty chứng khoán")}
@@ -530,18 +535,18 @@ function pgReports(){
       <div class="stack" style="margin:10px 0 8px;height:14px">${Object.entries(A.stanceCnt).map(([k,v])=>`<i style="width:${v/stanceTot*100}%;background:${stanceCol[k]}" title="${k}: ${v}"></i>`).join("")}</div>
       <div style="font-size:12px" class="muted">${Object.entries(A.stanceCnt).filter(([,v])=>v).map(([k,v])=>`<span style="color:${stanceCol[k]}">●</span> ${k} ${v}`).join("  ")}</div></div></div>`;
   const brokerTbl=`<div class="card">${head("users","View theo công ty chứng khoán")}<div class="tbl-wrap"><table><thead><tr><th>CTCK</th><th class="num">Số BC</th><th>Quan điểm</th><th class="num">Target VN-Index</th><th class="num">vs hiện tại</th><th>Ngành ưu tiên</th><th>Báo cáo mới nhất</th></tr></thead><tbody>
-    ${A.brokers.map(b=>{const up=b.target?(b.target/DATA.market.index-1)*100:null; return `<tr class="click" data-rsel="${b.latest.id}"><td class="t">${esc(b.broker)}</td><td class="num">${b.n}</td><td>${statusTag(b.latest.stance)}</td><td class="num">${nf(b.target)}</td><td class="num ${cls(up)}">${up==null?"—":sgn(up,1,"%")}</td><td style="white-space:normal;min-width:160px">${[...b.ow].slice(0,3).join(", ")||"—"}</td><td style="white-space:normal;min-width:180px">${esc(b.latest.title)}<div class="muted" style="font-size:12px">${fmtD(b.latest.date)}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="empty">Không có báo cáo trong bộ lọc này.</td></tr>`}</tbody></table></div></div>`;
+    ${A.brokers.map(b=>{const up=b.target?(b.target/DATA.market.index-1)*100:null; return `<tr class="click" data-rsel="${esc(b.latest.id)}"><td class="t">${esc(b.broker)}</td><td class="num">${b.n}</td><td>${statusTag(b.latest.stance)}</td><td class="num">${nf(b.target)}</td><td class="num ${cls(up)}">${up==null?"—":sgn(up,1,"%")}</td><td style="white-space:normal;min-width:160px">${esc([...b.ow].slice(0,3).join(", "))||"—"}</td><td style="white-space:normal;min-width:180px">${esc(b.latest.title)}<div class="muted" style="font-size:12px">${fmtD(b.latest.date)}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="empty">Không có báo cáo trong bộ lọc này.</td></tr>`}</tbody></table></div></div>`;
   const secRows=Object.entries(A.sectors).map(([s,o])=>({s,ow:o.ow.size,uw:o.uw.size,net:o.ow.size-o.uw.size,owB:[...o.ow],uwB:[...o.uw]})).sort((a,b)=>b.net-a.net||b.ow-a.ow);
   const maxS=Math.max(1,...secRows.map(r=>r.ow+r.uw));
   const secCard=`<div class="card">${head("pie","Đồng thuận ngành")}
-    ${secRows.map(r=>`<div class="row" style="margin:8px 0" title="Khả quan: ${esc(r.owB.join(", "))}${r.uwB.length?" | Kém khả quan: "+esc(r.uwB.join(", ")):""}"><span style="width:150px;font-size:13px">${r.s}</span>
+    ${secRows.map(r=>`<div class="row" style="margin:8px 0" title="Khả quan: ${esc(r.owB.join(", "))}${r.uwB.length?" | Kém khả quan: "+esc(r.uwB.join(", ")):""}"><span style="width:150px;font-size:13px">${esc(r.s)}</span>
       <div class="stack"><i style="width:${r.ow/maxS*100}%;background:var(--up)"></i><i style="width:${r.uw/maxS*100}%;background:var(--down)"></i></div>
       <b style="width:60px;text-align:right;font-size:12.5px"><span class="up">${r.ow}</span> / <span class="down">${r.uw}</span></b></div>`).join("")||'<div class="empty">Chưa có dữ liệu.</div>'}
     <p class="muted" style="font-size:12px;margin:8px 0 0">Số CTCK khuyến nghị tăng tỷ trọng / giảm tỷ trọng. Rê chuột để xem tên CTCK.</p></div>`;
   const stockRows=A.stocks.map(s=>{const c=Object.values(s.calls), buy=c.filter(x=>["MUA","KHẢ QUAN"].includes(x.rec)).length, tg=c.map(x=>x.target).filter(Boolean), avg=tg.reduce((a,b)=>a+b,0)/tg.length, px=priceOf(s.t);
     return {...s,n:c.length,buy,avg,min:Math.min(...tg),max:Math.max(...tg),px,up:px?(avg/px-1)*100:null,inPf:!!px};}).sort((a,b)=>b.n-a.n||b.buy-a.buy);
   const stockCard=`<div class="card">${head("trend","Đồng thuận cổ phiếu")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Số CTCK</th><th class="num">Mua / Khả quan</th><th class="num">Target TB</th><th class="num">Upside</th><th>Calida</th></tr></thead><tbody>
-    ${stockRows.map(s=>`<tr title="${esc(Object.entries(s.calls).map(([b,c])=>`${b}: ${c.rec} ${c.target}`).join(" | "))}"><td class="t">${s.t}</td><td class="num">${s.n}</td><td class="num">${s.buy}/${s.n}</td><td class="num">${nf(s.avg,1)}${s.n>1?`<div class="muted" style="font-size:11px">${nf(s.min,1)} – ${nf(s.max,1)}</div>`:""}</td><td class="num ${cls(s.up)}">${s.up==null?"—":sgn(s.up,1,"%")}</td><td>${s.inPf?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">Chưa có khuyến nghị cổ phiếu.</td></tr>`}</tbody></table></div>
+    ${stockRows.map(s=>`<tr title="${esc(Object.entries(s.calls).map(([b,c])=>`${b}: ${c.rec} ${c.target}`).join(" | "))}"><td class="t">${esc(s.t)}</td><td class="num">${s.n}</td><td class="num">${s.buy}/${s.n}</td><td class="num">${nf(s.avg,1)}${s.n>1?`<div class="muted" style="font-size:11px">${nf(s.min,1)} – ${nf(s.max,1)}</div>`:""}</td><td class="num ${cls(s.up)}">${s.up==null?"—":sgn(s.up,1,"%")}</td><td>${s.inPf?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">Chưa có khuyến nghị cổ phiếu.</td></tr>`}</tbody></table></div>
     <p class="muted" style="font-size:12px;margin:8px 0 0">Mỗi CTCK chỉ lấy khuyến nghị mới nhất. Upside tính với giá hiện tại trong danh mục Calida.</p></div>`;
   const sevTag=s=>s===3?'<span class="tag bg-down">Cao</span>':s===2?'<span class="tag bg-warn">Trung bình</span>':'<span class="tag bg-neutral">Thấp</span>';
   const riskCard=`<div class="card">${head("shield","Tổng hợp rủi ro")}<div class="tbl-wrap"><table><thead><tr><th>Chủ đề rủi ro</th><th>Mức cao nhất</th><th class="num">Số lần nhắc</th><th>CTCK cảnh báo</th></tr></thead><tbody>
@@ -550,12 +555,13 @@ function pgReports(){
   const sel=list.find(r=>r.id===STATE.repSel);
   const libCard=`<div class="card">${head("doc","Thư viện báo cáo")}${sel?repDetail(sel):""}
     <div class="tbl-wrap"><table><thead><tr><th>Ngày</th><th>CTCK</th><th>Loại</th><th>Tiêu đề</th><th>Quan điểm</th></tr></thead><tbody>
-    ${[...list].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr class="click ${STATE.repSel===r.id?"sel":""}" data-rsel="${r.id}" tabindex="0"><td>${fmtD(r.date)}</td><td>${esc(r.broker)}</td><td>${esc(r.type)}</td><td style="white-space:normal;min-width:220px">${esc(r.title)}</td><td>${statusTag(r.stance)}</td></tr>`).join("")}</tbody></table></div></div>`;
-  const chatCard=`<div class="card" style="position:sticky;top:14px">${head("chat","Hỏi đáp báo cáo")}
+    ${[...list].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr class="click ${STATE.repSel===r.id?"sel":""}" data-rsel="${esc(r.id)}" tabindex="0"><td>${fmtD(r.date)}</td><td>${esc(r.broker)}</td><td>${esc(r.type)}</td><td style="white-space:normal;min-width:220px">${esc(r.title)}</td><td>${statusTag(r.stance)}</td></tr>`).join("")}</tbody></table></div></div>`;
+  const chatCard=canWrite?`<div class="card" style="position:sticky;top:14px">${head("chat","Hỏi đáp báo cáo")}
     <div class="chat"><div class="msgs" id="msgs" aria-live="polite"></div>
       <div class="suggest" id="suggest"></div>
       <div class="composer"><textarea id="chatIn" placeholder="Hỏi về view, target, rủi ro của các CTCK…" aria-label="Câu hỏi"></textarea><button class="btn" id="chatSend">Gửi</button></div>
-      <div class="muted" style="font-size:11.5px;margin-top:6px">Trả lời chỉ dựa trên thư viện báo cáo, có dẫn nguồn CTCK và ngày.</div></div></div>`;
+      <div class="muted" style="font-size:11.5px;margin-top:6px">Trả lời chỉ dựa trên thư viện báo cáo, có dẫn nguồn CTCK và ngày.</div></div></div>`
+    : `<div class="card" style="position:sticky;top:14px">${head("chat","Hỏi đáp báo cáo")}<div class="empty">Tài khoản này chỉ có quyền xem dữ liệu.</div></div>`;
   return `<h1>Tổng hợp báo cáo CTCK${isDemoReports()?'<span class="demo">Dữ liệu mẫu</span>':""}</h1><p class="sub">Gom view, target và rủi ro từ các công ty chứng khoán vào một chỗ</p>${filters}${kpis}
   <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(320px,380px);margin-top:14px;align-items:start">
     <div class="grid">${brokerTbl}${riskCard}<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">${secCard}${stockCard}</div>${libCard}</div>
@@ -577,7 +583,7 @@ function repDetail(r){
 const SUGGEST=["CTCK nào thận trọng nhất và vì sao?","Đồng thuận target VN-Index cuối năm là bao nhiêu?","Rủi ro nào được nhiều CTCK cảnh báo nhất?","Các CTCK nói gì về HPG?"];
 function paintChat(){
   const box=$("#msgs"); if(!box) return;
-  if(!API_OK){ box.innerHTML=`<div class="msg a">Chưa kết nối được máy chủ API (${esc(CFG.API_BASE||location.origin)}/api). Hỏi đáp và thêm báo cáo cần chạy server; các bảng tổng hợp vẫn hoạt động.</div>`; $("#chatSend").disabled=true; $("#suggest").innerHTML=""; return; }
+  if(!API_OK||!can("analyst")){ box.innerHTML=`<div class="msg a">${!can("analyst")?"Tài khoản này chỉ có quyền xem dữ liệu.":`Chưa kết nối được máy chủ API (${esc(CFG.API_BASE||location.origin)}/api). Hỏi đáp và thêm báo cáo cần chạy server; các bảng tổng hợp vẫn hoạt động.`}</div>`; $("#chatSend").disabled=true; $("#suggest").innerHTML=""; return; }
   box.innerHTML = STATE.chat.length ? STATE.chat.map(m=>`<div class="msg ${m.role==="user"?"u":"a"} ${m.err?"err":""}">${esc(m.content)}</div>`).join("")
     : `<div class="msg a">Thư viện hiện có ${DATA.reports.length} báo cáo. Hỏi về quan điểm, target, ngành hay rủi ro của từng CTCK.</div>`;
   $("#suggest").innerHTML = STATE.chat.length ? "" : SUGGEST.map(s=>`<button data-ask="${esc(s)}">${esc(s)}</button>`).join("");
@@ -585,7 +591,7 @@ function paintChat(){
   box.scrollTop=box.scrollHeight;
 }
 async function ask(text){
-  text=text.trim(); if(!text||STATE.chatBusy||!API_OK) return;
+  text=text.trim(); if(!text||STATE.chatBusy||!API_OK||!can("analyst")) return;
   STATE.chat.push({role:"user",content:text}); STATE.chat.push({role:"assistant",content:"Đang đọc báo cáo…"}); STATE.chatBusy=true; paintChat();
   const idx=STATE.chat.length-1;
   const messages=STATE.chat.slice(0,-1).filter(m=>!m.err).map(m=>({role:m.role,content:m.content})).slice(-12);
@@ -595,6 +601,7 @@ async function ask(text){
 }
 
 function openAdd(){
+  if(!can("analyst")) return;
   $("#addBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Thêm báo cáo</h2><button class="icon-btn" id="dlgClose" aria-label="Đóng">✕</button></div>
     <p class="muted" style="margin:4px 0 12px">Tải file PDF hoặc dán nội dung báo cáo. Hệ thống trích xuất các trường để bạn kiểm tra trước khi lưu.</p>
     <label class="btn ghost" style="display:inline-block;margin-bottom:8px">Chọn file PDF<input type="file" id="pdfIn" accept="application/pdf" hidden></label> <span id="pdfName" class="muted"></span>
@@ -667,6 +674,7 @@ document.addEventListener("click",e=>{
   if(t.id==="extractBtn") extract();
   if(t.id==="saveRep") saveRep();
   if(t.id==="refreshBtn") refresh(true);
+  if(t.id==="logoutBtn") logout();
   if(t.id==="themeBtn"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";}
 });
 document.addEventListener("change",e=>{ if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||""; });
@@ -687,6 +695,10 @@ function paintHeader(){
   $("#dateTxt").textContent=d.toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});
   $("#dowTxt").innerHTML=d.toLocaleDateString("vi-VN",{weekday:"long"}).replace(/^./,c=>c.toUpperCase())+
     ` · <button class="link" id="refreshBtn" style="margin:0;padding:0" title="Cập nhật lúc ${esc(DATA.meta?.generatedAt||"")}">Tải lại</button>`;
+  $("#userAvatar").textContent=(CURRENT_USER?.username||"C").slice(0,1).toUpperCase();
+}
+async function logout(){
+  try{ await api("/api/auth/logout",{}); }catch(e){} finally{ location.assign("/login"); }
 }
 async function refresh(force){
   try{
@@ -698,7 +710,12 @@ async function refresh(force){
   const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)) STATE.page=h;
   $("#page").innerHTML='<div class="card empty">Đang tải dữ liệu…</div>';
   await refresh(true);
-  api("/api/health").then(r=>{API_OK=!!r.ok; if(STATE.page==="reports") paintChat();}).catch(()=>{});
+  try{
+    const health=await api("/api/health");
+    const auth=await api("/api/auth/me");
+    API_OK=!!health.ok; CURRENT_USER=auth.user; CSRF_TOKEN=auth.csrfToken||"";
+    paintHeader(); if(STATE.page==="reports") render();
+  }catch(e){ API_OK=false; }
   if(CFG.REFRESH_MINUTES>0) setInterval(()=>refresh(false), CFG.REFRESH_MINUTES*60000);
   window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page){STATE.page=h;render();}});
 })();

@@ -1,5 +1,6 @@
 """Đọc/ghi sheet Excel theo SCHEMA, upsert theo khóa (không ghi đè lịch sử)."""
 from pathlib import Path
+from uuid import uuid4
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
@@ -37,14 +38,20 @@ def write_sheets(file: str, frames: dict):
             existing[sh] = pd.DataFrame(columns=SCHEMA[file][sh]["cols"])
     existing.update(frames)
     order = list(SCHEMA[file]) + [k for k in existing if k not in SCHEMA[file]]
-    with pd.ExcelWriter(path, engine="openpyxl") as w:
-        for sh in order:
-            df = existing[sh]
-            cols = SCHEMA[file].get(sh, {}).get("cols")
-            if cols:
-                df = df.reindex(columns=cols)
-            df.to_excel(w, sheet_name=sh, index=False)
-    _style(path)
+    tmp = path.with_name(f".{path.stem}-{uuid4().hex}.tmp{path.suffix}")
+    try:
+        with pd.ExcelWriter(tmp, engine="openpyxl") as w:
+            for sh in order:
+                df = existing[sh]
+                cols = SCHEMA[file].get(sh, {}).get("cols")
+                if cols:
+                    df = df.reindex(columns=cols)
+                df.to_excel(w, sheet_name=sh, index=False)
+        _style(tmp)
+        tmp.replace(path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
 
 
 def upsert(file: str, sheet: str, new: pd.DataFrame):

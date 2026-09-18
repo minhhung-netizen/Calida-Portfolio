@@ -24,7 +24,7 @@ JSON_OUT = ROOT / "web" / "data" / "dashboard.json"
 # ---- Google Sheets (đọc bằng Drive API export) ----
 GOOGLE_SA_FILE = os.getenv("GOOGLE_SA_FILE", "")             # đường dẫn file service account JSON
 PORTFOLIO_SHEET_ID = os.getenv("PORTFOLIO_SHEET_ID", "")
-FUNDS_SHEET_ID = os.getenv("FUNDS_SHEET_ID", "1CSLovnkwLaF6DHGA7Lkv4MQBIgtFJ4dMzi2M2-nWSDs")
+FUNDS_SHEET_ID = os.getenv("FUNDS_SHEET_ID", "")
 
 # ---- Giá ----
 PRICE_LOOKBACK_DAYS = int(os.getenv("PRICE_LOOKBACK_DAYS", "400"))

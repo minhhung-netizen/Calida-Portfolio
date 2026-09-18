@@ -36,16 +36,26 @@ def main():
     ap.add_argument("--no-prices", action="store_true")
     ap.add_argument("--no-gsheets", action="store_true")
     a = ap.parse_args()
+    source_failures = []
     if not a.build_only:
         if not a.no_gsheets:
             import fetch_gsheets
-            step("Google Sheets (Portfolio, Fmarket)", fetch_gsheets.run)
+            if not step("Google Sheets (Portfolio, Fmarket)", fetch_gsheets.run):
+                source_failures.append("Google Sheets")
         if not a.no_prices:
             import fetch_prices
-            step("Giá vnstock", fetch_prices.run)
+            def fetch_prices_strict():
+                failed = fetch_prices.run()
+                if failed:
+                    raise RuntimeError("Không lấy được giá: " + ", ".join(failed))
+            if not step("Giá vnstock", fetch_prices_strict):
+                source_failures.append("vnstock")
     step("Nhập báo cáo từ inbox", import_inbox.run)
     step("Build database", build_db.run, required=True)
     step("Xuất dashboard.json", export_json.run, required=True)
+    if source_failures:
+        print("✖ Dashboard đã dựng từ dữ liệu cũ; nguồn lỗi: " + ", ".join(source_failures))
+        sys.exit(2)
 
 
 if __name__ == "__main__":
