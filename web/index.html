@@ -131,8 +131,12 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .detail dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0;font-size:13.5px}
 .detail dt{color:var(--ink-2)} .detail dd{margin:0;text-align:right;font-weight:600}
 .empty{color:var(--muted);padding:14px 0}
+.data-state{font-size:12px}
+.toast{position:fixed;z-index:20;right:20px;bottom:20px;max-width:min(420px,calc(100vw - 40px));padding:11px 14px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;font-weight:500}
+.toast.ok{background:var(--up-soft);color:var(--up);border:1px solid var(--up)}
+.toast.err{background:var(--down-soft);color:var(--down);border:1px solid var(--down)}
 @media (max-width:1100px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;padding:10px}.logo{padding:6px 10px}nav{display:flex;flex-wrap:wrap}nav button{width:auto}.nav-foot{display:none}.span-2{grid-column:auto}}
-@media (max-width:760px){main{padding:14px}.fgrid{grid-template-columns:1fr}.topbar .right .date{display:none}}
+@media (max-width:760px){main{padding:14px}.fgrid{grid-template-columns:1fr}.topbar .right .date{display:none}.data-state{display:none}.toast{right:14px;bottom:14px;max-width:calc(100vw - 28px)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -149,7 +153,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
   <main>
     <div class="topbar">
       <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Tìm mã cổ phiếu, báo cáo, quỹ đầu tư…" aria-label="Tìm kiếm"></label>
-      <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><button class="link" id="logoutBtn" title="Đăng xuất">Đăng xuất</button><div class="avatar" id="userAvatar">C</div></div>
+      <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><div id="dataState" class="tag data-state bg-neutral" title="Trạng thái dữ liệu">Đang tải dữ liệu</div><button class="link" id="logoutBtn" title="Đăng xuất">Đăng xuất</button><div class="avatar" id="userAvatar">C</div></div>
     </div>
     <div id="page"></div>
   </main>
@@ -157,6 +161,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 
 <dialog id="addDlg"><div class="dlg" id="addBody"></div></dialog>
 <dialog id="adminDlg"><div class="dlg" id="adminBody"></div></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="config.js"></script>
 <script>
@@ -169,6 +174,12 @@ let DATA = null;
 let API_OK = false;
 let CURRENT_USER = null;
 let CSRF_TOKEN = "";
+let toastTimer = null;
+let adminPollTimer = null;
+try {
+  const savedTheme = localStorage.getItem("calida-theme");
+  if(savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+} catch { /* Theme preference is optional. */ }
 const can = role => ({viewer:0,analyst:1,admin:2}[CURRENT_USER?.role] ?? -1) >= ({viewer:0,analyst:1,admin:2}[role] ?? 99);
 const api = (path, body, method = body ? "POST" : "GET") => fetch(CFG.API_BASE + path, {
   method,
@@ -199,6 +210,24 @@ const nf = (n, d=0) => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("vi-
 const sgn = (n, d=0, suf="") => n==null ? "—" : (n>0?"+":"") + nf(n,d) + suf;
 const cls = n => n>0 ? "up" : n<0 ? "down" : "muted";
 const range = r => r ? `${nf(r[0], r[0]%1?1:0)} – ${nf(r[1], r[1]%1?1:0)}` : "—";
+function notify(message, type="ok"){
+  const toast=$("#toast"); if(!toast) return;
+  clearTimeout(toastTimer); toast.textContent=message; toast.className=`toast ${type}`; toast.hidden=false;
+  toastTimer=setTimeout(()=>{toast.hidden=true;},4500);
+}
+function dataState(){
+  const raw=DATA?.asOf;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw||"")) return {text:"Chưa rõ ngày dữ liệu",className:"bg-warn",title:"Dashboard chưa có ngày dữ liệu hợp lệ"};
+  const asOf=new Date(`${raw}T00:00:00`), today=new Date(); today.setHours(0,0,0,0);
+  const age=Math.max(0,Math.floor((today-asOf)/864e5));
+  const quality=DATA.meta?.quality?.status;
+  if(quality && quality!=="ok") return {text:`Dữ liệu ${fmtD(raw)} · cần rà soát`,className:"bg-warn",title:"Pipeline có cảnh báo chất lượng dữ liệu"};
+  return {text:age>2?`Dữ liệu ${fmtD(raw)} · ${age} ngày trước`:`Dữ liệu đến ${fmtD(raw)}`,className:age>2?"bg-warn":"bg-up",title:`Dashboard tạo lúc ${DATA.meta?.generatedAt||"không rõ"}`};
+}
+function setTheme(theme){
+  document.documentElement.dataset.theme=theme;
+  try{localStorage.setItem("calida-theme",theme);}catch{ /* Theme still works for this session. */ }
+}
 const I = {
   home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   doc:'<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/>',
@@ -641,13 +670,23 @@ async function loadAdminOperations(){
   STATE.adminOpsError="";
   try{ STATE.adminOps=await api("/api/admin/operations"); }
   catch(e){ STATE.adminOps=null; STATE.adminOpsError=e.message; }
-  if(STATE.page==="admin") render();
+  if(STATE.page==="admin") { render(); scheduleAdminPoll(); }
+}
+function scheduleAdminPoll(){
+  clearTimeout(adminPollTimer);
+  const pipeline=STATE.adminOps?.pipeline;
+  if(STATE.page==="admin"&&can("admin")&&(pipeline?.status==="running"||pipeline?.queuedJobs>0)){
+    adminPollTimer=setTimeout(()=>{STATE.adminOps=null;loadAdminOperations();},3000);
+  }
 }
 async function runPipeline(buildOnly){
   const message=buildOnly?"Dựng lại dashboard từ dữ liệu hiện có?":"Đồng bộ toàn bộ nguồn dữ liệu? Thao tác có thể mất vài phút.";
   if(!confirm(message)) return;
-  try{await api("/api/pipeline/run",{buildOnly}); STATE.adminOps=null; await loadAdminOperations();}
-  catch(e){alert("Không thể chạy pipeline: "+e.message);}
+  try{
+    const result=await api("/api/pipeline/run",{buildOnly});
+    notify(result.queued?"Pipeline đang xếp hàng; trạng thái sẽ tự cập nhật.":"Đã gửi yêu cầu chạy pipeline; trạng thái sẽ tự cập nhật.");
+    STATE.adminOps=null; await loadAdminOperations();
+  }catch(e){notify("Không thể chạy pipeline: "+e.message,"err");}
 }
 function openUserDialog(username=""){
   const existing=(STATE.adminUsers||[]).find(u=>u.username===username);
@@ -798,9 +837,9 @@ document.addEventListener("click",e=>{
   if(t.id==="dlgClose") $("#addDlg").close();
   if(t.id==="extractBtn") extract();
   if(t.id==="saveRep") saveRep();
-  if(t.id==="refreshBtn") refresh(true);
+  if(t.id==="refreshBtn") refresh(true,true);
   if(t.id==="logoutBtn") logout();
-  if(t.id==="themeBtn"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";}
+  if(t.id==="themeBtn"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;setTheme(dark?"light":"dark");notify(dark?"Đã chuyển sang giao diện sáng.":"Đã chuyển sang giao diện tối.");}
 });
 document.addEventListener("change",e=>{ if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||""; });
 document.addEventListener("keydown",e=>{
@@ -820,16 +859,21 @@ function paintHeader(){
   $("#dateTxt").textContent=d.toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});
   $("#dowTxt").innerHTML=d.toLocaleDateString("vi-VN",{weekday:"long"}).replace(/^./,c=>c.toUpperCase())+
     ` · <button class="link" id="refreshBtn" style="margin:0;padding:0" title="Cập nhật lúc ${esc(DATA.meta?.generatedAt||"")}">Tải lại</button>`;
+  const state=dataState(), stateEl=$("#dataState"); stateEl.textContent=state.text; stateEl.className=`tag data-state ${state.className}`; stateEl.title=state.title;
   $("#userAvatar").textContent=(CURRENT_USER?.username||"C").slice(0,1).toUpperCase();
 }
 async function logout(){
   try{ await api("/api/auth/logout",{}); }catch(e){} finally{ location.assign("/login"); }
 }
-async function refresh(force){
+async function refresh(force, announce=false){
   try{
     const d=await loadData();
-    if(force||!DATA||d.meta?.generatedAt!==DATA.meta?.generatedAt){ DATA=d; paintHeader(); render(); }
-  }catch(e){ if(!DATA) $("#page").innerHTML=`<div class="card"><h2>Không tải được dữ liệu</h2><p class="prose">${esc(e.message)}. Chạy <code>python pipeline/run.py</code> để tạo file dữ liệu, rồi tải lại trang.</p></div>`; }
+    if(force||!DATA||d.meta?.generatedAt!==DATA.meta?.generatedAt){ DATA=d; paintHeader(); render(); if(announce) notify("Đã tải dữ liệu mới nhất."); }
+    else if(announce) notify("Dữ liệu đang là bản mới nhất.");
+  }catch(e){
+    if(!DATA) $("#page").innerHTML=`<div class="card"><h2>Không tải được dữ liệu</h2><p class="prose">${esc(e.message)}. Chạy <code>python pipeline/run.py</code> để tạo file dữ liệu, rồi tải lại trang.</p></div>`;
+    else if(announce) notify("Không tải lại được dữ liệu: "+e.message,"err");
+  }
 }
 (async function boot(){
   const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)) STATE.page=h;

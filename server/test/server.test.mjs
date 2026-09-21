@@ -67,6 +67,11 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     const session = await me.json();
     assert.equal(session.user.role, "admin");
     assert.ok(session.csrfToken, "CALIDA_USERS_JSON phải tạo được session ngay cả khi thiếu SESSION_SECRET");
+    const appPage = await request("/", { headers: { cookie } });
+    assert.equal(appPage.status, 200);
+    const csp = appPage.headers.get("content-security-policy") || "";
+    assert.match(csp, /https:\/\/fonts\.googleapis\.com/, "CSP phải cho phép stylesheet font đã dùng trong giao diện");
+    assert.match(csp, /https:\/\/fonts\.gstatic\.com/, "CSP phải cho phép file font đã dùng trong giao diện");
 
     const common = { headers: { cookie, "content-type": "application/json", "x-csrf-token": session.csrfToken } };
     let response = await request("/api/admin/users", { method: "POST", ...common, body: JSON.stringify({ user: { username: "prototype", password: "prototype-password-123", role: "constructor" } }) });
