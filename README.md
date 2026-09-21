@@ -72,7 +72,7 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
 - Tự chạy pipeline lúc `PIPELINE_TIME` (T2–T6). Log nằm ở `data/logs/`.
 - Khi lưu báo cáo, server ghi vào `data/inbox/`, rồi dựng lại DB ngay.
 - Admin có thể sửa/xóa báo cáo trong thư viện; mỗi thay đổi được đưa vào inbox, áp dụng atomic vào `reports.xlsx` rồi mới dựng lại dashboard.
-- Đặt `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` khi mở ra internet; phiên đăng nhập dùng cookie `HttpOnly`.
+- Đặt `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` khi mở ra internet; phiên đăng nhập dùng cookie `HttpOnly`. Admin có thể cấp riêng quyền **xem/chỉnh sửa** cho từng module của từng user; dashboard qua server chỉ trả dữ liệu của các module đã được cấp.
 - Xem `RAILWAY_DEPLOY.md` trước khi deploy Railway, đặc biệt phần Volume, backup và nguồn dữ liệu chính.
 
 **B. Chỉ host tĩnh** (GitHub Pages / Netlify / Vercel):

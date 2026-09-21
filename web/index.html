@@ -181,6 +181,8 @@ try {
   if(savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
 } catch { /* Theme preference is optional. */ }
 const can = role => ({viewer:0,analyst:1,admin:2}[CURRENT_USER?.role] ?? -1) >= ({viewer:0,analyst:1,admin:2}[role] ?? 99);
+const canView = module => API_OK ? Boolean(CURRENT_USER?.permissions?.[module]?.view) : module !== "admin";
+const canEdit = module => API_OK ? Boolean(CURRENT_USER?.permissions?.[module]?.edit) : false;
 const api = (path, body, method = body ? "POST" : "GET") => fetch(CFG.API_BASE + path, {
   method,
   headers: Object.assign({"Content-Type":"application/json"}, method !== "GET" && CSRF_TOKEN ? {"x-csrf-token":CSRF_TOKEN} : {}),
@@ -195,8 +197,9 @@ const api = (path, body, method = body ? "POST" : "GET") => fetch(CFG.API_BASE +
   return j;
 });
 async function loadData(){
-  const r = await fetch(CFG.DATA_URL + "?t=" + Date.now(), {cache:"no-store"});
-  if (!r.ok) throw new Error("Không tải được " + CFG.DATA_URL + " (" + r.status + ")");
+  const url=API_OK ? CFG.API_BASE + "/api/dashboard" : CFG.DATA_URL + "?t=" + Date.now();
+  const r = await fetch(url, {cache:"no-store"});
+  if (!r.ok) throw new Error("Không tải được dữ liệu (" + r.status + ")");
   return r.json();
 }
 const isDemoReports = () => (DATA.reports||[]).some(r => r.source === "Dữ liệu mẫu");
@@ -339,17 +342,21 @@ const PAGES=[
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
   repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatBusy:false,adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
+const availablePages=()=>PAGES.filter(p=>canView(p.id));
 function renderNav(){
-  $("#nav").innerHTML=PAGES.filter(p=>!p.adminOnly||can("admin")).map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
+  $("#nav").innerHTML=availablePages().map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
 }
-function go(id){ if(id==="admin"&&!can("admin")) return; STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
+function go(id){ if(!canView(id)) return; STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
 function render(){
+  const pages=availablePages();
+  if(!pages.length){ $("#nav").innerHTML=""; $("#page").innerHTML='<div class="card"><h1>Chưa được cấp quyền module</h1><p class="prose">Liên hệ quản trị viên để được cấp quyền xem ít nhất một module.</p></div>'; return; }
+  if(!pages.some(p=>p.id===STATE.page)) STATE.page=pages[0].id;
   renderNav();
   const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,admin:pgAdmin}[STATE.page]||pgOverview;
   $("#page").innerHTML=fn();
   if(STATE.page==="reports") paintChat();
-  if(STATE.page==="admin"&&can("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
-  if(STATE.page==="admin"&&can("admin")&&!STATE.adminOps&&!STATE.adminOpsError) loadAdminOperations();
+  if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
+  if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminOps&&!STATE.adminOpsError) loadAdminOperations();
 }
 
 function latestFlowValues(flows){
@@ -565,7 +572,7 @@ function pgFunds(){
 /* ============ PAGE: Báo cáo CTCK ============ */
 function pgReports(){
   const list=repFilter(), A=repAgg(list);
-  const canWrite=can("analyst");
+  const canWrite=canEdit("reports");
   const stanceTot=Object.values(A.stanceCnt).reduce((s,v)=>s+v,0)||1;
   const stanceCol={"Tích cực":"var(--up)","Trung lập":"#9AA6C2","Thận trọng":"var(--warn)","Tiêu cực":"var(--down)"};
   const filters=`<div class="row" style="flex-wrap:wrap;gap:10px;margin-bottom:14px">
@@ -616,7 +623,7 @@ function pgReports(){
 }
 const fmtD=d=>{const [y,m,dd]=d.split("-");return `${dd}/${m}/${y}`;};
 function repDetail(r){
-  const actions=can("admin")?`<button class="link" data-edit-rep="${esc(r.id)}">Chỉnh sửa</button><button class="link" data-delete-rep="${esc(r.id)}">Xóa</button>`:"";
+  const actions=canEdit("reports")?`<button class="link" data-edit-rep="${esc(r.id)}">Chỉnh sửa</button><button class="link" data-delete-rep="${esc(r.id)}">Xóa</button>`:"";
   return `<div class="box" style="margin-bottom:12px"><div class="row"><b style="flex:1">${esc(r.title)}</b>${statusTag(r.stance)}${actions}<button class="icon-btn" data-rsel="" aria-label="Đóng">✕</button></div>
     <div class="muted" style="font-size:12.5px">${esc(r.broker)} · ${fmtD(r.date)} · ${esc(r.type)} · Tầm nhìn ${esc(r.horizon||"—")}${r.vnTarget?` · Target VN-Index ${nf(r.vnTarget)}`:""}</div>
     <p class="prose" style="margin-top:8px">${esc(r.summary)}</p>
@@ -629,13 +636,26 @@ function repDetail(r){
 /* ============ Administration ============ */
 const roleLabel={viewer:"Chỉ xem",analyst:"Phân tích",admin:"Quản trị viên"};
 const rolePermission={viewer:"Xem dashboard và thư viện báo cáo",analyst:"Xem dữ liệu, dùng AI và thêm báo cáo",admin:"Toàn quyền dữ liệu, pipeline và quản lý tài khoản"};
+const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",admin:"Quản trị"};
+const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||(role==="analyst"&&module==="reports")} ]));
+function permissionSummary(permissions){
+  const values=Object.values(permissions||{}), view=values.filter(p=>p.view).length, edit=values.filter(p=>p.edit).length;
+  return `Xem ${view}/${values.length||0} module · Chỉnh sửa ${edit}/${values.length||0}`;
+}
+function permissionMatrix(permissions, role){
+  const current=permissions||moduleDefaults(role);
+  return `<div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>Module</th><th class="num">Xem</th><th class="num">Chỉnh sửa</th></tr></thead><tbody>${Object.entries(moduleLabel).map(([module,label])=>{
+    const p=current[module]||{view:false,edit:false}, restricted=module==="admin"&&role!=="admin";
+    return `<tr><td><b>${label}</b>${module==="admin"?'<div class="muted" style="font-size:11px">Chỉ dành cho vai trò admin</div>':""}</td><td class="num"><input type="checkbox" data-permission="${module}" data-action="view" ${p.view?"checked":""} ${restricted?"disabled":""} aria-label="Xem ${label}"></td><td class="num"><input type="checkbox" data-permission="${module}" data-action="edit" ${p.edit?"checked":""} ${restricted?"disabled":""} aria-label="Chỉnh sửa ${label}"></td></tr>`;
+  }).join("")}</tbody></table></div>`;
+}
 function pgAdmin(){
-  if(!can("admin")) return `<div class="card"><h1>Không có quyền truy cập</h1><p class="prose">Khu vực này chỉ dành cho quản trị viên.</p></div>`;
+  if(!canEdit("admin")) return `<div class="card"><h1>Không có quyền truy cập</h1><p class="prose">Tài khoản này chưa được cấp quyền quản trị.</p></div>`;
   const users=STATE.adminUsers;
   const content=STATE.adminError?`<div class="empty">${esc(STATE.adminError)} <button class="link" id="reloadUsers">Thử lại</button></div>`
     :!users?'<div class="empty">Đang tải danh sách tài khoản…</div>'
     :`<div class="tbl-wrap"><table><thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><th>Quyền</th><th>Cập nhật</th><th></th></tr></thead><tbody>
-      ${users.map(u=>`<tr><td class="t">${esc(u.username)}${u.username===CURRENT_USER?.username?' <span class="muted">(bạn)</span>':""}</td><td>${statusTag(roleLabel[u.role]||u.role)}</td><td style="white-space:normal;min-width:220px" class="muted">${esc(rolePermission[u.role]||"")}</td><td class="muted">${u.updatedAt?new Date(u.updatedAt).toLocaleDateString("vi-VN"):"—"}</td><td><button class="link" data-edit-user="${esc(u.username)}">Chỉnh sửa</button> <button class="link" data-delete-user="${esc(u.username)}" ${u.username===CURRENT_USER?.username?"disabled title=\"Không thể tự xóa\"":""}>Xóa</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Chưa có tài khoản.</td></tr>'}
+      ${users.map(u=>`<tr><td class="t">${esc(u.username)}${u.username===CURRENT_USER?.username?' <span class="muted">(bạn)</span>':""}</td><td>${statusTag(roleLabel[u.role]||u.role)}</td><td style="white-space:normal;min-width:220px" class="muted">${esc(permissionSummary(u.permissions))}<div style="font-size:11px">${esc(rolePermission[u.role]||"")}</div></td><td class="muted">${u.updatedAt?new Date(u.updatedAt).toLocaleDateString("vi-VN"):"—"}</td><td><button class="link" data-edit-user="${esc(u.username)}">Chỉnh sửa</button> <button class="link" data-delete-user="${esc(u.username)}" ${u.username===CURRENT_USER?.username?"disabled title=\"Không thể tự xóa\"":""}>Xóa</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Chưa có tài khoản.</td></tr>'}
     </tbody></table></div>`;
   const ops=STATE.adminOps;
   const operation=STATE.adminOpsError?`<div class="empty">${esc(STATE.adminOpsError)} <button class="link" id="reloadOps">Thử lại</button></div>`
@@ -650,7 +670,7 @@ function pgAdmin(){
         <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần dựng dashboard gần nhất.</p>'}</div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
-  return `<h1>Quản trị tài khoản</h1><p class="sub">Tạo, chỉnh sửa, xóa tài khoản và phân quyền truy cập hệ thống.</p>
+  return `<h1>Quản trị tài khoản</h1><p class="sub">Cấp quyền xem và chỉnh sửa theo từng module, riêng cho từng tài khoản.</p>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:14px">
       ${Object.entries(roleLabel).map(([role,label])=>`<div class="card"><b>${esc(label)}</b><p class="muted" style="margin:6px 0 0">${esc(rolePermission[role])}</p></div>`).join("")}
     </div>
@@ -659,14 +679,14 @@ function pgAdmin(){
     <div class="card" style="margin-top:14px">${head("trend","Vận hành dữ liệu")}${operation}</div>`;
 }
 async function loadAdminUsers(){
-  if(!can("admin")) return;
+  if(!canEdit("admin")) return;
   STATE.adminError="";
   try{ const r=await api("/api/admin/users"); STATE.adminUsers=r.users||[]; }
   catch(e){ STATE.adminUsers=null; STATE.adminError=e.message; }
   if(STATE.page==="admin") render();
 }
 async function loadAdminOperations(){
-  if(!can("admin")) return;
+  if(!canEdit("admin")) return;
   STATE.adminOpsError="";
   try{ STATE.adminOps=await api("/api/admin/operations"); }
   catch(e){ STATE.adminOps=null; STATE.adminOpsError=e.message; }
@@ -675,7 +695,7 @@ async function loadAdminOperations(){
 function scheduleAdminPoll(){
   clearTimeout(adminPollTimer);
   const pipeline=STATE.adminOps?.pipeline;
-  if(STATE.page==="admin"&&can("admin")&&(pipeline?.status==="running"||pipeline?.queuedJobs>0)){
+  if(STATE.page==="admin"&&canEdit("admin")&&(pipeline?.status==="running"||pipeline?.queuedJobs>0)){
     adminPollTimer=setTimeout(()=>{STATE.adminOps=null;loadAdminOperations();},3000);
   }
 }
@@ -693,11 +713,13 @@ function openUserDialog(username=""){
   const self=existing?.username===CURRENT_USER?.username;
   const selected=existing?.role||"viewer";
   $("#adminBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">${existing?"Chỉnh sửa tài khoản":"Thêm tài khoản"}</h2><button class="icon-btn" id="adminDlgClose" aria-label="Đóng">✕</button></div>
-    <p class="muted" style="margin:4px 0 12px">${existing?"Để trống mật khẩu nếu không muốn thay đổi. Đổi mật khẩu của chính bạn sẽ yêu cầu đăng nhập lại.":"Mật khẩu cần có ít nhất 12 ký tự."}</p>
+    <p class="muted" style="margin:4px 0 12px">${existing?"Để trống mật khẩu nếu không muốn thay đổi. Thay đổi quyền của chính bạn sẽ yêu cầu đăng nhập lại.":"Mật khẩu cần có ít nhất 12 ký tự."}</p>
     <div class="fgrid"><label>Tên đăng nhập<input id="adminUsername" value="${esc(existing?.username||"")}" ${existing?"disabled":""} autocomplete="username"></label>
       <label>Vai trò<select id="adminRole" ${self?"disabled":""}>${Object.entries(roleLabel).map(([role,label])=>`<option value="${role}" ${role===selected?"selected":""}>${esc(label)}</option>`).join("")}</select></label>
       <label style="grid-column:1/-1">${existing?"Mật khẩu mới (tùy chọn)":"Mật khẩu"}<input id="adminPassword" type="password" autocomplete="new-password" ${existing?"":"required"}></label></div>
-    ${self?'<p class="muted" style="font-size:12px">Bạn không thể tự hạ quyền tài khoản để tránh mất quyền quản trị.</p>':""}
+    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo module</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Quyền chỉnh sửa đang áp dụng cho Báo cáo CTCK và Quản trị; các module còn lại được lưu sẵn để mở rộng chức năng sau này.</p>
+    ${permissionMatrix(existing?.permissions||moduleDefaults(selected),selected)}
+    ${self?'<p class="muted" style="font-size:12px">Bạn không thể tự hạ vai trò; hệ thống luôn phải có ít nhất một quản trị viên có quyền quản trị.</p>':""}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="adminSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveUser" data-user-id="${esc(existing?.username||"")}">${existing?"Lưu thay đổi":"Tạo tài khoản"}</button></div>`;
   $("#adminDlg").showModal();
 }
@@ -706,13 +728,17 @@ async function saveUser(username=""){
   const role=$("#adminRole").value;
   const name=username||$("#adminUsername").value.trim();
   const status=$("#adminSaveStatus");
+  const permissions=Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{
+    view:!!$(`#adminBody [data-permission="${module}"][data-action="view"]`)?.checked,
+    edit:!!$(`#adminBody [data-permission="${module}"][data-action="edit"]`)?.checked,
+  }]));
   if(!username&&!/^[a-zA-Z0-9._-]{3,64}$/.test(name)){status.textContent="Tên đăng nhập cần 3–64 ký tự: chữ, số, ., _ hoặc -.";return;}
   if((!username||password)&&password.length<12){status.textContent="Mật khẩu cần ít nhất 12 ký tự.";return;}
   $("#saveUser").disabled=true; status.textContent="Đang lưu…";
   try{
     const result=username
-      ?await api(`/api/admin/users/${encodeURIComponent(username)}`,{user:{role,password}},"PATCH")
-      :await api("/api/admin/users",{user:{username:name,password,role}});
+      ?await api(`/api/admin/users/${encodeURIComponent(username)}`,{user:{role,password,permissions}},"PATCH")
+      :await api("/api/admin/users",{user:{username:name,password,role,permissions}});
     $("#adminDlg").close(); STATE.adminUsers=null; await loadAdminUsers();
     if(result.reauthenticate) location.assign("/login");
   }catch(e){status.textContent="Không lưu được: "+e.message; $("#saveUser").disabled=false;}
@@ -727,7 +753,7 @@ async function deleteUser(username){
 const SUGGEST=["CTCK nào thận trọng nhất và vì sao?","Đồng thuận target VN-Index cuối năm là bao nhiêu?","Rủi ro nào được nhiều CTCK cảnh báo nhất?","Các CTCK nói gì về HPG?"];
 function paintChat(){
   const box=$("#msgs"); if(!box) return;
-  if(!API_OK||!can("analyst")){ box.innerHTML=`<div class="msg a">${!can("analyst")?"Tài khoản này chỉ có quyền xem dữ liệu.":`Chưa kết nối được máy chủ API (${esc(CFG.API_BASE||location.origin)}/api). Hỏi đáp và thêm báo cáo cần chạy server; các bảng tổng hợp vẫn hoạt động.`}</div>`; $("#chatSend").disabled=true; $("#suggest").innerHTML=""; return; }
+  if(!API_OK||!canEdit("reports")){ box.innerHTML=`<div class="msg a">${!canEdit("reports")?"Tài khoản này chỉ có quyền xem báo cáo.":`Chưa kết nối được máy chủ API (${esc(CFG.API_BASE||location.origin)}/api). Hỏi đáp và thêm báo cáo cần chạy server; các bảng tổng hợp vẫn hoạt động.`}</div>`; $("#chatSend").disabled=true; $("#suggest").innerHTML=""; return; }
   box.innerHTML = STATE.chat.length ? STATE.chat.map(m=>`<div class="msg ${m.role==="user"?"u":"a"} ${m.err?"err":""}">${esc(m.content)}</div>`).join("")
     : `<div class="msg a">Thư viện hiện có ${DATA.reports.length} báo cáo. Hỏi về quan điểm, target, ngành hay rủi ro của từng CTCK.</div>`;
   $("#suggest").innerHTML = STATE.chat.length ? "" : SUGGEST.map(s=>`<button data-ask="${esc(s)}">${esc(s)}</button>`).join("");
@@ -735,7 +761,7 @@ function paintChat(){
   box.scrollTop=box.scrollHeight;
 }
 async function ask(text){
-  text=text.trim(); if(!text||STATE.chatBusy||!API_OK||!can("analyst")) return;
+  text=text.trim(); if(!text||STATE.chatBusy||!API_OK||!canEdit("reports")) return;
   STATE.chat.push({role:"user",content:text}); STATE.chat.push({role:"assistant",content:"Đang đọc báo cáo…"}); STATE.chatBusy=true; paintChat();
   const idx=STATE.chat.length-1;
   const messages=STATE.chat.slice(0,-1).filter(m=>!m.err).map(m=>({role:m.role,content:m.content})).slice(-12);
@@ -745,7 +771,7 @@ async function ask(text){
 }
 
 function openAdd(existing=null){
-  if(!can("analyst")) return;
+  if(!canEdit("reports")) return;
   $("#addBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">${existing?"Chỉnh sửa báo cáo":"Thêm báo cáo"}</h2><button class="icon-btn" id="dlgClose" aria-label="Đóng">✕</button></div>
     <p class="muted" style="margin:4px 0 12px">${existing?"Thay đổi sẽ được ghi vào Excel nguồn và dựng lại dashboard.":"Tải file PDF hoặc dán nội dung báo cáo. Hệ thống trích xuất các trường để bạn kiểm tra trước khi lưu."}</p>
     <label class="btn ghost" style="display:inline-block;margin-bottom:8px">Chọn file PDF<input type="file" id="pdfIn" accept="application/pdf" hidden></label> <span id="pdfName" class="muted"></span>
@@ -798,9 +824,9 @@ async function saveRep(){
   try{ const result=await api(reportId?`/api/reports/${encodeURIComponent(reportId)}`:"/api/reports",{report:rep},reportId?"PATCH":undefined); $("#addDlg").close(); STATE.editingReportId=""; await refresh(true); STATE.repPeriod="Tất cả"; STATE.repSel=result.id||reportId||null; render(); }
   catch(e){ $("#saveStatus").textContent="Không lưu được: "+e.message; $("#saveRep").disabled=false; }
 }
-function editReport(id){const report=DATA.reports.find(r=>r.id===id);if(report&&can("admin")) openAdd(report);}
+function editReport(id){const report=DATA.reports.find(r=>r.id===id);if(report&&canEdit("reports")) openAdd(report);}
 async function deleteReport(id){
-  const report=DATA.reports.find(r=>r.id===id); if(!report||!can("admin")||!confirm(`Xóa báo cáo “${report.title}”? Thao tác này không thể hoàn tác.`)) return;
+  const report=DATA.reports.find(r=>r.id===id); if(!report||!canEdit("reports")||!confirm(`Xóa báo cáo “${report.title}”? Thao tác này không thể hoàn tác.`)) return;
   try{await api(`/api/reports/${encodeURIComponent(id)}`,undefined,"DELETE"); STATE.repSel=null; await refresh(true); render();}
   catch(e){alert("Không xóa được báo cáo: "+e.message);}
 }
@@ -841,7 +867,15 @@ document.addEventListener("click",e=>{
   if(t.id==="logoutBtn") logout();
   if(t.id==="themeBtn"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;setTheme(dark?"light":"dark");notify(dark?"Đã chuyển sang giao diện sáng.":"Đã chuyển sang giao diện tối.");}
 });
-document.addEventListener("change",e=>{ if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||""; });
+document.addEventListener("change",e=>{
+  if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||"";
+  if(e.target.dataset.action==="view"&&!e.target.checked){ const edit=$(`#adminBody [data-permission="${e.target.dataset.permission}"][data-action="edit"]`); if(edit) edit.checked=false; }
+  if(e.target.dataset.action==="edit"&&e.target.checked){ const view=$(`#adminBody [data-permission="${e.target.dataset.permission}"][data-action="view"]`); if(view) view.checked=true; }
+  if(e.target.id==="adminRole"){
+    const restricted=e.target.value!=="admin";
+    $("#adminBody").querySelectorAll('[data-permission="admin"]').forEach(input=>{input.disabled=restricted;if(restricted) input.checked=false;});
+  }
+});
 document.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&e.target.id==="chatIn"&&!e.shiftKey){e.preventDefault();const v=e.target.value;e.target.value="";ask(v);}
   if(e.key==="Enter"&&e.target.matches("tr[tabindex]")) e.target.click();
@@ -878,16 +912,14 @@ async function refresh(force, announce=false){
 (async function boot(){
   const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)) STATE.page=h;
   $("#page").innerHTML='<div class="card empty">Đang tải dữ liệu…</div>';
-  await refresh(true);
   try{
     const health=await api("/api/health");
     const auth=await api("/api/auth/me");
     API_OK=!!health.ok; CURRENT_USER=auth.user; CSRF_TOKEN=auth.csrfToken||"";
-    if(STATE.page==="admin"&&!can("admin")) STATE.page="overview";
-    paintHeader(); render();
   }catch(e){ API_OK=false; }
+  await refresh(true);
   if(CFG.REFRESH_MINUTES>0) setInterval(()=>refresh(false), CFG.REFRESH_MINUTES*60000);
-  window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page&&!(h==="admin"&&!can("admin"))){STATE.page=h;render();}});
+  window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page&&canView(h)){STATE.page=h;render();}});
 })();
 </script>
 </body>

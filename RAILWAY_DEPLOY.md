@@ -46,9 +46,9 @@ Nếu pipeline đọc Google Sheets:
 
 Các biến khác lấy theo `.env.example`.
 
-Không đặt `ACCESS_TOKEN`, `SESSION_SECRET`, `GOOGLE_SA_JSON` hoặc mật khẩu trong Git. Khi `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` được cấu hình, mọi trang, API và `dashboard.json` đều yêu cầu đăng nhập. `viewer` chỉ xem dữ liệu; `analyst` dùng AI và thêm báo cáo; `admin` có thêm quyền chạy pipeline và quản lý tài khoản.
+Không đặt `ACCESS_TOKEN`, `SESSION_SECRET`, `GOOGLE_SA_JSON` hoặc mật khẩu trong Git. Khi `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` được cấu hình, mọi trang và API đều yêu cầu đăng nhập. `viewer`, `analyst`, `admin` là bộ quyền mặc định; admin có thể ghi đè theo từng user cho từng module: `overview`, `brief`, `portfolio`, `flows`, `funds`, `reports`, `admin`. Quyền `edit` của `reports` cho phép thêm/sửa/xóa báo cáo và dùng AI; quyền `edit` của `admin` cho phép quản lý user/pipeline. Module `admin` chỉ có thể được cấp cho tài khoản có role `admin`.
 
-Sau khi đăng nhập bằng admin, mở **Quản trị** ở thanh bên để tạo, sửa vai trò, đặt lại mật khẩu hoặc xóa tài khoản. Hệ thống lưu mật khẩu ở dạng băm trong `/app/data/auth/users.json` trên Railway Volume; sau lần thay đổi đầu tiên, kho này là nguồn tài khoản chính thay cho `ACCESS_TOKEN`/`CALIDA_USERS_JSON`. Không commit thư mục `data/auth/` và cần có Volume backup trước khi vận hành.
+Sau khi đăng nhập bằng admin, mở **Quản trị** ở thanh bên để tạo, sửa vai trò, đặt lại mật khẩu, xóa tài khoản và tick quyền **Xem/Chỉnh sửa** cho từng module. Hệ thống lưu mật khẩu ở dạng băm và ma trận quyền trong `/app/data/auth/users.json` trên Railway Volume; sau lần thay đổi đầu tiên, kho này là nguồn tài khoản chính thay cho `ACCESS_TOKEN`/`CALIDA_USERS_JSON`. Không commit thư mục `data/auth/` và cần có Volume backup trước khi vận hành. Khi phân quyền được bật, giao diện lấy dữ liệu qua `/api/dashboard`; đường dẫn thô `/data/dashboard.json` bị chặn để tránh lộ dữ liệu module chưa được cấp.
 
 ## 5. Lần deploy đầu
 

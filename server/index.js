@@ -48,6 +48,8 @@ const USER_STORE = path.join(USER_STORE_DIR, "users.json");
 const ROLE_RANK = Object.freeze({ viewer: 0, analyst: 1, admin: 2 });
 const isRole = (role) => Object.hasOwn(ROLE_RANK, role);
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
+const MODULES = Object.freeze(["overview", "brief", "portfolio", "flows", "funds", "reports", "admin"]);
+const MODULE_SET = new Set(MODULES);
 const STARTED_AT = new Date().toISOString();
 
 fs.mkdirSync(path.dirname(REPORT_JOBS), { recursive: true });
@@ -121,6 +123,52 @@ function validateNewUser(username, password, role) {
   if (!isRole(role)) throw new Error("Vai trò phải là viewer, analyst hoặc admin");
 }
 
+function defaultPermissions(role) {
+  const allView = Object.fromEntries(MODULES.map((module) => [module, { view: module !== "admin", edit: false }]));
+  if (role === "analyst") allView.reports.edit = true;
+  if (role === "admin") return Object.fromEntries(MODULES.map((module) => [module, { view: true, edit: true }]));
+  return allView;
+}
+
+function normalizePermissionOverrides(raw, role) {
+  if (raw == null) return {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Quyền theo module không hợp lệ");
+  const normalized = {};
+  for (const [module, value] of Object.entries(raw)) {
+    if (!MODULE_SET.has(module) || !value || typeof value !== "object" || Array.isArray(value)) throw new Error("Module phân quyền không hợp lệ");
+    const permission = {};
+    for (const action of ["view", "edit"]) {
+      if (Object.hasOwn(value, action)) {
+        if (typeof value[action] !== "boolean") throw new Error("Quyền module phải là true hoặc false");
+        permission[action] = value[action];
+      }
+    }
+    if (!Object.keys(permission).length || Object.keys(value).some((key) => key !== "view" && key !== "edit")) throw new Error("Quyền module không hợp lệ");
+    if (permission.view === false && permission.edit === true) throw new Error("Không thể cấp quyền chỉnh sửa khi đã tắt quyền xem module");
+    if (module === "admin" && role !== "admin" && (permission.view || permission.edit)) throw new Error("Chỉ tài khoản có vai trò admin mới được cấp quyền quản trị");
+    normalized[module] = permission;
+  }
+  return normalized;
+}
+
+function effectivePermissions(user) {
+  const permissions = defaultPermissions(user?.role || "viewer");
+  const overrides = user?.permissions || {};
+  for (const module of MODULES) {
+    const override = overrides[module];
+    if (!override) continue;
+    if (typeof override.view === "boolean") permissions[module].view = override.view;
+    if (typeof override.edit === "boolean") permissions[module].edit = override.edit;
+    if (!permissions[module].view) permissions[module].edit = false;
+  }
+  if (user?.role !== "admin") permissions.admin = { view: false, edit: false };
+  return permissions;
+}
+
+function hasModulePermission(user, module, action = "view") {
+  return Boolean(MODULE_SET.has(module) && ["view", "edit"].includes(action) && effectivePermissions(user)[module]?.[action]);
+}
+
 function asStoredUser(user, createdAt = new Date().toISOString()) {
   const username = String(user?.username || "").trim();
   const password = String(user?.password || "");
@@ -131,6 +179,7 @@ function asStoredUser(user, createdAt = new Date().toISOString()) {
   return {
     username,
     role,
+    permissions: normalizePermissionOverrides(user?.permissions, role),
     passwordHash: passwordHash(password),
     sessionVersion: crypto.randomBytes(16).toString("base64url"),
     createdAt,
@@ -146,6 +195,7 @@ function validateStoredUsers(users) {
     if (!USERNAME_RE.test(user?.username || "") || !isRole(user?.role) || scheme !== "scrypt" || !salt || !hash || rest.length || !user?.sessionVersion || seen.has(user.username)) {
       throw new Error("Kho người dùng không hợp lệ; hãy khôi phục users.json từ bản backup Railway Volume");
     }
+    normalizePermissionOverrides(user.permissions, user.role);
     seen.add(user.username);
   }
   if (!users.some((user) => user.role === "admin")) throw new Error("Kho người dùng phải có ít nhất một admin");
@@ -286,6 +336,20 @@ function requireRole(role) {
   };
 }
 
+function requestUser(req) {
+  if (req.user?.u === "local") return { username: "local", role: "admin", permissions: {} };
+  return USERS.find((user) => user.username === req.user?.u) || null;
+}
+
+function requireModule(module, action = "view") {
+  return (req, res, next) => {
+    const user = requestUser(req);
+    if (!user) return res.status(401).json({ error: "Cần đăng nhập" });
+    if (!hasModulePermission(user, module, action)) return res.status(403).json({ error: `Bạn không có quyền ${action === "edit" ? "chỉnh sửa" : "xem"} module này` });
+    return next();
+  };
+}
+
 function rateLimit({ windowMs, max }) {
   const entries = new Map();
   return (req, res, next) => {
@@ -378,25 +442,27 @@ app.use(protectSite);
 
 app.get("/api/auth/me", (req, res) => {
   res.set("Cache-Control", "no-store");
-  return res.json({ user: { username: req.user.u, role: req.user.r }, csrfToken: req.user.c, expiresAt: authEnabled() ? new Date(req.user.e * 1000).toISOString() : null });
+  const user = requestUser(req);
+  return res.json({ user: { username: req.user.u, role: req.user.r, permissions: effectivePermissions(user) }, csrfToken: req.user.c, expiresAt: authEnabled() ? new Date(req.user.e * 1000).toISOString() : null });
 });
 
 app.post("/api/auth/logout", requireCsrf, (req, res) => {
-  res.clearCookie(COOKIE_NAME, sessionCookieOptions(req));
+  const { maxAge, ...clearOptions } = sessionCookieOptions(req); // clearCookie tự đặt expiry; không truyền maxAge.
+  res.clearCookie(COOKIE_NAME, clearOptions);
   return res.json({ ok: true });
 });
 
 // ---------- administration: users and access roles ----------
-const publicUser = (user) => ({ username: user.username, role: user.role, createdAt: user.createdAt, updatedAt: user.updatedAt });
+const publicUser = (user) => ({ username: user.username, role: user.role, permissions: effectivePermissions(user), createdAt: user.createdAt, updatedAt: user.updatedAt });
 const findUser = (username) => USERS.find((user) => user.username === username);
-const adminCount = (users = USERS) => users.filter((user) => user.role === "admin").length;
+const moduleAdminCount = (users = USERS) => users.filter((user) => hasModulePermission(user, "admin", "edit")).length;
 
-app.get("/api/admin/users", requireRole("admin"), (req, res) => {
+app.get("/api/admin/users", requireModule("admin", "edit"), (req, res) => {
   res.set("Cache-Control", "no-store");
   return res.json({ users: USERS.map(publicUser) });
 });
 
-app.post("/api/admin/users", requireRole("admin"), requireCsrf, writeLimit, (req, res) => {
+app.post("/api/admin/users", requireModule("admin", "edit"), requireCsrf, writeLimit, (req, res) => {
   try {
     const input = req.body?.user || {};
     const username = String(input.username || "").trim();
@@ -413,7 +479,7 @@ app.post("/api/admin/users", requireRole("admin"), requireCsrf, writeLimit, (req
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-app.patch("/api/admin/users/:username", requireRole("admin"), requireCsrf, writeLimit, (req, res) => {
+app.patch("/api/admin/users/:username", requireModule("admin", "edit"), requireCsrf, writeLimit, (req, res) => {
   try {
     const username = String(req.params.username || "").trim();
     const current = findUser(username);
@@ -421,35 +487,40 @@ app.patch("/api/admin/users/:username", requireRole("admin"), requireCsrf, write
     const input = req.body?.user || {};
     const hasRole = Object.prototype.hasOwnProperty.call(input, "role");
     const hasPassword = typeof input.password === "string" && input.password.length > 0;
-    if (!hasRole && !hasPassword) return res.status(400).json({ error: "Chưa có thay đổi nào để lưu" });
+    const hasPermissions = Object.hasOwn(input, "permissions");
+    if (!hasRole && !hasPassword && !hasPermissions) return res.status(400).json({ error: "Chưa có thay đổi nào để lưu" });
     const role = hasRole ? String(input.role || "").toLowerCase() : current.role;
     if (!isRole(role)) return res.status(400).json({ error: "Vai trò phải là viewer, analyst hoặc admin" });
     if (username === req.user.u && role !== current.role) return res.status(400).json({ error: "Không thể tự thay đổi vai trò của chính mình" });
-    if (current.role === "admin" && role !== "admin" && adminCount() <= 1) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một admin" });
     if (hasPassword) validateNewUser(username, input.password, role);
+    // Khi hạ vai trò, bỏ override quản trị cũ để kho người dùng vẫn hợp lệ.
+    const inheritedPermissions = role === "admin" ? current.permissions : Object.fromEntries(Object.entries(current.permissions || {}).filter(([module]) => module !== "admin"));
+    const permissions = hasPermissions ? normalizePermissionOverrides(input.permissions, role) : normalizePermissionOverrides(inheritedPermissions, role);
     const updated = {
       ...current,
       role,
+      permissions,
       passwordHash: hasPassword ? passwordHash(input.password) : current.passwordHash,
-      sessionVersion: (hasPassword || role !== current.role) ? crypto.randomBytes(16).toString("base64url") : current.sessionVersion,
+      sessionVersion: (hasPassword || role !== current.role || hasPermissions) ? crypto.randomBytes(16).toString("base64url") : current.sessionVersion,
       updatedAt: new Date().toISOString(),
     };
     const nextUsers = USERS.map((user) => user.username === username ? updated : user);
+    if (!moduleAdminCount(nextUsers)) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một quản trị viên có quyền quản trị" });
     writeUserStore(nextUsers);
     USERS = nextUsers;
-    audit(req, "user.update", { username, role: updated.role, passwordReset: hasPassword });
-    return res.json({ ok: true, user: publicUser(updated), reauthenticate: username === req.user.u && hasPassword });
+    audit(req, "user.update", { username, role: updated.role, passwordReset: hasPassword, permissionsChanged: hasPermissions });
+    return res.json({ ok: true, user: publicUser(updated), reauthenticate: username === req.user.u && (hasPassword || hasPermissions) });
   } catch (error) { return res.status(400).json({ error: error.message }); }
 });
 
-app.delete("/api/admin/users/:username", requireRole("admin"), requireCsrf, writeLimit, (req, res) => {
+app.delete("/api/admin/users/:username", requireModule("admin", "edit"), requireCsrf, writeLimit, (req, res) => {
   try {
     const username = String(req.params.username || "").trim();
     const current = findUser(username);
     if (!current) return res.status(404).json({ error: "Không tìm thấy tài khoản" });
     if (username === req.user.u) return res.status(400).json({ error: "Không thể tự xóa tài khoản đang đăng nhập" });
-    if (current.role === "admin" && adminCount() <= 1) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một admin" });
     const nextUsers = USERS.filter((user) => user.username !== username);
+    if (!moduleAdminCount(nextUsers)) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một quản trị viên có quyền quản trị" });
     writeUserStore(nextUsers);
     USERS = nextUsers;
     audit(req, "user.delete", { username, role: current.role });
@@ -570,7 +641,35 @@ const readData = () => JSON.parse(fs.readFileSync(JSON_PATH, "utf8"));
 const RISK_TOPICS = () => [...new Set(readData().reports.flatMap((report) => report.risks.map((risk) => risk.k)))];
 const asList = (value) => Array.isArray(value) ? value : [];
 
+function dashboardForUser(data, user) {
+  const permissions = effectivePermissions(user);
+  // Tổng quan là dashboard điều hành nên được phép dùng số liệu tổng hợp. Các
+  // tài khoản chỉ được cấp module riêng chỉ nhận đúng dữ liệu module đó.
+  if (permissions.overview.view) return data;
+  const result = {
+    asOf: data.asOf,
+    meta: data.meta,
+    market: { index: data.market?.index ?? null },
+    news: [], events: [], reports: [], funds: null,
+    flows: { asOf: null, investors: { "Hôm nay": {}, MTD: {}, YTD: {} }, history: { dates: [] }, tickers: [], sectors: [] },
+    portfolio: { ytd: null, alloc: {}, positions: [], today: [], history: [] },
+  };
+  if (permissions.brief.view) Object.assign(result, { market: data.market, news: data.news, events: data.events });
+  if (permissions.portfolio.view) result.portfolio = data.portfolio;
+  if (permissions.flows.view) result.flows = data.flows;
+  if (permissions.funds.view) result.funds = data.funds;
+  if (permissions.reports.view) result.reports = data.reports;
+  return result;
+}
+
 // ---------- application API ----------
+app.get("/api/dashboard", (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(dashboardForUser(readData(), requestUser(req)));
+  } catch (error) { return res.status(503).json({ error: `Không tải được dashboard: ${error.message}` }); }
+});
+
 app.get("/api/status", (req, res) => {
   let asOf = null;
   let freshness = [];
@@ -582,7 +681,7 @@ app.get("/api/status", (req, res) => {
   return res.json({ asOf, freshness, dashboard: dashboardReadiness(), pipeline: { ...pipelineState, queuedJobs }, aiEnabled: Boolean(GEMINI_KEY) });
 });
 
-app.get("/api/admin/operations", requireRole("admin"), (req, res) => {
+app.get("/api/admin/operations", requireModule("admin", "edit"), (req, res) => {
   let freshness = [];
   let quality = { status: "unknown", issues: [] };
   try {
@@ -593,7 +692,7 @@ app.get("/api/admin/operations", requireRole("admin"), (req, res) => {
   return res.json({ pipeline: { ...pipelineState, queuedJobs }, freshness, quality, audit: recentAudit() });
 });
 
-app.post("/api/chat", requireRole("analyst"), requireCsrf, aiLimit, async (req, res) => {
+app.post("/api/chat", requireModule("reports", "edit"), requireCsrf, aiLimit, async (req, res) => {
   try {
     const messages = asList(req.body?.messages).filter((message) => message && typeof message.content === "string" && message.content.trim()).slice(-12);
     if (!messages.length || messages.at(-1).role !== "user") return res.status(400).json({ error: "Thiếu câu hỏi" });
@@ -615,7 +714,7 @@ ${JSON.stringify(library)}`;
   } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
 });
 
-app.post("/api/extract", requireRole("analyst"), requireCsrf, extractLimit, async (req, res) => {
+app.post("/api/extract", requireModule("reports", "edit"), requireCsrf, extractLimit, async (req, res) => {
   try {
     const { text, pdfBase64 } = req.body || {};
     const maxBase64Length = Math.ceil(MAX_UPLOAD_MB * 1024 * 1024 * 4 / 3) + 8;
@@ -663,7 +762,7 @@ function currentReport(id) {
   catch { return null; }
 }
 
-app.post("/api/reports", requireRole("analyst"), requireCsrf, writeLimit, async (req, res) => {
+app.post("/api/reports", requireModule("reports", "edit"), requireCsrf, writeLimit, async (req, res) => {
   try {
     const clean = cleanReport(req.body?.report, `U${Date.now().toString(36)}${crypto.randomBytes(8).toString("hex")}`);
     fs.appendFileSync(REPORT_JOBS, `${JSON.stringify({ action: "upsert", id: clean.id, report: clean })}\n`, "utf8");
@@ -673,7 +772,7 @@ app.post("/api/reports", requireRole("analyst"), requireCsrf, writeLimit, async 
   } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
 });
 
-app.patch("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, async (req, res) => {
+app.patch("/api/reports/:id", requireModule("reports", "edit"), requireCsrf, writeLimit, async (req, res) => {
   try {
     const id = String(req.params.id || "");
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || !currentReport(id)) return res.status(404).json({ error: "Không tìm thấy báo cáo" });
@@ -685,7 +784,7 @@ app.patch("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, asy
   } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
 });
 
-app.delete("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, async (req, res) => {
+app.delete("/api/reports/:id", requireModule("reports", "edit"), requireCsrf, writeLimit, async (req, res) => {
   try {
     const id = String(req.params.id || "");
     const existing = /^[A-Za-z0-9_-]{1,80}$/.test(id) ? currentReport(id) : null;
@@ -697,7 +796,7 @@ app.delete("/api/reports/:id", requireRole("admin"), requireCsrf, writeLimit, as
   } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
 });
 
-app.post("/api/pipeline/run", requireRole("admin"), requireCsrf, pipelineLimit, (req, res) => {
+app.post("/api/pipeline/run", requireModule("admin", "edit"), requireCsrf, pipelineLimit, (req, res) => {
   const args = req.body?.buildOnly === true ? ["--build-only"] : [];
   const wasQueued = queuedJobs > 0 || Boolean(running);
   audit(req, "pipeline.queue", { mode: args.length ? "build-only" : "full", wasQueued });
@@ -706,6 +805,11 @@ app.post("/api/pipeline/run", requireRole("admin"), requireCsrf, pipelineLimit, 
 });
 
 // ---------- static site ----------
+app.get("/data/dashboard.json", (req, res) => {
+  if (authEnabled()) return res.status(403).json({ error: "Dữ liệu dashboard được phân quyền qua /api/dashboard" });
+  res.set("Cache-Control", "no-store");
+  return res.sendFile(JSON_PATH);
+});
 app.use("/data", express.static(path.join(WEB_DIR, "data"), { etag: false, cacheControl: false, setHeaders: (response) => response.setHeader("Cache-Control", "no-store") }));
 app.use(express.static(WEB_DIR));
 

@@ -79,8 +79,32 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
 
     const viewerLogin = await request("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "viewer", password: users[1].password }) });
     const viewerCookie = viewerLogin.headers.get("set-cookie").split(";", 1)[0];
+    const viewerSession = await (await request("/api/auth/me", { headers: { cookie: viewerCookie } })).json();
     response = await request("/api/admin/users", { headers: { cookie: viewerCookie } });
     assert.equal(response.status, 403, "viewer không có quyền quản trị");
+    response = await request("/api/reports", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ report: report() }) });
+    assert.equal(response.status, 403, "viewer mặc định không có quyền chỉnh sửa báo cáo");
+
+    const scopedPermissions = {
+      overview: { view: false, edit: false }, brief: { view: false, edit: false }, portfolio: { view: false, edit: false },
+      flows: { view: false, edit: false }, funds: { view: false, edit: false }, reports: { view: true, edit: true }, admin: { view: false, edit: false },
+    };
+    response = await request("/api/admin/users/viewer", { method: "PATCH", ...common, body: JSON.stringify({ user: { permissions: scopedPermissions } }) });
+    assert.equal(response.status, 200, "admin phải cấp được quyền riêng theo module");
+
+    const scopedLogin = await request("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "viewer", password: users[1].password }) });
+    const scopedCookie = scopedLogin.headers.get("set-cookie").split(";", 1)[0];
+    const scopedSession = await (await request("/api/auth/me", { headers: { cookie: scopedCookie } })).json();
+    assert.equal(scopedSession.user.permissions.reports.edit, true);
+    assert.equal(scopedSession.user.permissions.portfolio.view, false);
+    response = await request("/api/dashboard", { headers: { cookie: scopedCookie } });
+    const scopedDashboard = await response.json();
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(scopedDashboard.reports) && scopedDashboard.reports.length > 0, "module báo cáo được cấp phải có dữ liệu");
+    assert.deepEqual(scopedDashboard.portfolio.positions, [], "không trả dữ liệu module danh mục chưa được cấp");
+    assert.equal((await request("/data/dashboard.json", { headers: { cookie: scopedCookie } })).status, 403, "không được truy cập dashboard thô khi đã bật phân quyền");
+    response = await request("/api/reports", { method: "POST", headers: { cookie: scopedCookie, "content-type": "application/json", "x-csrf-token": scopedSession.csrfToken }, body: JSON.stringify({ report: report() }) });
+    assert.equal(response.status, 500, "quyền chỉnh sửa báo cáo riêng phải vượt qua lớp phân quyền trước khi pipeline giả lập lỗi");
 
     // Python giả lập lỗi. Hai lần liên tiếp phải đều trả lỗi HTTP, không được làm
     // Node dừng do unhandled promise rejection trong pipeline queue.
