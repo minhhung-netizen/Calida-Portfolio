@@ -9,3 +9,5 @@ data/auth/
 __pycache__/
 
 .venv/
+.playwright-cli/
+output/playwright/

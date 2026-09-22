@@ -10,18 +10,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#EEF4FC; --panel:#FFFFFF; --panel-2:#F4F8FE; --line:#E1E9F5;
-  --ink:#0E1F5B; --ink-2:#34446F; --muted:#7B89A8;
-  --brand:#1F5EEA; --brand-soft:#E3EDFF;
-  --up:#12A150; --up-soft:#E3F6EA; --down:#E5283B; --down-soft:#FDE7EA;
-  --warn:#E98A0C; --warn-soft:#FFF1DE; --neutral-soft:#EDF0F5;
+  --bg:#F8FAFC; --panel:#FFFFFF; --panel-2:#F1F5F9; --line:#D9E2EF;
+  --ink:#132044; --ink-2:#334155; --muted:#52657F;
+  --brand:#1F5EEA; --brand-soft:#E3EDFF; --on-brand:#FFFFFF;
+  --up:#087A3E; --up-soft:#E3F6EA; --down:#BE1E2D; --down-soft:#FDE7EA;
+  --warn:#9A5B00; --warn-soft:#FFF1DE; --neutral-soft:#E9EEF5;
   --shadow:0 1px 2px rgba(20,48,120,.05),0 4px 16px rgba(20,48,120,.05);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0B1430; --panel:#111D40; --panel-2:#16244D; --line:#223261;
     --ink:#E6ECFF; --ink-2:#B9C4E4; --muted:#8190B8;
-    --brand:#5B8CFF; --brand-soft:#1C2E63;
+    --brand:#83A8FF; --brand-soft:#1C2E63; --on-brand:#0B1430;
     --up:#34C774; --up-soft:#133A2A; --down:#FF5C6C; --down-soft:#43202B;
     --warn:#F5A742; --warn-soft:#3F2E14; --neutral-soft:#1D2A52;
     --shadow:none;
@@ -30,7 +30,7 @@
 :root[data-theme="dark"]{
   --bg:#0B1430; --panel:#111D40; --panel-2:#16244D; --line:#223261;
   --ink:#E6ECFF; --ink-2:#B9C4E4; --muted:#8190B8;
-  --brand:#5B8CFF; --brand-soft:#1C2E63;
+  --brand:#83A8FF; --brand-soft:#1C2E63; --on-brand:#0B1430;
   --up:#34C774; --up-soft:#133A2A; --down:#FF5C6C; --down-soft:#43202B;
   --warn:#F5A742; --warn-soft:#3F2E14; --neutral-soft:#1D2A52;
   --shadow:none;
@@ -38,9 +38,9 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.5}
-button{font:inherit;color:inherit;cursor:pointer}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
 aside{background:var(--panel);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .logo{display:flex;align-items:center;gap:8px;padding:0 10px 26px}
 .logo b{font-size:26px;letter-spacing:-.5px;color:var(--ink)}
@@ -50,20 +50,23 @@ nav button:hover{background:var(--panel-2)}
 nav button[aria-current="page"]{background:var(--brand-soft);color:var(--brand);font-weight:600}
 nav svg{width:20px;height:20px;flex:none}
 .nav-foot{margin-top:auto}
-main{padding:18px 26px 32px;min-width:0}
+main{padding:20px 28px 40px;min-width:0;max-width:1800px;width:100%}
 .topbar{display:flex;align-items:center;gap:16px;margin-bottom:14px}
 .search{flex:0 1 440px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:9px 16px;color:var(--muted)}
-.search input{border:0;background:none;outline:none;flex:1;color:var(--ink);font:inherit}
+.search input{border:0;background:none;outline:none;flex:1;min-width:0;color:var(--ink);font:inherit}
 .topbar .right{margin-left:auto;display:flex;align-items:center;gap:18px;color:var(--ink-2)}
 .avatar{width:40px;height:40px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:700}
-.icon-btn{background:none;border:0;padding:6px;border-radius:8px}
+.icon-btn{background:none;border:0;padding:10px;border-radius:8px;min-width:40px;min-height:40px;display:inline-grid;place-items:center}
+.menu-btn{display:none;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;min-width:44px;min-height:44px;padding:10px}
+.drawer-close{display:none}
+.nav-scrim{display:none}
 h1{font-size:30px;line-height:1.15;margin:4px 0 2px;letter-spacing:-.6px}
 .sub{color:var(--ink-2);font-size:15px;margin:0 0 16px}
 .grid{display:grid;gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);min-width:0}
 .card-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .card-h h2{font-size:17px;margin:0;font-weight:600}
-.ic{width:32px;height:32px;border-radius:9px;background:var(--brand);color:#fff;display:grid;place-items:center;flex:none}
+.ic{width:32px;height:32px;border-radius:9px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;flex:none}
 .ic svg{width:18px;height:18px}
 .link{margin-left:auto;background:none;border:0;color:var(--brand);font-size:13px;white-space:nowrap}
 .kpi{display:flex;gap:14px;align-items:center}
@@ -82,7 +85,7 @@ h1{font-size:30px;line-height:1.15;margin:4px 0 2px;letter-spacing:-.6px}
 .seg{display:flex;gap:6px;margin-bottom:10px}
 .seg button{flex:1;border:0;background:var(--panel-2);border-radius:9px;padding:7px 10px;color:var(--ink-2);font-size:13px}
 .seg button[aria-selected="true"]{background:var(--brand-soft);color:var(--brand);font-weight:600}
-.tbl-wrap{overflow-x:auto}
+.tbl-wrap{overflow-x:auto;overscroll-behavior-inline:contain;border-radius:8px}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{text-align:left;font-weight:500;color:var(--muted);font-size:12.5px;padding:8px 10px;background:var(--panel-2);white-space:nowrap}
 td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -104,20 +107,20 @@ tr.sel td{background:var(--brand-soft)}
 .label-sm{font-size:13px;color:var(--ink-2);margin:12px 0 6px;display:flex;gap:8px;align-items:center}
 .span-2{grid-column:span 2}
 .demo{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:6px;background:var(--warn-soft);color:var(--warn);margin-left:8px;vertical-align:middle;font-weight:600}
-.heat{display:grid;grid-template-columns:80px repeat(5,1fr);gap:4px;font-size:12px;align-items:center}
+.heat{display:grid;grid-template-columns:80px repeat(5,minmax(0,1fr));gap:4px;font-size:12px;align-items:center}
 .heat div.c{height:24px;border-radius:4px}
 .stack{display:flex;height:12px;border-radius:99px;overflow:hidden;flex:1;background:var(--panel-2)}
 .stack i{display:block;height:100%}
 /* reports + chat */
-.chat{display:flex;flex-direction:column;height:640px}
+.chat{display:flex;flex-direction:column;height:min(640px,70vh)}
 .msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
-.msg{padding:10px 13px;border-radius:12px;max-width:92%;white-space:pre-wrap;line-height:1.55}
-.msg.u{align-self:flex-end;background:var(--brand);color:#fff}
+.msg{padding:10px 13px;border-radius:12px;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+.msg.u{align-self:flex-end;background:var(--brand);color:var(--on-brand)}
 .msg.a{align-self:flex-start;background:var(--panel-2);color:var(--ink)}
 .msg.err{background:var(--down-soft);color:var(--down)}
 .composer{display:flex;gap:8px;margin-top:10px}
-.composer textarea{flex:1;resize:none;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit;height:44px}
-.btn{border:0;border-radius:10px;padding:9px 16px;background:var(--brand);color:#fff;font-weight:600}
+.composer textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit;height:44px}
+.btn{border:0;border-radius:10px;padding:9px 16px;background:var(--brand);color:var(--on-brand);font-weight:600}
 .btn.ghost{background:var(--brand-soft);color:var(--brand)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .suggest button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:12.5px;margin:0 6px 6px 0;color:var(--ink-2)}
@@ -135,23 +138,52 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .toast{position:fixed;z-index:20;right:20px;bottom:20px;max-width:min(420px,calc(100vw - 40px));padding:11px 14px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;font-weight:500}
 .toast.ok{background:var(--up-soft);color:var(--up);border:1px solid var(--up)}
 .toast.err{background:var(--down-soft);color:var(--down);border:1px solid var(--down)}
-@media (max-width:1100px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;padding:10px}.logo{padding:6px 10px}nav{display:flex;flex-wrap:wrap}nav button{width:auto}.nav-foot{display:none}.span-2{grid-column:auto}}
-@media (max-width:760px){main{padding:14px}.fgrid{grid-template-columns:1fr}.topbar .right .date{display:none}.data-state{display:none}.toast{right:14px;bottom:14px;max-width:calc(100vw - 28px)}}
+/* Reusable layouts: tables scroll only inside their own cards. */
+.cols-2-1{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+.cols-auto-220{grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))}
+.cols-auto-200{grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))}
+.cols-auto-180{grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))}
+.cols-auto-150{grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))}
+.cols-auto-300{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.cols-auto-340{grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
+.cols-auto-380{grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))}
+.cols-1-1{grid-template-columns:repeat(2,minmax(0,1fr))}
+.page-tabs{margin-top:2px}
+.asof{display:inline-flex;align-items:center;gap:5px;margin:0 0 14px;color:var(--muted);font-size:12.5px}
+.asof::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.75}
+.section-tabs{margin-bottom:14px}
+.reports-chat{position:sticky;top:14px}
+.check-cell input{inline-size:18px;block-size:18px;accent-color:var(--brand);vertical-align:middle}
+.permission-matrix{table-layout:fixed}
+.permission-matrix th,.permission-matrix td{white-space:normal;overflow-wrap:anywhere}
+.permission-matrix th:first-child{width:50%}
+.permission-matrix th:not(:first-child){width:25%;text-align:center}
+.permission-matrix .check-cell{text-align:center;padding:4px}
+.permission-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;cursor:pointer}
+.permission-toggle input{padding:0;margin:0}
+.actions-danger{color:var(--down)!important}
+@media (max-width:1100px){main{padding:18px 20px 32px}.cols-2-1{grid-template-columns:1fr}.reports-chat{position:static}.span-2{grid-column:auto}}
+@media (max-width:860px){.app{display:block}.menu-btn{display:inline-grid;place-items:center}aside{position:fixed;z-index:100;inset:0 auto 0 0;width:min(304px,86vw);height:100dvh;padding:20px 14px;transform:translateX(-105%);transition:transform 180ms ease;box-shadow:var(--shadow)}body.nav-open aside{transform:translateX(0)}.nav-scrim{position:fixed;z-index:90;inset:0;border:0;background:rgba(8,18,50,.42)}body.nav-open .nav-scrim{display:block}.logo{padding-bottom:20px}.drawer-close{display:inline-grid;margin-left:auto}nav{display:block}nav button{min-height:44px}.nav-foot{display:block}.topbar{gap:10px}.topbar .right{gap:10px}.topbar .right .date{display:none}}
+@media (max-width:860px){aside{visibility:hidden;pointer-events:none}body.nav-open aside{visibility:visible;pointer-events:auto}}
+@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <div class="app">
-  <aside>
+  <aside id="appNav">
     <div class="logo">
       <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><g fill="var(--brand)"><circle cx="20" cy="20" r="4"/><g id="pet"><ellipse cx="20" cy="8" rx="3.4" ry="6.5"/></g><use href="#pet" transform="rotate(45 20 20)"/><use href="#pet" transform="rotate(90 20 20)"/><use href="#pet" transform="rotate(135 20 20)"/><use href="#pet" transform="rotate(180 20 20)"/><use href="#pet" transform="rotate(225 20 20)"/><use href="#pet" transform="rotate(270 20 20)"/><use href="#pet" transform="rotate(315 20 20)"/></g></svg>
       <div><b>Calida</b><small>ASSET MANAGEMENT</small></div>
+      <button class="icon-btn drawer-close" id="navClose" aria-label="Đóng menu điều hướng"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
     <nav id="nav" aria-label="Điều hướng chính"></nav>
     <div class="nav-foot"><nav><button id="themeBtn">Đổi giao diện sáng/tối</button></nav></div>
   </aside>
+  <button class="nav-scrim" id="navScrim" aria-label="Đóng menu điều hướng" tabindex="-1"></button>
   <main>
     <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Mở menu điều hướng" aria-controls="nav" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Tìm mã cổ phiếu, báo cáo, quỹ đầu tư…" aria-label="Tìm kiếm"></label>
       <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><div id="dataState" class="tag data-state bg-neutral" title="Trạng thái dữ liệu">Đang tải dữ liệu</div><button class="link" id="logoutBtn" title="Đăng xuất">Đăng xuất</button><div class="avatar" id="userAvatar">C</div></div>
     </div>
@@ -226,6 +258,11 @@ function dataState(){
   const quality=DATA.meta?.quality?.status;
   if(quality && quality!=="ok") return {text:`Dữ liệu ${fmtD(raw)} · cần rà soát`,className:"bg-warn",title:"Pipeline có cảnh báo chất lượng dữ liệu"};
   return {text:age>2?`Dữ liệu ${fmtD(raw)} · ${age} ngày trước`:`Dữ liệu đến ${fmtD(raw)}`,className:age>2?"bg-warn":"bg-up",title:`Dashboard tạo lúc ${DATA.meta?.generatedAt||"không rõ"}`};
+}
+function freshnessValue(id){ return DATA?.meta?.freshness?.find(item=>item.id===id)?.value||null; }
+function sectionStamp(id, label="Dữ liệu"){
+  const value=freshnessValue(id);
+  return value?`<div class="asof">${label}: ${esc(/^\d{4}-\d{2}-\d{2}$/.test(value)?fmtD(value):value)}</div>`:'<div class="asof">Chưa có mốc thời gian dữ liệu</div>';
 }
 function setTheme(theme){
   document.documentElement.dataset.theme=theme;
@@ -340,14 +377,33 @@ const PAGES=[
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
-  repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatBusy:false,adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
+  repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
 const availablePages=()=>PAGES.filter(p=>canView(p.id));
 function renderNav(){
   $("#nav").innerHTML=availablePages().map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
 }
-function go(id){ if(!canView(id)) return; STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
+let navOpener=null;
+function setNav(open){
+  const menu=$("#menuBtn"), scrim=$("#navScrim"), drawer=$("#appNav");
+  if(!matchMedia("(max-width:860px)").matches) return;
+  if(open) navOpener=document.activeElement;
+  document.body.classList.toggle("nav-open",open);
+  if(drawer){ drawer.inert=!open; drawer.setAttribute("aria-hidden",String(!open)); }
+  if(menu){ menu.setAttribute("aria-expanded",String(open)); menu.setAttribute("aria-label",open?"Đóng menu điều hướng":"Mở menu điều hướng"); }
+  if(scrim) scrim.tabIndex=open?0:-1;
+  if(open) setTimeout(()=>$("#nav button, #themeBtn")?.focus(),0);
+  if(!open&&navOpener?.focus) navOpener.focus();
+}
+function syncNav(){
+  const drawer=$("#appNav");
+  if(!drawer) return;
+  if(matchMedia("(max-width:860px)").matches) setNav(false);
+  else { document.body.classList.remove("nav-open"); drawer.inert=false; drawer.setAttribute("aria-hidden","false"); }
+}
+function go(id){ if(!canView(id)) return; setNav(false); STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
 function render(){
+  if(STATE.page==="reports"&&$("#chatIn")) STATE.chatDraft=$("#chatIn").value;
   const pages=availablePages();
   if(!pages.length){ $("#nav").innerHTML=""; $("#page").innerHTML='<div class="card"><h1>Chưa được cấp quyền module</h1><p class="prose">Liên hệ quản trị viên để được cấp quyền xem ít nhất một module.</p></div>'; return; }
   if(!pages.some(p=>p.id===STATE.page)) STATE.page=pages[0].id;
@@ -374,15 +430,15 @@ function pgOverview(){
   const m=DATA.market, fl=latestFlowValues(DATA.flows), st=portfolioStats(), f=DATA.funds||{updated:0,stockW:null};
   const flowLabel=flowDateLabel(DATA.flows);
   const agg=repAgg(repFilterWindow(30));
-  const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+  const kpis=`<div class="grid cols-auto-220">
     <div class="card kpi"><div class="badge bg-brand">${svg("trend")}</div><div style="flex:1"><div class="l">VN-Index</div><div class="v">${nf(m.index,2)}</div><div class="${cls(m.chg)}">${sgn(m.chg,2)} (${sgn(m.pct,2,"%")})</div></div><div style="width:90px">${spark(m.spark,90,44)}</div></div>
     <div class="card kpi"><div class="badge bg-down">${svg("flow")}</div><div><div class="l">Khối ngoại</div><div class="v ${cls(fl["Khối ngoại"])}">${sgn(fl["Khối ngoại"])} tỷ</div><div class="l">${fl["Khối ngoại"]==null?"Chưa có dữ liệu":`${fl["Khối ngoại"]<0?"Bán":fl["Khối ngoại"]>0?"Mua":"Cân bằng"} ròng ${flowLabel||"phiên gần nhất"}`}</div></div></div>
     <div class="card kpi"><div class="badge bg-up">${svg("trend")}</div><div><div class="l">Hiệu suất danh mục</div><div class="v ${cls(DATA.portfolio.ytd)}">${sgn(DATA.portfolio.ytd,1,"%")}</div><div class="l">Từ đầu năm</div></div></div>
     <div class="card kpi"><div class="badge bg-brand">${svg("rep")}</div><div><div class="l">Đồng thuận CTCK (30 ngày)</div><div class="v">${nf(agg.vnMed)}</div><div class="l">Target VN-Index trung vị · ${agg.brokers.length} CTCK</div></div></div>
   </div>`;
   const view = STATE.ovTab==="Hôm nay" ? `
-      <h3 style="margin:4px 0">Diễn biến hiện tại</h3><p class="prose" style="margin-top:4px">${esc(m.today)}</p>
-      <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><div class="box"><div class="l">Hỗ trợ</div><div class="v up">${range(m.support)}</div></div><div class="box"><div class="l">Kháng cự</div><div class="v down">${range(m.resist)}</div></div></div>
+      <h3 style="margin:4px 0">Nhận định thị trường</h3><p class="prose" style="margin-top:4px">${esc(m.today)}</p>
+      <div class="grid cols-1-1" style="margin-top:12px"><div class="box"><div class="l">Hỗ trợ</div><div class="v up">${range(m.support)}</div></div><div class="box"><div class="l">Kháng cự</div><div class="v down">${range(m.resist)}</div></div></div>
       <div class="label-sm">Tâm lý thị trường <span class="tag bg-up">${esc(m.sentiment)}</span></div>
       <div class="label-sm">Nhóm ngành đáng chú ý</div><div>${m.focusSectors.map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div>`
     : `
@@ -390,18 +446,18 @@ function pgOverview(){
       <div class="box" style="margin-top:12px"><div class="l">Vùng kỳ vọng</div><div class="v">${range(m.expected)}</div></div>
       <div class="label-sm">Nhóm ngành ưu tiên</div><div>${m.focusSectors.map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div>
       <div class="label-sm">Rủi ro & sự kiện cần theo dõi</div><div>${m.risks.map(s=>`<span class="chip risk">${esc(s)}</span>`).join("")}</div>`;
-  return `<h1>Tổng quan</h1><p class="sub">Nắm nhanh thị trường và hành động trọng tâm</p>${kpis}
-  <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin-top:14px">
-    <div class="card">${head("doc","Nhận định thị trường")}
-      <div class="seg" role="tablist">${["Hôm nay","Tuần này"].map(t=>`<button role="tab" data-ovtab="${t}" aria-selected="${STATE.ovTab===t}">${t}</button>`).join("")}</div>${view}</div>
+  return `<h1>Tổng quan</h1><p class="sub">Nắm nhanh thị trường và hành động trọng tâm</p>${sectionStamp("market", "VN-Index & giá cổ phiếu")}${kpis}
+  <div class="grid cols-2-1" style="margin-top:14px">
+    <div class="card">${head("doc","Nhận định thị trường")}${sectionStamp("strategy", "Nhận định đến")}
+      <div class="seg" role="tablist">${[["Hôm nay",`Theo dữ liệu ${m.viewDate?fmtD(m.viewDate):"gần nhất"}`],["Tuần này","Triển vọng tuần"]].map(([value,label])=>`<button role="tab" data-ovtab="${value}" aria-selected="${STATE.ovTab===value}">${label}</button>`).join("")}</div>${view}</div>
     <div class="grid">
-      <div class="card">${head("target","Action hôm nay",goLink("portfolio"))}${actionTable(DATA.portfolio.today)}</div>
-      <div class="card">${head("cal","Action tuần")}<ul class="list">${m.weekActions.map(a=>`<li>${esc(a)}</li>`).join("")}</ul></div>
+      <div class="card">${head("target","Hành động theo danh mục",goLink("portfolio"))}${sectionStamp("portfolio")}${actionTable(DATA.portfolio.today)}</div>
+      <div class="card">${head("cal","Việc cần theo dõi trong tuần")}${sectionStamp("strategy", "Nhận định") }<ul class="list">${m.weekActions.map(a=>`<li>${esc(a)}</li>`).join("")}</ul></div>
     </div>
   </div>
-  <div class="card" style="margin-top:14px">${head("news","Tin cần biết",goLink("brief","Xem tất cả"))}
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${DATA.news.slice(0,4).map(n=>`<div><div>${esc(n.title)}</div><div class="muted" style="font-size:12px">${esc(n.src)} · ${ago(n.at)}</div></div>`).join("")}</div></div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:14px">
+  <div class="card" style="margin-top:14px">${head("news","Tin cần biết",goLink("brief","Xem tất cả"))}${sectionStamp("news", "Tin đến")}
+    <div class="grid cols-auto-220">${DATA.news.slice(0,4).map(n=>`<div><div>${esc(n.title)}</div><div class="muted" style="font-size:12px">${esc(n.src)} · ${ago(n.at)}</div></div>`).join("")}</div></div>
+  <div class="grid cols-auto-200" style="margin-top:14px">
     ${shortcut("brief","doc","Bản tin",`${DATA.news.length} tin nổi bật | ${DATA.events.length} sự kiện`)}
     ${shortcut("portfolio","brief","Danh mục",`${st.open} mã đang mở | ${st.c["Cần xử lý"]} mã cần xử lý`)}
     ${shortcut("flows","flow","Dòng tiền",fl["Khối ngoại"]==null?"Chưa có dữ liệu dòng tiền":`Khối ngoại ${fl["Khối ngoại"]<0?"bán":"mua"} ròng | Cá nhân ${fl["Cá nhân"]<0?"bán":"mua"} ròng`)}
@@ -418,28 +474,28 @@ function pgBrief(){
   const m=DATA.market, fl=DATA.flows, inv=fl.investors["Hôm nay"];
   const buys=fl.tickers.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,5), sells=fl.tickers.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,5);
   const d=new Date(DATA.asOf);
-  return `<h1>Bản tin ngày ${d.toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"})}</h1><p class="sub">Cập nhật nhanh chóng, đầy đủ và khách quan</p>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-    <div class="card">${head("doc","Nhận định thị trường hôm nay")}
+  return `<h1>Bản tin thị trường</h1><p class="sub">Cập nhật nhanh chóng, đầy đủ và khách quan</p>${sectionStamp("strategy", "Nhận định đến")}
+  <div class="grid cols-auto-300">
+    <div class="card">${head("doc",`Nhận định thị trường · ${m.viewDate?fmtD(m.viewDate):"chưa rõ ngày"}`)}
       <div class="box row"><div style="flex:1"><div class="l">VN-Index</div><div class="v" style="font-size:26px">${nf(m.index,2)}</div><div class="${cls(m.chg)}">${sgn(m.chg,2)} (${sgn(m.pct,2,"%")})</div></div><div style="flex:1">${spark(m.spark,180,60)}</div></div>
-      <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:10px"><div class="box"><div class="l">Hỗ trợ</div><div class="v up">${range(m.support)}</div></div><div class="box"><div class="l">Kháng cự</div><div class="v down">${range(m.resist)}</div></div></div>
+      <div class="grid cols-1-1" style="margin-top:10px"><div class="box"><div class="l">Hỗ trợ</div><div class="v up">${range(m.support)}</div></div><div class="box"><div class="l">Kháng cự</div><div class="v down">${range(m.resist)}</div></div></div>
       <p class="prose">${esc(m.today)}</p></div>
     <div class="card">${head("flow","Nhận định tuần")}<p class="prose" style="margin-top:0">${esc(m.week)}</p>
       <div class="box" style="margin-top:12px"><div class="l">Vùng kỳ vọng</div><div class="v">${range(m.expected)}</div></div>
       <div class="label-sm">Nhóm ngành ưu tiên</div><div>${m.focusSectors.map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div>
       <div class="label-sm">Rủi ro & sự kiện cần theo dõi</div><div>${m.risks.map(s=>`<span class="chip risk">${esc(s)}</span>`).join("")}</div></div>
-    <div class="card">${head("news","Tin tức nổi bật")}
+    <div class="card">${head("news","Tin tức nổi bật")}${sectionStamp("news", "Tin đến")}
       <div class="seg" role="tablist">${["Thế giới","Trong nước","Doanh nghiệp"].map(t=>`<button role="tab" data-newstab="${t}" aria-selected="${STATE.newsTab===t}">${t}</button>`).join("")}</div>
       ${DATA.news.filter(n=>n.tab===STATE.newsTab).map(n=>`<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start"><div style="flex:1">${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(n.title)}</a>`:esc(n.title)}</div><div class="muted" style="font-size:12px;text-align:right;min-width:80px">${esc(n.src)}<br>${ago(n.at)}</div></div>`).join("")||'<div class="empty">Chưa có tin trong mục này hôm nay.</div>'}</div>
   </div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr));margin-top:14px">
+  <div class="grid cols-auto-380" style="margin-top:14px">
     <div class="card">${head("target","Chiến lược giao dịch")}
-      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <div class="grid cols-auto-200">
         <div class="box" style="background:var(--up-soft)"><b class="up">Ngắn hạn</b><p class="prose" style="margin-top:6px">${esc(m.strategyShort)}</p></div>
         <div class="box" style="background:var(--warn-soft)"><b class="warn">Trung & dài hạn</b><p class="prose" style="margin-top:6px">${esc(m.strategyLong)}</p></div></div>
       <div class="label-sm">Ngành tiêu điểm ${m.focusSectors.map(s=>`<span class="chip" style="margin:0">${esc(s)}</span>`).join("")}</div></div>
     <div class="card">${head("flow","Theo dõi dòng tiền",goLink("flows"))}
-      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      <div class="grid cols-auto-150">
         <div><div class="label-sm" style="margin-top:0">Nhà đầu tư (tỷ)</div>${Object.entries(inv).map(([k,v])=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1">${k}</span><b class="${cls(v)}">${sgn(v)}</b></div>`).join("")}</div>
         <div><div class="label-sm" style="margin-top:0">Top mua ròng</div>${buys.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${esc(x.t)}</b><span class="up">${sgn(x.v)}</span></div>`).join("")}</div>
         <div><div class="label-sm" style="margin-top:0">Top bán ròng</div>${sells.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${esc(x.t)}</b><span class="down">${sgn(x.v)}</span></div>`).join("")}</div>
@@ -453,7 +509,7 @@ function pgBrief(){
 /* ============ PAGE: Danh mục ============ */
 function pgPortfolio(){
   const P=DATA.portfolio, st=portfolioStats();
-  const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+  const kpis=`<div class="grid cols-auto-180">
     ${kpiCard("pie","bg-brand",st.open,"mã đang mở")}
     ${kpiCard("trend","bg-up",sgn(P.ytd,1,"%"),"Hiệu suất danh mục từ đầu năm","up")}
     ${kpiCard("alert","bg-down",st.c["Cần xử lý"],"mã cần xử lý","down")}
@@ -464,6 +520,8 @@ function pgPortfolio(){
   if(STATE.pfTab==="Lịch sử giao dịch"){
     body=`<div class="card" style="margin-top:14px">${head("cal","Lịch sử giao dịch")}<div class="tbl-wrap"><table><thead><tr><th>Ngày</th><th>Mã</th><th>Hành động</th><th>Giá / Vùng</th><th>Ghi chú</th></tr></thead><tbody>
       ${P.history.map(h=>`<tr><td>${h.d}</td><td class="t">${h.t}</td><td>${esc(h.a)}</td><td>${h.p}</td><td class="muted">${esc(h.note)}</td></tr>`).join("")}</tbody></table></div></div>`;
+  } else if(!P.positions?.length){
+    body=`<div class="card" style="margin-top:14px">${head("brief","Danh mục hiện tại")}<div class="empty">Chưa có vị thế nào để hiển thị. Hãy đồng bộ hoặc bổ sung dữ liệu danh mục.</div></div>`;
   } else {
     const table=`<div class="card">${head("brief","Danh mục hiện tại")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th>Ngành</th><th>Trạng thái</th><th class="num">Giá hiện tại</th><th>Vùng mua</th><th class="num">Target</th><th class="num">Vi phạm</th><th class="num">Hiệu suất</th><th>Cảnh báo</th></tr></thead><tbody>
       ${P.positions.map(p=>{const pf=perf(p), sg=signals(p); return `<tr class="click ${STATE.pfSel===p.t?"sel":""}" data-pfsel="${esc(p.t)}" tabindex="0"><td class="t">${esc(p.t)}</td><td>${esc(p.sector)}</td><td>${statusTag(p.status)}</td><td class="num">${p.price==null?'<span class="muted" title="Chưa có giá trong PRICES">—</span>':nf(p.price,1)}</td><td>${range(p.buy)}</td><td class="num">${nf(p.target,1)}</td><td class="num">${nf(p.stop,1)}</td><td class="num ${cls(pf)}">${pf==null?"—":sgn(pf,1,"%")}</td><td>${sg.map(s=>`<span class="tag ${s==="Cần xử lý"?"bg-down":s==="Sát vùng vi phạm"?"bg-warn":"bg-up"}">${esc(s)}</span>`).join(" ")||'<span class="muted">—</span>'}</td></tr>`}).join("")}</tbody></table></div></div>`;
@@ -479,17 +537,17 @@ function pgPortfolio(){
     const side=`<div class="grid">
       <div class="card">${head("target","Hành động trong ngày")}${actionTable(P.today)}</div>
       <div class="card">${head("pie","Ngành trong danh mục")}${sectors.map(([s,w])=>`<div class="row" style="margin:7px 0"><span style="width:90px">${s}</span><div class="bar"><i style="width:${w/tot*100}%"></i></div><b style="width:42px;text-align:right">${nf(w/tot*100)}%</b></div>`).join("")}</div></div>`;
-    const bottom=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
+    const bottom=`<div class="grid cols-auto-300" style="margin-top:14px">
       <div class="card">${head("pie","Phân bổ tài sản")}${donut(Object.entries(P.alloc).map(([k,v])=>({k,v})),"100%","Tổng tài sản")}</div>
       <div class="card">${head("alert","Theo dõi vận động giá")}
         ${[["Cần xử lý","bg-down"],["Sát vùng vi phạm","bg-warn"],["Về vùng mua","bg-brand"],["Đạt target","bg-up"]].map(([k,c])=>`<div class="row box ${c}" style="margin-bottom:8px;padding:8px 12px"><span style="flex:1">${k}</span><b>${st.c[k]} mã</b></div>`).join("")}
         <div class="row box" style="padding:8px 12px"><span style="flex:1">Không có cảnh báo</span><b>${st.other} mã</b></div></div>
       ${detail}</div>`;
     body = STATE.pfTab==="Tổng quan"
-      ? `<div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin-top:14px">${table}${side}</div>${bottom}`
-      : `<div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin-top:14px">${table}${detail}</div>`;
+      ? `<div class="grid cols-2-1" style="margin-top:14px">${table}${side}</div>${bottom}`
+      : `<div class="grid cols-2-1" style="margin-top:14px">${table}${detail}</div>`;
   }
-  return `<h1>Danh mục khuyến nghị</h1><p class="sub">Cập nhật liên tục, kỷ luật trong phân tích, chủ động trong hành động</p>${tabs}${kpis}${body}`;
+  return `<h1>Danh mục khuyến nghị</h1><p class="sub">Cập nhật liên tục, kỷ luật trong phân tích, chủ động trong hành động</p>${sectionStamp("portfolio", "Giá và danh mục đến")}${tabs}${kpis}${body}`;
 }
 const kpiCard=(ic,bg,v,l,c="")=>`<div class="card kpi"><div class="badge ${bg}">${svg(ic)}</div><div><div class="v ${c}">${v}</div><div class="l">${l}</div></div></div>`;
 
@@ -499,25 +557,25 @@ function pgFlows(){
   const tot=Object.values(cur).reduce((s,v)=>s+Math.abs(v||0),0)||1;
   const latestLabel=flowDateLabel(F), flowLabel=latestLabel?`Dữ liệu ${latestLabel}.`:"Chưa có dữ liệu dòng tiền.";
   const icons={"Khối ngoại":"flow","Tự doanh":"users","Cá nhân":"users","Tổ chức":"brief"};
-  const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${["Khối ngoại","Tự doanh","Cá nhân","Tổ chức"].map(k=>`<div class="card kpi"><div class="badge ${today[k]<0?"bg-down":"bg-up"}">${svg(icons[k])}</div><div><div class="l">${k}</div><div class="v ${cls(today[k])}">${sgn(today[k])} tỷ</div><div class="l">Lũy kế tháng: <b class="${cls(mtd[k])}">${sgn(mtd[k])} tỷ</b></div></div></div>`).join("")}</div>`;
+  const kpis=`<div class="grid cols-auto-220">${["Khối ngoại","Tự doanh","Cá nhân","Tổ chức"].map(k=>`<div class="card kpi"><div class="badge ${today[k]<0?"bg-down":"bg-up"}">${svg(icons[k])}</div><div><div class="l">${k}</div><div class="v ${cls(today[k])}">${sgn(today[k])} tỷ</div><div class="l">Lũy kế tháng: <b class="${cls(mtd[k])}">${sgn(mtd[k])} tỷ</b></div></div></div>`).join("")}</div>`;
   const buys=F.tickers.filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10), sells=F.tickers.filter(x=>x.v<0).sort((a,b)=>a.v-b.v).slice(0,10);
-  const rank=(rows)=>`<table><thead><tr><th>#</th><th>Mã</th><th class="num">Giá trị (tỷ)</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="t">${esc(x.t)}</td><td class="num ${cls(x.v)}">${sgn(x.v)}</td></tr>`).join("")}</tbody></table>`;
+  const rank=(rows)=>`<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Mã</th><th class="num">Giá trị (tỷ)</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="t">${esc(x.t)}</td><td class="num ${cls(x.v)}">${sgn(x.v)}</td></tr>`).join("")}</tbody></table></div>`;
   const H=F.history, heatColor=v=>v>=300?"var(--up)":v>0?"color-mix(in srgb,var(--up) 35%,transparent)":v>-200?"color-mix(in srgb,var(--down) 30%,transparent)":"var(--down)";
   const tagInv=k=>`<span class="tag ${k==="Cá nhân"?"bg-up":k==="Khối ngoại"?"bg-brand":k==="Tự doanh"?"bg-down":"bg-warn"}">${esc(k)}</span>`;
   const bySector=[...F.sectors].sort((a,b)=>b.v-a.v);
   const topIn=bySector.slice(0,2).map(s=>esc(s.s).toLowerCase()).join(" và ");
   const foreignSells=F.tickers.filter(x=>x.main==="Khối ngoại"&&x.v<0).sort((a,b)=>a.v-b.v).slice(0,3).map(x=>esc(x.t)).join(", ");
-  return `<h1>Dòng tiền thị trường</h1><p class="sub">Theo dõi dòng tiền của các nhóm nhà đầu tư và xu hướng vận động vốn trên thị trường · ${flowLabel}</p>${kpis}
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
+  return `<h1>Dòng tiền thị trường</h1><p class="sub">Theo dõi dòng tiền của các nhóm nhà đầu tư và xu hướng vận động vốn trên thị trường</p>${sectionStamp("flows", "Dòng tiền đến")}${kpis}
+  <div class="grid cols-auto-300" style="margin-top:14px">
     <div class="card">${head("users","Phân loại nhà đầu tư")}
-      <div class="seg">${[["Hôm nay",latestLabel?"Phiên gần nhất":"Hôm nay"],["MTD","Từ đầu tháng"],["YTD","Từ đầu năm"]].map(([k,l])=>`<button data-invtab="${k}" aria-selected="${STATE.invTab===k}">${l}</button>`).join("")}</div>
-      <table><thead><tr><th>Nhà đầu tư</th><th class="num">Giá trị (tỷ)</th><th class="num">Tỷ trọng</th><th>Xu hướng</th></tr></thead><tbody>
-      ${Object.entries(cur).map(([k,v])=>`<tr><td>${k}</td><td class="num ${cls(v)}"><b>${sgn(v)}</b></td><td class="num">${nf(Math.abs(v)/tot*100,1)}%</td><td style="min-width:100px"><div class="bar"><i style="width:${Math.abs(v)/tot*100}%;background:${v>0?"var(--up)":"var(--down)"}"></i></div></td></tr>`).join("")}</tbody></table>
+      <div class="seg">${[["Hôm nay",latestLabel?latestLabel.replace(/^phiên /,"Phiên "):"Phiên gần nhất"],["MTD","Từ đầu tháng"],["YTD","Từ đầu năm"]].map(([k,l])=>`<button data-invtab="${k}" aria-selected="${STATE.invTab===k}">${l}</button>`).join("")}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Nhà đầu tư</th><th class="num">Giá trị (tỷ)</th><th class="num">Tỷ trọng</th><th>Xu hướng</th></tr></thead><tbody>
+      ${Object.entries(cur).map(([k,v])=>`<tr><td>${k}</td><td class="num ${cls(v)}"><b>${sgn(v)}</b></td><td class="num">${nf(Math.abs(v)/tot*100,1)}%</td><td style="min-width:100px"><div class="bar"><i style="width:${Math.abs(v)/tot*100}%;background:${v>0?"var(--up)":"var(--down)"}"></i></div></td></tr>`).join("")}</tbody></table></div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Tỷ trọng = |giá trị ròng| / tổng |giá trị ròng| của 4 nhóm.</p></div>
     <div class="card">${head("trend","Top mua ròng")}${rank(buys)}</div>
     <div class="card">${head("flow","Top bán ròng")}${rank(sells)}</div>
   </div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:14px">
+  <div class="grid cols-auto-340" style="margin-top:14px">
     <div class="card">${head("pie","Dòng tiền theo ngành")}<div class="tbl-wrap"><table><thead><tr><th>Ngành</th><th class="num">Giá trị (tỷ)</th><th class="num">Thay đổi</th><th class="num">Tỷ trọng GTGD</th></tr></thead><tbody>
       ${bySector.map(s=>`<tr><td>${esc(s.s)}</td><td class="num ${cls(s.v)}">${sgn(s.v)}</td><td class="num ${cls(s.chg)}">${sgn(s.chg,1,"%")}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div></div>
     <div class="card">${head("brief","Dòng tiền theo cổ phiếu")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá trị (tỷ)</th><th>NĐT chính</th><th>Ghi chú</th></tr></thead><tbody>
@@ -543,22 +601,22 @@ function pgFunds(){
   const secDelta=f.sectors.filter(s=>s.d!=null).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,5);
   const topS=f.sectors.slice(0,5);
   const hasPrev=!!f.prevPeriod;
-  return `<div class="row" style="flex-wrap:wrap;align-items:flex-end"><div style="flex:1"><h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><p class="sub">Theo dõi dòng tiền và danh mục của các quỹ mở</p></div>
+  return `<div class="row" style="flex-wrap:wrap;align-items:flex-end"><div style="flex:1"><h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><p class="sub">Theo dõi dòng tiền và danh mục của các quỹ mở</p>${sectionStamp("funds", "Dữ liệu quỹ kỳ")}</div>
     <div class="row" style="margin-bottom:16px;gap:10px"><span class="muted">Kỳ báo cáo</span><b class="box" style="padding:6px 14px">${esc(f.period)}</b><span class="tag ${f.updated<f.total?"bg-warn":"bg-up"}">${f.updated}/${f.total} quỹ đã cập nhật</span></div></div>
-  <div class="card"><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+  <div class="card"><div class="grid cols-auto-150">
     ${kp(f.updated,"quỹ có dữ liệu kỳ này")}${kp(nf(f.nav)+" tỷ","Tổng NAV")}${kp(nf(f.stockW,1)+"%","Tỷ trọng cổ phiếu")}${kp(nf(f.cashW,2)+"%","Tiền mặt")}
     ${kp(hasPrev?sgn(f.dStockW,2," đ.%"):"—","Δ tỷ trọng CP",cls(f.dStockW))}${kp(hasPrev?sgn(f.dStockVal)+" tỷ":"—","Δ giá trị CP",cls(f.dStockVal))}</div>
     <p class="muted" style="font-size:12px;margin:10px 0 0">Tỷ trọng là bình quân gia quyền theo NAV của ${f.updated} quỹ có dữ liệu kỳ ${esc(f.period)}. Các chỉ số Δ chỉ so sánh những quỹ có đủ dữ liệu cả kỳ ${esc(f.period)} và ${esc(f.prevPeriod||"trước")}.</p></div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
-    <div class="card">${head("pie","Top ngành theo tỷ trọng NAV")}<table><thead><tr><th>Ngành</th><th class="num">Tỷ trọng</th></tr></thead><tbody>${topS.map(s=>`<tr><td>${esc(s.s)}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div>
-    <div class="card">${head("brief","Top cổ phiếu theo tỷ trọng NAV")}<table><thead><tr><th>Mã</th><th class="num">Tỷ trọng</th><th>Danh mục Calida</th></tr></thead><tbody>${f.stocks.slice(0,5).map(s=>`<tr><td class="t">${esc(s.t)}</td><td class="num">${nf(s.w,2)}%</td><td>${priceOf(s.t)?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")}</tbody></table>
+  <div class="grid cols-auto-300" style="margin-top:14px">
+    <div class="card">${head("pie","Top ngành theo tỷ trọng NAV")}<div class="tbl-wrap"><table><thead><tr><th>Ngành</th><th class="num">Tỷ trọng</th></tr></thead><tbody>${topS.map(s=>`<tr><td>${esc(s.s)}</td><td class="num">${nf(s.w,1)}%</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="card">${head("brief","Top cổ phiếu theo tỷ trọng NAV")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Tỷ trọng</th><th>Danh mục Calida</th></tr></thead><tbody>${f.stocks.slice(0,5).map(s=>`<tr><td class="t">${esc(s.t)}</td><td class="num">${nf(s.w,2)}%</td><td>${priceOf(s.t)?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")}</tbody></table></div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Tính từ top holdings công bố của từng quỹ, nên tỷ trọng thực tế có thể cao hơn.</p></div>
-    <div class="card">${head("trend","Biến động theo ngành (Δ tỷ trọng)")}${secDelta.length?`<table><thead><tr><th>Ngành</th><th class="num">Δ tỷ trọng</th></tr></thead><tbody>${secDelta.map(s=>`<tr><td>${s.d>0?'<span class="up">▲</span>':'<span class="down">▼</span>'} ${esc(s.s)}</td><td class="num ${cls(s.d)}">${sgn(s.d,2," đ.%")}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Cần ít nhất 2 kỳ dữ liệu để so sánh.</div>'}</div>
+    <div class="card">${head("trend","Biến động theo ngành (Δ tỷ trọng)")}${secDelta.length?`<div class="tbl-wrap"><table><thead><tr><th>Ngành</th><th class="num">Δ tỷ trọng</th></tr></thead><tbody>${secDelta.map(s=>`<tr><td>${s.d>0?'<span class="up">▲</span>':'<span class="down">▼</span>'} ${esc(s.s)}</td><td class="num ${cls(s.d)}">${sgn(s.d,2," đ.%")}</td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Cần ít nhất 2 kỳ dữ liệu để so sánh.</div>'}</div>
   </div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
-    <div class="card">${head("flow","Dòng tiền theo quỹ")}<div class="grid" style="grid-template-columns:1fr 1fr">
-      <div><div class="tag bg-up" style="display:block;margin-bottom:6px">Tăng tỷ trọng CP</div><table><tbody>${f.fundUp.map(x=>`<tr><td>${esc(x.f)}</td><td class="num up">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div>
-      <div><div class="tag bg-down" style="display:block;margin-bottom:6px">Giảm tỷ trọng CP</div><table><tbody>${f.fundDown.map(x=>`<tr><td>${esc(x.f)}</td><td class="num down">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div></div></div>
+  <div class="grid cols-auto-300" style="margin-top:14px">
+    <div class="card">${head("flow","Dòng tiền theo quỹ")}<div class="grid cols-1-1">
+      <div><div class="tag bg-up" style="display:block;margin-bottom:6px">Tăng tỷ trọng CP</div><div class="tbl-wrap"><table><tbody>${f.fundUp.map(x=>`<tr><td>${esc(x.f)}</td><td class="num up">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div></div>
+      <div><div class="tag bg-down" style="display:block;margin-bottom:6px">Giảm tỷ trọng CP</div><div class="tbl-wrap"><table><tbody>${f.fundDown.map(x=>`<tr><td>${esc(x.f)}</td><td class="num down">${sgn(x.d,2," đ.%")}</td></tr>`).join("")||'<tr><td class="muted">—</td></tr>'}</tbody></table></div></div></div></div>
     <div class="card">${head("users","Top quỹ theo NAV")}<div class="tbl-wrap"><table><thead><tr><th>Quỹ</th><th class="num">NAV (tỷ)</th><th class="num">Hiệu suất YTD</th><th class="num">Tỷ trọng CP</th></tr></thead><tbody>${f.top.slice(0,5).map(x=>`<tr><td class="t">${esc(x.f)}</td><td class="num">${nf(x.nav)}</td><td class="num ${cls(x.ytd)}">${sgn(x.ytd,1,"%")}</td><td class="num">${nf(x.cp,1)}%</td></tr>`).join("")}</tbody></table></div></div>
     <div class="card">${head("doc","Điểm nhấn tháng")}<ul class="list">
       ${hasPrev?`<li><b>Tăng mạnh nhất:</b> ${secDelta.filter(s=>s.d>0).slice(0,2).map(s=>`${esc(s.s)} (${sgn(s.d,2)} đ.%)`).join(", ")||"không có"}.</li>
@@ -579,7 +637,7 @@ function pgReports(){
     <div class="tabs" style="margin:0">${["7 ngày","30 ngày","Tất cả"].map(t=>`<button data-rp="${t}" aria-selected="${STATE.repPeriod===t}">${t}</button>`).join("")}</div>
     <div class="tabs" style="margin:0">${["Tất cả","Chiến lược","Vĩ mô","Ngành","Doanh nghiệp"].map(t=>`<button data-rt="${t}" aria-selected="${STATE.repType===t}">${t}</button>`).join("")}</div>
     ${canWrite?'<button class="btn" id="addRep" style="margin-left:auto">+ Thêm báo cáo</button>':'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>'}</div>`;
-  const kpis=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+  const kpis=`<div class="grid cols-auto-200">
     ${kpiCard("rep","bg-brand",list.length,"báo cáo trong kỳ")}
     ${kpiCard("users","bg-brand",A.brokers.length,"công ty chứng khoán")}
     ${kpiCard("target","bg-up",nf(A.vnMed),`Target VN-Index trung vị (${nf(A.vnMin)} – ${nf(A.vnMax)})`)}
@@ -609,21 +667,22 @@ function pgReports(){
   const libCard=`<div class="card">${head("doc","Thư viện báo cáo")}${sel?repDetail(sel):""}
     <div class="tbl-wrap"><table><thead><tr><th>Ngày</th><th>CTCK</th><th>Loại</th><th>Tiêu đề</th><th>Quan điểm</th></tr></thead><tbody>
     ${[...list].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr class="click ${STATE.repSel===r.id?"sel":""}" data-rsel="${esc(r.id)}" tabindex="0"><td>${fmtD(r.date)}</td><td>${esc(r.broker)}</td><td>${esc(r.type)}</td><td style="white-space:normal;min-width:220px">${esc(r.title)}</td><td>${statusTag(r.stance)}</td></tr>`).join("")}</tbody></table></div></div>`;
-  const chatCard=canWrite?`<div class="card" style="position:sticky;top:14px">${head("chat","Hỏi đáp báo cáo")}
+  const chatCard=canWrite?`<div class="card">${head("chat","Hỏi đáp báo cáo")}
     <div class="chat"><div class="msgs" id="msgs" aria-live="polite"></div>
       <div class="suggest" id="suggest"></div>
-      <div class="composer"><textarea id="chatIn" placeholder="Hỏi về view, target, rủi ro của các CTCK…" aria-label="Câu hỏi"></textarea><button class="btn" id="chatSend">Gửi</button></div>
+      <div class="composer"><textarea id="chatIn" placeholder="Hỏi về view, target, rủi ro của các CTCK…" aria-label="Câu hỏi">${esc(STATE.chatDraft)}</textarea><button class="btn" id="chatSend">Gửi</button></div>
       <div class="muted" style="font-size:11.5px;margin-top:6px">Trả lời chỉ dựa trên thư viện báo cáo, có dẫn nguồn CTCK và ngày.</div></div></div>`
-    : `<div class="card" style="position:sticky;top:14px">${head("chat","Hỏi đáp báo cáo")}<div class="empty">Tài khoản này chỉ có quyền xem dữ liệu.</div></div>`;
-  return `<h1>Tổng hợp báo cáo CTCK${isDemoReports()?'<span class="demo">Dữ liệu mẫu</span>':""}</h1><p class="sub">Gom view, target và rủi ro từ các công ty chứng khoán vào một chỗ</p>${filters}${kpis}
-  <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(320px,380px);margin-top:14px;align-items:start">
-    <div class="grid">${brokerTbl}${riskCard}<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">${secCard}${stockCard}</div>${libCard}</div>
-    ${chatCard}
-  </div>`;
+    : `<div class="card">${head("chat","Hỏi đáp báo cáo")}<div class="empty">Tài khoản này chỉ có quyền xem dữ liệu.</div></div>`;
+  const sectionTabs=`<div class="tabs section-tabs" role="tablist" aria-label="Nội dung báo cáo">${["Tổng hợp","Thư viện","Hỏi đáp"].map(t=>`<button role="tab" data-reptab="${t}" aria-selected="${STATE.repTab===t}">${t}</button>`).join("")}</div>`;
+  const summary=`<div class="grid">${brokerTbl}${riskCard}<div class="grid cols-auto-340">${secCard}${stockCard}</div></div>`;
+  const content=STATE.repTab==="Tổng hợp"?`${kpis}<div class="grid" style="margin-top:14px">${summary}</div>`
+    :STATE.repTab==="Thư viện"?`<div class="grid">${libCard}</div>`
+    :`<div class="reports-chat">${chatCard}</div>`;
+  return `<h1>Tổng hợp báo cáo CTCK${isDemoReports()?'<span class="demo">Dữ liệu mẫu</span>':""}</h1><p class="sub">Gom quan điểm, mục tiêu và rủi ro từ các công ty chứng khoán vào một chỗ</p>${sectionStamp("reports", isDemoReports()?"Báo cáo mẫu đến":"Báo cáo đến")}${filters}${sectionTabs}${content}`;
 }
 const fmtD=d=>{const [y,m,dd]=d.split("-");return `${dd}/${m}/${y}`;};
 function repDetail(r){
-  const actions=canEdit("reports")?`<button class="link" data-edit-rep="${esc(r.id)}">Chỉnh sửa</button><button class="link" data-delete-rep="${esc(r.id)}">Xóa</button>`:"";
+  const actions=canEdit("reports")?`<button class="link" data-edit-rep="${esc(r.id)}">Chỉnh sửa</button><button class="link actions-danger" data-delete-rep="${esc(r.id)}">Xóa</button>`:"";
   return `<div class="box" style="margin-bottom:12px"><div class="row"><b style="flex:1">${esc(r.title)}</b>${statusTag(r.stance)}${actions}<button class="icon-btn" data-rsel="" aria-label="Đóng">✕</button></div>
     <div class="muted" style="font-size:12.5px">${esc(r.broker)} · ${fmtD(r.date)} · ${esc(r.type)} · Tầm nhìn ${esc(r.horizon||"—")}${r.vnTarget?` · Target VN-Index ${nf(r.vnTarget)}`:""}</div>
     <p class="prose" style="margin-top:8px">${esc(r.summary)}</p>
@@ -639,14 +698,18 @@ const rolePermission={viewer:"Xem dashboard và thư viện báo cáo",analyst:"
 const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",admin:"Quản trị"};
 const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||(role==="analyst"&&module==="reports")} ]));
 function permissionSummary(permissions){
-  const values=Object.values(permissions||{}), view=values.filter(p=>p.view).length, edit=values.filter(p=>p.edit).length;
-  return `Xem ${view}/${values.length||0} module · Chỉnh sửa ${edit}/${values.length||0}`;
+  const rights=Object.entries(permissions||{}).filter(([,p])=>p?.view).map(([module,p])=>{
+    const editLabel=p.edit?(["reports","admin"].includes(module)?" (chỉnh sửa)":" (quyền lưu sẵn)"):"";
+    return `${moduleLabel[module]||module}${editLabel}`;
+  });
+  return rights.length?`Quyền hiện có: ${rights.join(", ")}`:"Chưa được cấp quyền module";
 }
 function permissionMatrix(permissions, role){
   const current=permissions||moduleDefaults(role);
-  return `<div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>Module</th><th class="num">Xem</th><th class="num">Chỉnh sửa</th></tr></thead><tbody>${Object.entries(moduleLabel).map(([module,label])=>{
-    const p=current[module]||{view:false,edit:false}, restricted=module==="admin"&&role!=="admin";
-    return `<tr><td><b>${label}</b>${module==="admin"?'<div class="muted" style="font-size:11px">Chỉ dành cho vai trò admin</div>':""}</td><td class="num"><input type="checkbox" data-permission="${module}" data-action="view" ${p.view?"checked":""} ${restricted?"disabled":""} aria-label="Xem ${label}"></td><td class="num"><input type="checkbox" data-permission="${module}" data-action="edit" ${p.edit?"checked":""} ${restricted?"disabled":""} aria-label="Chỉnh sửa ${label}"></td></tr>`;
+  return `<div class="tbl-wrap" style="margin-top:14px"><table class="permission-matrix"><thead><tr><th>Module</th><th class="num">Xem</th><th class="num">Chỉnh sửa</th></tr></thead><tbody>${Object.entries(moduleLabel).map(([module,label])=>{
+    const p=current[module]||{view:false,edit:false}, restricted=module==="admin"&&role!=="admin", editable=["reports","admin"].includes(module);
+    const note=module==="admin"?'Chỉ dành cho vai trò admin':!editable?'Chưa hỗ trợ chỉnh sửa.':"";
+    return `<tr><td><b>${label}</b>${note?`<div class="muted" style="font-size:12px">${note}</div>`:""}</td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="view" ${p.view?"checked":""} ${restricted?"disabled":""} aria-label="Xem ${label}"></label></td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="edit" ${p.edit?"checked":""} ${restricted||!editable?"disabled":""} aria-label="Chỉnh sửa ${label}${!editable?" (chưa hỗ trợ)":""}"></label></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 function pgAdmin(){
@@ -655,7 +718,7 @@ function pgAdmin(){
   const content=STATE.adminError?`<div class="empty">${esc(STATE.adminError)} <button class="link" id="reloadUsers">Thử lại</button></div>`
     :!users?'<div class="empty">Đang tải danh sách tài khoản…</div>'
     :`<div class="tbl-wrap"><table><thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><th>Quyền</th><th>Cập nhật</th><th></th></tr></thead><tbody>
-      ${users.map(u=>`<tr><td class="t">${esc(u.username)}${u.username===CURRENT_USER?.username?' <span class="muted">(bạn)</span>':""}</td><td>${statusTag(roleLabel[u.role]||u.role)}</td><td style="white-space:normal;min-width:220px" class="muted">${esc(permissionSummary(u.permissions))}<div style="font-size:11px">${esc(rolePermission[u.role]||"")}</div></td><td class="muted">${u.updatedAt?new Date(u.updatedAt).toLocaleDateString("vi-VN"):"—"}</td><td><button class="link" data-edit-user="${esc(u.username)}">Chỉnh sửa</button> <button class="link" data-delete-user="${esc(u.username)}" ${u.username===CURRENT_USER?.username?"disabled title=\"Không thể tự xóa\"":""}>Xóa</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Chưa có tài khoản.</td></tr>'}
+      ${users.map(u=>`<tr><td class="t">${esc(u.username)}${u.username===CURRENT_USER?.username?' <span class="muted">(bạn)</span>':""}</td><td>${statusTag(roleLabel[u.role]||u.role)}</td><td style="white-space:normal;min-width:220px" class="muted">${esc(permissionSummary(u.permissions))}<div style="font-size:11px">${esc(rolePermission[u.role]||"")}</div></td><td class="muted">${u.updatedAt?new Date(u.updatedAt).toLocaleDateString("vi-VN"):"—"}</td><td><button class="link" data-edit-user="${esc(u.username)}">Chỉnh sửa</button> <button class="link actions-danger" data-delete-user="${esc(u.username)}" ${u.username===CURRENT_USER?.username?"disabled title=\"Không thể tự xóa\"":""}>Xóa</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Chưa có tài khoản.</td></tr>'}
     </tbody></table></div>`;
   const ops=STATE.adminOps;
   const operation=STATE.adminOpsError?`<div class="empty">${esc(STATE.adminOpsError)} <button class="link" id="reloadOps">Thử lại</button></div>`
@@ -670,13 +733,15 @@ function pgAdmin(){
         <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần dựng dashboard gần nhất.</p>'}</div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
+  const tabs=`<div class="tabs section-tabs" role="tablist" aria-label="Khu vực quản trị">${["Người dùng","Vận hành"].map(t=>`<button role="tab" data-admintab="${t}" aria-selected="${STATE.adminTab===t}">${t}</button>`).join("")}</div>`;
+  const selected=STATE.adminTab==="Người dùng"?`<div class="card">${head("users","Người dùng",'<button class="btn" id="addUser">Thêm tài khoản</button>')}${content}
+      <p class="muted" style="font-size:12px;margin:12px 0 0">Mật khẩu được băm trước khi lưu. Không thể xóa tài khoản đang đăng nhập hoặc admin cuối cùng.</p></div>`
+    :`<div class="card">${head("trend","Vận hành dữ liệu")}${operation}</div>`;
   return `<h1>Quản trị tài khoản</h1><p class="sub">Cấp quyền xem và chỉnh sửa theo từng module, riêng cho từng tài khoản.</p>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:14px">
+    <div class="grid cols-auto-220" style="margin-bottom:14px">
       ${Object.entries(roleLabel).map(([role,label])=>`<div class="card"><b>${esc(label)}</b><p class="muted" style="margin:6px 0 0">${esc(rolePermission[role])}</p></div>`).join("")}
     </div>
-    <div class="card">${head("users","Người dùng",'<button class="btn" id="addUser">Thêm tài khoản</button>')}${content}
-      <p class="muted" style="font-size:12px;margin:12px 0 0">Mật khẩu được băm trước khi lưu. Không thể xóa tài khoản đang đăng nhập hoặc admin cuối cùng.</p></div>
-    <div class="card" style="margin-top:14px">${head("trend","Vận hành dữ liệu")}${operation}</div>`;
+    ${tabs}${selected}`;
 }
 async function loadAdminUsers(){
   if(!canEdit("admin")) return;
@@ -835,6 +900,8 @@ async function deleteReport(id){
 document.addEventListener("click",e=>{
   const t=e.target.closest("button,tr,[data-go]"); if(!t) return;
   const d=t.dataset;
+  if(t.id==="menuBtn"){setNav(!document.body.classList.contains("nav-open"));return;}
+  if(t.id==="navScrim"||t.id==="navClose"){setNav(false);return;}
   if(d.go){go(d.go);return;}
   if(d.ovtab){STATE.ovTab=d.ovtab;render();}
   if(d.newstab){STATE.newsTab=d.newstab;render();}
@@ -845,13 +912,15 @@ document.addEventListener("click",e=>{
   if(d.fundtab){STATE.fundTab=d.fundtab;render();}
   if(d.rp){STATE.repPeriod=d.rp;render();}
   if(d.rt){STATE.repType=d.rt;render();}
-  if("rsel" in d){STATE.repSel=d.rsel||null;render();}
+  if(d.reptab){STATE.repTab=d.reptab;render();}
+  if(d.admintab){STATE.adminTab=d.admintab;render();}
+  if("rsel" in d){STATE.repSel=d.rsel||null;STATE.repTab="Thư viện";render();}
   if(d.ask){ask(d.ask);}
   if(d.editRep){editReport(d.editRep);}
   if(d.deleteRep){deleteReport(d.deleteRep);}
   if(d.editUser){openUserDialog(d.editUser);}
   if(d.deleteUser){deleteUser(d.deleteUser);}
-  if(t.id==="chatSend"){const v=$("#chatIn").value;$("#chatIn").value="";ask(v);}
+  if(t.id==="chatSend"){const v=$("#chatIn").value;STATE.chatDraft="";$("#chatIn").value="";ask(v);}
   if(t.id==="addRep") openAdd();
   if(t.id==="addUser") openUserDialog();
   if(t.id==="reloadUsers"){STATE.adminUsers=null;STATE.adminError="";loadAdminUsers();}
@@ -876,14 +945,32 @@ document.addEventListener("change",e=>{
     $("#adminBody").querySelectorAll('[data-permission="admin"]').forEach(input=>{input.disabled=restricted;if(restricted) input.checked=false;});
   }
 });
+document.addEventListener("input",e=>{if(e.target.id==="chatIn") STATE.chatDraft=e.target.value;});
 document.addEventListener("keydown",e=>{
-  if(e.key==="Enter"&&e.target.id==="chatIn"&&!e.shiftKey){e.preventDefault();const v=e.target.value;e.target.value="";ask(v);}
+  if(e.key==="Tab"&&document.body.classList.contains("nav-open")){
+    const drawer=$("#appNav"), focusable=drawer?[...drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]:[];
+    if(focusable.length){const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+  }
+  if(e.key==="Escape"&&document.body.classList.contains("nav-open")){e.preventDefault();setNav(false);return;}
+  if(["ArrowLeft","ArrowRight","Home","End"].includes(e.key)&&e.target.matches('[role="tab"]')){
+    const tabs=[...e.target.closest('[role="tablist"]').querySelectorAll('[role="tab"]')];
+    const current=tabs.indexOf(e.target);
+    const next=e.key==="Home"?0:e.key==="End"?tabs.length-1:(current+(e.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;
+    const dataKey=Object.keys(tabs[next]?.dataset||{})[0], dataValue=tabs[next]?.dataset?.[dataKey];
+    e.preventDefault(); tabs[next]?.click(); setTimeout(()=>document.querySelector(`[data-${dataKey}="${dataValue}"][aria-selected="true"]`)?.focus(),0); return;
+  }
+  if(e.key==="Enter"&&e.target.id==="chatIn"&&!e.shiftKey){e.preventDefault();const v=e.target.value;STATE.chatDraft="";e.target.value="";ask(v);}
   if(e.key==="Enter"&&e.target.matches("tr[tabindex]")) e.target.click();
   if(e.key==="Enter"&&e.target.id==="q"){
     const q=e.target.value.trim().toUpperCase(); if(!q) return;
-    if(DATA.portfolio.positions.some(p=>p.t===q)){STATE.pfSel=q;STATE.pfTab="Danh mục hiện tại";go("portfolio");}
-    else if(DATA.reports.some(r=>r.stocks.some(s=>s.t===q)||r.broker.toUpperCase().includes(q))){go("reports");}
-    else if(/QUỸ|FUND|VFM|VCBF|SSIAM/.test(q)) go("funds");
+    const openSearchPage=(page, prepare)=>{
+      if(!canView(page)){notify("Tài khoản này chưa có quyền mở mục phù hợp với tìm kiếm.","err");return;}
+      prepare?.(); go(page);
+    };
+    if(DATA.portfolio.positions.some(p=>p.t===q)) openSearchPage("portfolio",()=>{STATE.pfSel=q;STATE.pfTab="Danh mục hiện tại";});
+    else if(DATA.reports.some(r=>r.stocks.some(s=>s.t===q)||r.broker.toUpperCase().includes(q)||r.title.toUpperCase().includes(q))) openSearchPage("reports",()=>{STATE.repTab="Thư viện";});
+    else if(/QUỸ|FUND|VFM|VCBF|SSIAM/.test(q)) openSearchPage("funds");
+    else notify(`Không tìm thấy kết quả cho “${q}”.`,"err");
   }
 });
 
@@ -911,6 +998,7 @@ async function refresh(force, announce=false){
 }
 (async function boot(){
   const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)) STATE.page=h;
+  syncNav(); window.addEventListener("resize",syncNav);
   $("#page").innerHTML='<div class="card empty">Đang tải dữ liệu…</div>';
   try{
     const health=await api("/api/health");
