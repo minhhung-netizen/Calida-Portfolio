@@ -724,6 +724,50 @@ function updateWorkspaceStatus(req, collection) {
   return { state: state[collection][id] };
 }
 
+function actionQuantity(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (!Number.isSafeInteger(value) || value < 0 || value > 1_000_000_000) throw new Error("Khối lượng phải là số nguyên từ 0 đến 1.000.000.000");
+  return value;
+}
+
+function updateActionDetails(req) {
+  const id = String(req.params.id || "");
+  const body = req.body || {};
+  if (!WORKSPACE_ID.test(id) || !id.startsWith("portfolio:")) return { error: "Action không hợp lệ" };
+  if (body.status !== undefined && !WORKSPACE_STATUS.actions.has(String(body.status))) return { error: "Trạng thái action không hợp lệ" };
+  let plannedQuantity;
+  let completedQuantity;
+  try {
+    plannedQuantity = actionQuantity(body.plannedQuantity);
+    completedQuantity = actionQuantity(body.completedQuantity);
+  } catch (error) { return { error: error.message }; }
+  if (plannedQuantity !== null && completedQuantity !== null && completedQuantity > plannedQuantity) return { error: "Khối lượng đã thực hiện không thể lớn hơn khối lượng action" };
+  const deadline = body.deadline == null || body.deadline === "" ? null : String(body.deadline);
+  if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return { error: "Deadline phải theo định dạng YYYY-MM-DD" };
+  const note = body.note == null ? "" : String(body.note).trim();
+  if (note.length > 300) return { error: "Ghi chú không được quá 300 ký tự" };
+  const state = readWorkspaceState();
+  const previous = state.actions[id] || {};
+  state.actions[id] = {
+    ...previous,
+    status: String(body.status || previous.status || "pending"),
+    plannedQuantity,
+    completedQuantity,
+    deadline,
+    note,
+    updatedAt: new Date().toISOString(),
+    updatedBy: req.user.u,
+  };
+  writeWorkspaceState(state);
+  audit(req, "action.update", { id, status: state.actions[id].status, plannedQuantity, completedQuantity, deadline });
+  return { state: state.actions[id] };
+}
+
+app.patch("/api/actions/:id", requireModule("actions", "edit"), requireCsrf, writeLimit, (req, res) => {
+  const result = updateActionDetails(req);
+  return result.error ? res.status(400).json(result) : res.json({ ok: true, ...result });
+});
+
 app.patch("/api/actions/:id/status", requireModule("actions", "edit"), requireCsrf, writeLimit, (req, res) => {
   const result = updateWorkspaceStatus(req, "actions");
   return result.error ? res.status(400).json(result) : res.json({ ok: true, ...result });

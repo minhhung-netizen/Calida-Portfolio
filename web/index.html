@@ -165,15 +165,25 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .work-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
 .work-filters input,.work-filters select{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;min-height:40px}
 .work-filters input{min-width:min(220px,100%)}
+.action-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.action-summary button{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:15px;text-align:left;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;min-height:90px}
+.action-summary button:hover{border-color:var(--brand);background:var(--brand-soft)}
+.action-summary .num{font-size:26px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}.action-summary .caption{font-size:13px;color:var(--ink-2);margin-top:4px}
+.action-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,330px);gap:14px;align-items:start}
+.action-side{display:grid;gap:14px;position:sticky;top:14px}.action-side .card{padding:14px}.action-side table td{padding:8px 6px}.action-side table th{padding:7px 6px}
+.action-reminder{border-left:4px solid var(--warn);padding:12px 14px;margin-bottom:14px}.action-reminder .btn{margin-left:auto}
+.action-kpi{display:flex;align-items:center;gap:10px}.action-kpi .badge{width:42px;height:42px;border-radius:12px;display:grid;place-items:center}.action-kpi .badge svg{width:21px;height:21px}
+.progress-cell{min-width:104px}.progress-cell .muted{font-size:11.5px}.action-more{min-width:40px;min-height:40px;border:0;border-radius:8px;background:transparent;color:var(--brand);font-weight:700;font-size:18px}.action-more:hover{background:var(--brand-soft)}
+.side-list{list-style:none;margin:0;padding:0}.side-list li{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.side-list li:last-child{border-bottom:0}.side-list .link{padding:2px;margin-left:auto}.side-list .muted{font-size:12px}
 .status-flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--ink-2);font-size:13px;margin-top:8px}
 .status-flow span{background:var(--panel-2);padding:4px 9px;border-radius:7px}.status-flow b{color:var(--muted)}
 .progress-line{display:block;width:70px;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-top:5px}.progress-line i{display:block;height:100%;background:var(--brand);border-radius:inherit}
 .signal-strength{display:inline-flex;align-items:flex-end;gap:2px;height:14px;vertical-align:middle}.signal-strength i{width:5px;height:5px;border-radius:2px;background:var(--line)}.signal-strength i:nth-child(2){height:9px}.signal-strength i:nth-child(3){height:13px}.signal-strength i.on{background:var(--brand)}
 .work-actions{display:flex;gap:6px;flex-wrap:wrap}.work-actions .btn{padding:7px 10px;font-size:12.5px}.work-empty{padding:22px 8px;text-align:center;color:var(--muted)}
-@media (max-width:1100px){main{padding:18px 20px 32px}.cols-2-1{grid-template-columns:1fr}.reports-chat{position:static}.span-2{grid-column:auto}}
+@media (max-width:1100px){main{padding:18px 20px 32px}.cols-2-1,.action-layout{grid-template-columns:1fr}.reports-chat,.action-side{position:static}.span-2{grid-column:auto}.action-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:860px){.app{display:block}.menu-btn{display:inline-grid;place-items:center}aside{position:fixed;z-index:100;inset:0 auto 0 0;width:min(304px,86vw);height:100dvh;padding:20px 14px;transform:translateX(-105%);transition:transform 180ms ease;box-shadow:var(--shadow)}body.nav-open aside{transform:translateX(0)}.nav-scrim{position:fixed;z-index:90;inset:0;border:0;background:rgba(8,18,50,.42)}body.nav-open .nav-scrim{display:block}.logo{padding-bottom:20px}.drawer-close{display:inline-grid;margin-left:auto}nav{display:block}nav button{min-height:44px}.nav-foot{display:block}.topbar{gap:10px}.topbar .right{gap:10px}.topbar .right .date{display:none}}
 @media (max-width:860px){aside{visibility:hidden;pointer-events:none}body.nav-open aside{visibility:visible;pointer-events:auto}}
-@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
+@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1,.action-summary{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.action-summary button{min-height:78px}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -201,6 +211,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 
 <dialog id="addDlg"><div class="dlg" id="addBody"></div></dialog>
 <dialog id="adminDlg"><div class="dlg" id="adminBody"></div></dialog>
+<dialog id="actionDlg"><div class="dlg" id="actionBody"></div></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="config.js"></script>
@@ -390,7 +401,7 @@ const PAGES=[
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
   repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,
-  actionTab:"Tất cả",actionQuery:"",actionTicker:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
+  actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
 const availablePages=()=>PAGES.filter(p=>canView(p.id));
 function renderNav(){
@@ -722,11 +733,22 @@ function actionRows(){
   const positions=DATA.portfolio?.positions||[], stored=workspace().actions||{};
   return (DATA.portfolio?.today||[]).map(item=>{
     const p=positions.find(row=>row.t===item.t), id=`portfolio:${item.t}`;
+    const saved=stored[id]||{};
     const automatic=p?.buy&&p.price!=null&&p.price<p.buy[0]?"waiting":"pending";
+    const planned=Number.isSafeInteger(saved.plannedQuantity)?saved.plannedQuantity:null;
+    const completed=Number.isSafeInteger(saved.completedQuantity)?saved.completedQuantity:null;
     return {id,t:item.t,action:item.a,zone:p?.buy?range(p.buy):item.z||"—",price:p?.price??null,chg:p?.chg??null,
-      sector:p?.sector||"Chưa rõ ngành",context:p?.thesis||"Khuyến nghị danh mục",status:stored[id]?.status||automatic, source:"Danh mục"};
+      sector:p?.sector||"Chưa rõ ngành",context:p?.thesis||"Khuyến nghị danh mục",status:saved.status||automatic, source:"Danh mục", sourceDetail:p?.book||"Danh mục",
+      plannedQuantity:planned,completedQuantity:completed,deadline:saved.deadline||null,note:saved.note||""};
   });
 }
+const actionQty=v=>v==null?"—":nf(v,0);
+function actionProgress(row){
+  if(row.plannedQuantity==null) return '<span class="muted">Chưa khai báo</span>';
+  const done=Math.min(row.completedQuantity||0,row.plannedQuantity), pct=row.plannedQuantity?Math.round(done/row.plannedQuantity*100):0;
+  return `<div class="progress-cell"><span>${actionQty(done)} / ${actionQty(row.plannedQuantity)}</span><span class="progress-line" aria-label="Đã thực hiện ${pct}%"><i style="width:${pct}%"></i></span><span class="muted">${pct}%</span></div>`;
+}
+function actionRemaining(row){ return row.plannedQuantity==null?"—":actionQty(Math.max(0,row.plannedQuantity-(row.completedQuantity||0))); }
 function signalRows(){
   const positions=DATA.portfolio?.positions||[], stored=workspace().signals||{}, calls=repAgg(DATA.reports||[]).stocks;
   const map=new Map();
@@ -752,16 +774,57 @@ async function setWorkspaceStatus(collection,id,status){
     render(); notify("Đã cập nhật trạng thái.");
   }catch(e){notify("Không cập nhật được trạng thái: "+e.message,"err");}
 }
+function openActionDialog(id){
+  const row=actionRows().find(item=>item.id===id);
+  if(!row||!canEdit("actions")) return;
+  const options=Object.entries(actionStatus).map(([value,item])=>`<option value="${value}" ${row.status===value?"selected":""}>${item.label}</option>`).join("");
+  $("#actionBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Cập nhật action ${esc(row.t)}</h2><button class="icon-btn" id="actionDlgClose" aria-label="Đóng">✕</button></div>
+    <p class="muted" style="margin:4px 0 12px">${esc(row.action)} · ${esc(row.sector)} · ${esc(row.sourceDetail)}</p>
+    <div class="box" style="margin-bottom:14px"><b>${esc(row.context)}</b><div class="muted" style="font-size:12px;margin-top:4px">Vùng giá: ${esc(row.zone)} · Giá hiện tại: ${nf(row.price,2)}</div></div>
+    <div class="fgrid"><label>Trạng thái<select id="actionStatus">${options}</select></label><label>Deadline<input id="actionDeadline" type="date" value="${esc(row.deadline||"")}"></label>
+      <label>Khối lượng action<input id="actionPlanned" type="number" inputmode="numeric" min="0" step="1" value="${row.plannedQuantity??""}" placeholder="Ví dụ: 20000"></label>
+      <label>Đã thực hiện<input id="actionCompleted" type="number" inputmode="numeric" min="0" step="1" value="${row.completedQuantity??""}" placeholder="Ví dụ: 5000"></label>
+      <label style="grid-column:1/-1">Ghi chú tiến độ<textarea id="actionNote" maxlength="300" placeholder="Thông tin thực hiện, lý do chờ…">${esc(row.note)}</textarea></label></div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Khối lượng và deadline là dữ liệu vận hành do người dùng khai báo; hệ thống không tự suy đoán từ giá thị trường.</p>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="actionSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveAction" data-action-id="${esc(id)}">Lưu cập nhật</button></div>`;
+  $("#actionDlg").showModal();
+}
+async function saveActionDetails(id){
+  const status=$("#actionSaveStatus"), parseQuantity=(value,label)=>{
+    if(value==="") return null;
+    const number=Number(value);
+    if(!Number.isSafeInteger(number)||number<0) throw new Error(`${label} phải là số nguyên không âm.`);
+    return number;
+  };
+  let planned, completed;
+  try { planned=parseQuantity($("#actionPlanned").value,"Khối lượng action"); completed=parseQuantity($("#actionCompleted").value,"Khối lượng đã thực hiện"); }
+  catch(error){status.textContent=error.message;return;}
+  if(planned!==null&&completed!==null&&completed>planned){status.textContent="Khối lượng đã thực hiện không thể lớn hơn khối lượng action.";return;}
+  const button=$("#saveAction"); button.disabled=true; status.textContent="Đang lưu…";
+  try{
+    const state=await api(`/api/actions/${encodeURIComponent(id)}`,{status:$("#actionStatus").value,plannedQuantity:planned,completedQuantity:completed,deadline:$("#actionDeadline").value||null,note:$("#actionNote").value},"PATCH");
+    DATA.workspace ||= {actions:{},signals:{}}; DATA.workspace.actions ||= {}; DATA.workspace.actions[id]=state.state;
+    $("#actionDlg").close(); render(); notify("Đã cập nhật action.");
+  }catch(error){status.textContent="Không lưu được: "+error.message;button.disabled=false;}
+}
 function pgActions(){
-  const all=actionRows(), writable=canEdit("actions"), tabs=["Tất cả","Cần xử lý","Chờ điều kiện giá","Hoàn thành"];
+  const all=actionRows().sort((a,b)=>(a.status==="completed")-(b.status==="completed")||a.t.localeCompare(b.t)), writable=canEdit("actions"), tabs=["Tất cả","Cần xử lý","Chờ điều kiện giá","Hoàn thành"];
   const q=STATE.actionQuery.trim().toUpperCase();
-  const rows=all.filter(row=>(STATE.actionTab==="Tất cả"||actionStatus[row.status]?.label===STATE.actionTab)&&( !q||[row.t,row.sector,row.context,row.action].join(" ").toUpperCase().includes(q))&&(!STATE.actionTicker||row.t===STATE.actionTicker));
+  const rows=all.filter(row=>(STATE.actionTab==="Tất cả"||actionStatus[row.status]?.label===STATE.actionTab)&&(!q||[row.t,row.sector,row.context,row.action,row.note].join(" ").toUpperCase().includes(q))&&(!STATE.actionTicker||row.t===STATE.actionTicker)&&(!STATE.actionSector||row.sector===STATE.actionSector)&&(!STATE.actionSource||row.source===STATE.actionSource));
   const count=status=>all.filter(row=>row.status===status).length;
-  const filters=`<div class="work-filters"><input id="actionQ" value="${esc(STATE.actionQuery)}" placeholder="Tìm mã hoặc ngành" aria-label="Tìm action"><select id="actionTicker" aria-label="Lọc action theo mã"><option value="">Tất cả mã</option>${all.map(row=>`<option value="${esc(row.t)}" ${STATE.actionTicker===row.t?"selected":""}>${esc(row.t)}</option>`).join("")}</select>${STATE.actionTicker?'<button class="btn ghost" data-clear-action-filter>Bỏ lọc mã</button>':""}</div>`;
-  return `<h1>Action Desk</h1><p class="sub">Theo dõi các hành động đã có căn cứ từ danh mục; cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
-    <div class="tabs section-tabs" role="tablist" aria-label="Trạng thái action">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}
-    <div class="grid cols-auto-220" style="margin-bottom:14px">${kpiCard("desk","bg-brand",all.length,"action từ danh mục")}${kpiCard("alert","bg-down",count("pending"),"cần xử lý")}${kpiCard("cal","bg-warn",count("waiting"),"chờ điều kiện giá")}${kpiCard("target","bg-up",count("completed"),"đã hoàn thành")}</div>
-    <div class="card">${head("desk","Danh sách action",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Hành động</th><th>Vùng giá</th><th>Trạng thái</th><th>Nguồn</th>${writable?'<th></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:200px">${esc(row.context)}</td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td>${stateTag(row.status)}</td><td class="muted">${row.source}</td>${writable?`<td><div class="work-actions">${row.status!=="completed"?`<button class="btn ghost" data-action-status="completed" data-work-id="${row.id}">Hoàn thành</button>`:""}${row.status!=="waiting"?`<button class="link" data-action-status="waiting" data-work-id="${row.id}">Chờ giá</button>`:""}</div></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?8:7}" class="work-empty">Không có action phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Action được lấy từ mục “Hành động theo danh mục”; không tự tạo lệnh giao dịch.</p></div>`;
+  const sectors=[...new Set(all.map(row=>row.sector))].sort(), sources=[...new Set(all.map(row=>row.source))];
+  const freshSignals=signalRows().filter(row=>row.status==="new").slice(0,5);
+  const incomplete=all.filter(row=>!["completed","cancelled"].includes(row.status));
+  const withoutPlan=incomplete.filter(row=>row.plannedQuantity==null).length;
+  const reminder=withoutPlan?`${withoutPlan} action chưa khai báo khối lượng hoặc deadline.`:incomplete.length?`${incomplete.length} action đang mở cần theo dõi tiến độ.`:"Không còn action mở cần cập nhật.";
+  const filters=`<div class="work-filters"><input id="actionQ" value="${esc(STATE.actionQuery)}" placeholder="Tìm mã, ngữ cảnh hoặc ghi chú" aria-label="Tìm action"><select id="actionSector" aria-label="Lọc action theo ngành"><option value="">Tất cả ngành</option>${sectors.map(sector=>`<option value="${esc(sector)}" ${STATE.actionSector===sector?"selected":""}>${esc(sector)}</option>`).join("")}</select><select id="actionSource" aria-label="Lọc action theo nguồn"><option value="">Tất cả nguồn</option>${sources.map(source=>`<option value="${esc(source)}" ${STATE.actionSource===source?"selected":""}>${esc(source)}</option>`).join("")}</select>${STATE.actionTicker?`<span class="tag bg-brand">Mã: ${esc(STATE.actionTicker)}</span><button class="btn ghost" data-clear-action-filter>Bỏ lọc mã</button>`:""}</div>`;
+  const summary=(tab,icon,colour,value,label,goPage="")=>`<button ${goPage?`data-go="${goPage}"`: `data-actiontab="${tab}"`}><span class="action-kpi"><span class="badge ${colour}">${svg(icon)}</span><span><span class="num">${nf(value)}</span><span class="caption">${label}</span></span></span><span class="link" style="pointer-events:none">›</span></button>`;
+  return `<h1>Action Desk</h1><p class="sub">Theo dõi hành động từ danh mục, khai báo khối lượng và cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
+    <div class="card action-reminder"><div class="row"><div class="action-kpi"><span class="badge bg-warn">${svg("cal")}</span><div><b>Nhắc việc Action Desk</b><div class="muted" style="font-size:12.5px">${esc(reminder)}</div></div></div>${writable&&incomplete.length?`<button class="btn ghost" data-setup-next-action="${incomplete[0].id}">Cập nhật</button>`:""}</div></div>
+    <div class="action-summary">${summary("Cần xử lý","alert","bg-down",count("pending"),"cần xử lý")}${summary("Chờ điều kiện giá","cal","bg-warn",count("waiting"),"chờ điều kiện giá")}${summary("","bolt","bg-brand",freshSignals.length,"signal mới cần xem","signals")}${summary("Hoàn thành","target","bg-up",count("completed"),"hoàn thành")}</div>
+    <div class="action-layout"><div><div class="card">${head("desk","Danh sách action",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tabs section-tabs" role="tablist" aria-label="Trạng thái action">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Action</th><th>Vùng giá</th><th class="num">KL action</th><th>Đã thực hiện</th><th class="num">Còn lại</th><th>Deadline</th><th>Trạng thái</th>${writable?'<th aria-label="Thao tác"></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:190px">${esc(row.context)}${row.note?`<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(row.note)}</div>`:""}<div class="muted" style="font-size:11.5px">${esc(row.source)}</div></td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td class="num">${actionQty(row.plannedQuantity)}</td><td>${actionProgress(row)}</td><td class="num">${actionRemaining(row)}</td><td>${row.deadline?fmtD(row.deadline):'<span class="muted">—</span>'}</td><td>${stateTag(row.status)}</td>${writable?`<td><button class="action-more" data-edit-action="${row.id}" aria-label="Cập nhật action ${esc(row.t)}" title="Cập nhật action">•••</button></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?11:10}" class="work-empty">Không có action phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Action lấy từ “Hành động theo danh mục”. Khối lượng, deadline và tiến độ chỉ thay đổi khi người có quyền cập nhật.</p></div></div>
+      <aside class="action-side" aria-label="Thông tin hỗ trợ Action Desk"><div class="card">${head("bolt",`Signal mới (${freshSignals.length})`,canView("signals")?'<button class="link" data-go="signals">Xem tất cả</button>':"")}<ul class="side-list">${freshSignals.map(signal=>`<li><button class="link" style="margin:0;padding:0" data-open-signal="${signal.t}">${esc(signal.t)}</button>${statusTag(signal.recommendation)}<span class="muted">${esc(signal.evidence)}</span></li>`).join("")||'<li class="muted">Không có signal mới.</li>'}</ul></div>
+      <div class="card">${head("cal","Cần khai báo tiến độ")}<ul class="side-list">${incomplete.map(row=>`<li><div><b>${esc(row.t)}</b><div class="muted">${row.plannedQuantity==null?"Chưa có khối lượng":`${actionRemaining(row)} còn lại`}${row.deadline?` · ${fmtD(row.deadline)}`:""}</div></div>${writable?`<button class="link" data-edit-action="${row.id}">Cập nhật</button>`:""}</li>`).join("")||'<li class="muted">Không có action đang mở.</li>'}</ul></div></aside></div>`;
 }
 function pgSignals(){
   const all=signalRows(), writable=canEdit("signals"), tabs=["Mới","Theo dõi","Đã bỏ qua"];
@@ -999,6 +1062,9 @@ document.addEventListener("click",e=>{
   if(d.actionStatus){setWorkspaceStatus("actions",d.workId,d.actionStatus);return;}
   if(d.signalStatus){setWorkspaceStatus("signals",d.workId,d.signalStatus);return;}
   if(d.openAction){STATE.actionTicker=d.openAction;STATE.actionTab="Tất cả";go("actions");return;}
+  if(d.openSignal){STATE.signalQuery=d.openSignal;go("signals");return;}
+  if(d.editAction){openActionDialog(d.editAction);return;}
+  if(d.setupNextAction){openActionDialog(d.setupNextAction);return;}
   if("clearActionFilter" in d){STATE.actionTicker="";render();return;}
   if(d.rp){STATE.repPeriod=d.rp;render();}
   if(d.rt){STATE.repType=d.rt;render();}
@@ -1018,6 +1084,8 @@ document.addEventListener("click",e=>{
   if(t.id==="runBuild") runPipeline(true);
   if(t.id==="runFull") runPipeline(false);
   if(t.id==="adminDlgClose") $("#adminDlg").close();
+  if(t.id==="actionDlgClose") $("#actionDlg").close();
+  if(t.id==="saveAction") saveActionDetails(t.dataset.actionId||"");
   if(t.id==="saveUser") saveUser(t.dataset.userId||"");
   if(t.id==="dlgClose") $("#addDlg").close();
   if(t.id==="extractBtn") extract();
@@ -1029,6 +1097,8 @@ document.addEventListener("click",e=>{
 document.addEventListener("change",e=>{
   if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||"";
   if(e.target.id==="actionTicker"){STATE.actionTicker=e.target.value;render();return;}
+  if(e.target.id==="actionSector"){STATE.actionSector=e.target.value;render();return;}
+  if(e.target.id==="actionSource"){STATE.actionSource=e.target.value;render();return;}
   if(e.target.dataset.action==="view"&&!e.target.checked){ const edit=$(`#adminBody [data-permission="${e.target.dataset.permission}"][data-action="edit"]`); if(edit) edit.checked=false; }
   if(e.target.dataset.action==="edit"&&e.target.checked){ const view=$(`#adminBody [data-permission="${e.target.dataset.permission}"][data-action="view"]`); if(view) view.checked=true; }
   if(e.target.id==="adminRole"){

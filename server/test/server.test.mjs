@@ -90,12 +90,18 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed" }) });
     assert.equal(response.status, 200, "admin phải cập nhật được trạng thái action");
     assert.equal((await response.json()).state.status, "completed");
+    response = await request("/api/actions/portfolio%3AFPT", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed", plannedQuantity: 20000, completedQuantity: 5000, deadline: "2026-09-24", note: "Đã khớp lệnh một phần" }) });
+    assert.equal(response.status, 200, "admin phải khai báo được tiến độ action");
+    assert.deepEqual((await response.json()).state.plannedQuantity, 20000);
+    response = await request("/api/actions/portfolio%3AFPT", { method: "PATCH", ...common, body: JSON.stringify({ plannedQuantity: 100, completedQuantity: 101 }) });
+    assert.equal(response.status, 400, "không được khai báo khối lượng hoàn thành vượt kế hoạch");
     response = await request("/api/signals/signal%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "watch" }) });
     assert.equal(response.status, 200, "admin phải cập nhật được trạng thái signal");
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "not-a-status" }) });
     assert.equal(response.status, 400, "trạng thái ngoài danh sách phải bị chặn");
     const adminDashboard = await (await request("/api/dashboard", { headers: { cookie } })).json();
     assert.equal(adminDashboard.workspace.actions["portfolio:FPT"].status, "completed");
+    assert.equal(adminDashboard.workspace.actions["portfolio:FPT"].completedQuantity, 5000);
     assert.equal(adminDashboard.workspace.signals["signal:FPT"].status, "watch");
 
     const scopedPermissions = {
