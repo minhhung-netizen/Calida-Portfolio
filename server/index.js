@@ -45,10 +45,11 @@ const LOG_DIR = path.join(STATE_DIR, "logs");
 const AUDIT_LOG = path.join(LOG_DIR, "audit.jsonl");
 const USER_STORE_DIR = path.join(STATE_DIR, "auth");
 const USER_STORE = path.join(USER_STORE_DIR, "users.json");
+const WORKSPACE_STORE = path.join(STATE_DIR, "workspace-state.json");
 const ROLE_RANK = Object.freeze({ viewer: 0, analyst: 1, admin: 2 });
 const isRole = (role) => Object.hasOwn(ROLE_RANK, role);
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
-const MODULES = Object.freeze(["overview", "brief", "portfolio", "flows", "funds", "reports", "admin"]);
+const MODULES = Object.freeze(["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "admin"]);
 const MODULE_SET = new Set(MODULES);
 const STARTED_AT = new Date().toISOString();
 
@@ -125,9 +126,37 @@ function validateNewUser(username, password, role) {
 
 function defaultPermissions(role) {
   const allView = Object.fromEntries(MODULES.map((module) => [module, { view: module !== "admin", edit: false }]));
-  if (role === "analyst") allView.reports.edit = true;
+  if (role === "analyst") ["reports", "actions", "signals"].forEach((module) => { allView[module].edit = true; });
   if (role === "admin") return Object.fromEntries(MODULES.map((module) => [module, { view: true, edit: true }]));
   return allView;
+}
+
+function readWorkspaceState() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(WORKSPACE_STORE, "utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid workspace state");
+    return { actions: parsed.actions && typeof parsed.actions === "object" ? parsed.actions : {}, signals: parsed.signals && typeof parsed.signals === "object" ? parsed.signals : {} };
+  } catch (error) {
+    if (error.code === "ENOENT") return { actions: {}, signals: {} };
+    console.error(`Không đọc được workspace state: ${error.message}`);
+    return { actions: {}, signals: {} };
+  }
+}
+
+function writeWorkspaceState(state) {
+  const safe = { actions: state.actions || {}, signals: state.signals || {} };
+  const temp = `${WORKSPACE_STORE}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(temp, JSON.stringify(safe, null, 2), "utf8");
+  fs.renameSync(temp, WORKSPACE_STORE);
+  return safe;
+}
+
+function publicWorkspaceState(user) {
+  const state = readWorkspaceState();
+  return {
+    actions: hasModulePermission(user, "actions") ? state.actions : {},
+    signals: hasModulePermission(user, "signals") ? state.signals : {},
+  };
 }
 
 function normalizePermissionOverrides(raw, role) {
@@ -645,20 +674,27 @@ function dashboardForUser(data, user) {
   const permissions = effectivePermissions(user);
   // Tổng quan là dashboard điều hành nên được phép dùng số liệu tổng hợp. Các
   // tài khoản chỉ được cấp module riêng chỉ nhận đúng dữ liệu module đó.
-  if (permissions.overview.view) return data;
+  if (permissions.overview.view) return { ...data, workspace: publicWorkspaceState(user) };
   const result = {
     asOf: data.asOf,
     meta: data.meta,
     market: { index: data.market?.index ?? null },
     news: [], events: [], reports: [], funds: null,
     flows: { asOf: null, investors: { "Hôm nay": {}, MTD: {}, YTD: {} }, history: { dates: [] }, tickers: [], sectors: [] },
-    portfolio: { ytd: null, alloc: {}, positions: [], today: [], history: [] },
+    portfolio: { ytd: null, alloc: {}, positions: [], today: [], history: [] }, workspace: publicWorkspaceState(user),
   };
   if (permissions.brief.view) Object.assign(result, { market: data.market, news: data.news, events: data.events });
   if (permissions.portfolio.view) result.portfolio = data.portfolio;
   if (permissions.flows.view) result.flows = data.flows;
   if (permissions.funds.view) result.funds = data.funds;
   if (permissions.reports.view) result.reports = data.reports;
+  // Hai module mới chỉ trình bày action/signal có căn cứ từ danh mục và báo cáo.
+  // Cấp riêng một trong hai module vẫn nhận đúng nguồn dữ liệu cần thiết của nó.
+  if (permissions.actions.view) result.portfolio = data.portfolio;
+  if (permissions.signals.view) {
+    result.portfolio = data.portfolio;
+    result.reports = data.reports;
+  }
   return result;
 }
 
@@ -668,6 +704,34 @@ app.get("/api/dashboard", (req, res) => {
     res.set("Cache-Control", "no-store");
     return res.json(dashboardForUser(readData(), requestUser(req)));
   } catch (error) { return res.status(503).json({ error: `Không tải được dashboard: ${error.message}` }); }
+});
+
+// ---------- action desk + signal center state ----------
+const WORKSPACE_STATUS = Object.freeze({
+  actions: new Set(["pending", "waiting", "completed", "cancelled"]),
+  signals: new Set(["new", "watch", "dismissed"]),
+});
+const WORKSPACE_ID = /^(?:portfolio|signal):[A-Z0-9._-]{1,16}$/;
+
+function updateWorkspaceStatus(req, collection) {
+  const id = String(req.params.id || "");
+  const status = String(req.body?.status || "");
+  if (!WORKSPACE_ID.test(id) || !WORKSPACE_STATUS[collection].has(status)) return { error: "Trạng thái workspace không hợp lệ" };
+  const state = readWorkspaceState();
+  state[collection][id] = { status, updatedAt: new Date().toISOString(), updatedBy: req.user.u };
+  writeWorkspaceState(state);
+  audit(req, `${collection.slice(0, -1)}.status`, { id, status });
+  return { state: state[collection][id] };
+}
+
+app.patch("/api/actions/:id/status", requireModule("actions", "edit"), requireCsrf, writeLimit, (req, res) => {
+  const result = updateWorkspaceStatus(req, "actions");
+  return result.error ? res.status(400).json(result) : res.json({ ok: true, ...result });
+});
+
+app.patch("/api/signals/:id/status", requireModule("signals", "edit"), requireCsrf, writeLimit, (req, res) => {
+  const result = updateWorkspaceStatus(req, "signals");
+  return result.error ? res.status(400).json(result) : res.json({ ok: true, ...result });
 });
 
 app.get("/api/status", (req, res) => {

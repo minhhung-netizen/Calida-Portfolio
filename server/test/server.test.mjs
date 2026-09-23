@@ -84,10 +84,23 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(response.status, 403, "viewer không có quyền quản trị");
     response = await request("/api/reports", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ report: report() }) });
     assert.equal(response.status, 403, "viewer mặc định không có quyền chỉnh sửa báo cáo");
+    response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ status: "completed" }) });
+    assert.equal(response.status, 403, "viewer mặc định không có quyền cập nhật Action Desk");
+
+    response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed" }) });
+    assert.equal(response.status, 200, "admin phải cập nhật được trạng thái action");
+    assert.equal((await response.json()).state.status, "completed");
+    response = await request("/api/signals/signal%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "watch" }) });
+    assert.equal(response.status, 200, "admin phải cập nhật được trạng thái signal");
+    response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "not-a-status" }) });
+    assert.equal(response.status, 400, "trạng thái ngoài danh sách phải bị chặn");
+    const adminDashboard = await (await request("/api/dashboard", { headers: { cookie } })).json();
+    assert.equal(adminDashboard.workspace.actions["portfolio:FPT"].status, "completed");
+    assert.equal(adminDashboard.workspace.signals["signal:FPT"].status, "watch");
 
     const scopedPermissions = {
       overview: { view: false, edit: false }, brief: { view: false, edit: false }, portfolio: { view: false, edit: false },
-      flows: { view: false, edit: false }, funds: { view: false, edit: false }, reports: { view: true, edit: true }, admin: { view: false, edit: false },
+      flows: { view: false, edit: false }, funds: { view: false, edit: false }, reports: { view: true, edit: true }, actions: { view: false, edit: false }, signals: { view: false, edit: false }, admin: { view: false, edit: false },
     };
     response = await request("/api/admin/users/viewer", { method: "PATCH", ...common, body: JSON.stringify({ user: { permissions: scopedPermissions } }) });
     assert.equal(response.status, 200, "admin phải cấp được quyền riêng theo module");

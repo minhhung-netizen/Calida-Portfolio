@@ -162,10 +162,18 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .permission-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;cursor:pointer}
 .permission-toggle input{padding:0;margin:0}
 .actions-danger{color:var(--down)!important}
+.work-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.work-filters input,.work-filters select{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;min-height:40px}
+.work-filters input{min-width:min(220px,100%)}
+.status-flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--ink-2);font-size:13px;margin-top:8px}
+.status-flow span{background:var(--panel-2);padding:4px 9px;border-radius:7px}.status-flow b{color:var(--muted)}
+.progress-line{display:block;width:70px;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-top:5px}.progress-line i{display:block;height:100%;background:var(--brand);border-radius:inherit}
+.signal-strength{display:inline-flex;align-items:flex-end;gap:2px;height:14px;vertical-align:middle}.signal-strength i{width:5px;height:5px;border-radius:2px;background:var(--line)}.signal-strength i:nth-child(2){height:9px}.signal-strength i:nth-child(3){height:13px}.signal-strength i.on{background:var(--brand)}
+.work-actions{display:flex;gap:6px;flex-wrap:wrap}.work-actions .btn{padding:7px 10px;font-size:12.5px}.work-empty{padding:22px 8px;text-align:center;color:var(--muted)}
 @media (max-width:1100px){main{padding:18px 20px 32px}.cols-2-1{grid-template-columns:1fr}.reports-chat{position:static}.span-2{grid-column:auto}}
 @media (max-width:860px){.app{display:block}.menu-btn{display:inline-grid;place-items:center}aside{position:fixed;z-index:100;inset:0 auto 0 0;width:min(304px,86vw);height:100dvh;padding:20px 14px;transform:translateX(-105%);transition:transform 180ms ease;box-shadow:var(--shadow)}body.nav-open aside{transform:translateX(0)}.nav-scrim{position:fixed;z-index:90;inset:0;border:0;background:rgba(8,18,50,.42)}body.nav-open .nav-scrim{display:block}.logo{padding-bottom:20px}.drawer-close{display:inline-grid;margin-left:auto}nav{display:block}nav button{min-height:44px}.nav-foot{display:block}.topbar{gap:10px}.topbar .right{gap:10px}.topbar .right .date{display:none}}
 @media (max-width:860px){aside{visibility:hidden;pointer-events:none}body.nav-open aside{visibility:visible;pointer-events:auto}}
-@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
+@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -285,6 +293,8 @@ const I = {
   users:'<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15c3 0 5 2 5 4"/>',
   settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56V20.3h-3v-.08A1.7 1.7 0 0 0 10.66 18.66a1.7 1.7 0 0 0-1.88.34l-.06.06L6.6 16.94l.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.04H5.3v-3h.14A1.7 1.7 0 0 0 7 9.92a1.7 1.7 0 0 0-.34-1.88l-.06-.06L8.72 5.86l.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7v-.08h3v.08a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.04h.08v3h-.08A1.7 1.7 0 0 0 19.4 15z"/>',
   shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',
+  desk:'<path d="M4 5h16M4 12h11M4 19h7"/><path d="m17 17 2 2 3-4"/>',
+  bolt:'<path d="m13 2-9 12h7l-1 8 9-12h-7z"/>',
   plus:'<path d="M12 5v14M5 12h14"/>'
 };
 const svg = (k, sw=2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
@@ -308,7 +318,7 @@ function donut(parts, label, sub){
 }
 const statusTag = s => {
   const m={"MUA":"bg-up","NẮM GIỮ":"bg-brand","TĂNG TỶ TRỌNG":"bg-warn","GIẢM TỶ TRỌNG":"bg-down","THEO DÕI":"bg-neutral","KHẢ QUAN":"bg-up","TRUNG LẬP":"bg-neutral","BÁN":"bg-down","KÉM KHẢ QUAN":"bg-down",
-    "Tích cực":"bg-up","Trung lập":"bg-neutral","Thận trọng":"bg-warn","Tiêu cực":"bg-down","Cao":"bg-down","Trung bình":"bg-warn","Thấp":"bg-neutral"};
+    "Tích cực":"bg-up","Trung lập":"bg-neutral","Thận trọng":"bg-warn","Tiêu cực":"bg-down","Cần xử lý":"bg-down","Sát vùng vi phạm":"bg-warn","Cao":"bg-down","Trung bình":"bg-warn","Thấp":"bg-neutral"};
   return `<span class="tag ${m[s]||"bg-neutral"}">${esc(s)}</span>`;
 };
 
@@ -374,10 +384,13 @@ const PAGES=[
   {id:"flows",label:"Dòng tiền",icon:"flow"},
   {id:"funds",label:"Quỹ đầu tư",icon:"fund"},
   {id:"reports",label:"Báo cáo CTCK",icon:"rep"},
+  {id:"actions",label:"Action Desk",icon:"desk"},
+  {id:"signals",label:"Signal Center",icon:"bolt"},
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
-  repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
+  repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,
+  actionTab:"Tất cả",actionQuery:"",actionTicker:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
 const availablePages=()=>PAGES.filter(p=>canView(p.id));
 function renderNav(){
@@ -408,7 +421,7 @@ function render(){
   if(!pages.length){ $("#nav").innerHTML=""; $("#page").innerHTML='<div class="card"><h1>Chưa được cấp quyền module</h1><p class="prose">Liên hệ quản trị viên để được cấp quyền xem ít nhất một module.</p></div>'; return; }
   if(!pages.some(p=>p.id===STATE.page)) STATE.page=pages[0].id;
   renderNav();
-  const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,admin:pgAdmin}[STATE.page]||pgOverview;
+  const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,actions:pgActions,signals:pgSignals,admin:pgAdmin}[STATE.page]||pgOverview;
   $("#page").innerHTML=fn();
   if(STATE.page==="reports") paintChat();
   if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
@@ -692,14 +705,85 @@ function repDetail(r){
     <div class="label-sm">Rủi ro ${r.risks.map(k=>`<span class="chip risk" style="margin:0">${esc(k.k)}</span>`).join("")}</div></div>`;
 }
 
+/* ============ Action Desk + Signal Center ============
+   Không tạo thêm dữ liệu thị trường: action lấy từ portfolio.today, signal
+   tổng hợp từ danh mục và các báo cáo CTCK hiện có. Trạng thái thao tác được
+   lưu qua API riêng và tuân theo quyền từng module. */
+const workspace = () => DATA.workspace || {actions:{},signals:{}};
+const actionStatus = {
+  pending:{label:"Cần xử lý",className:"bg-down"}, waiting:{label:"Chờ điều kiện giá",className:"bg-warn"},
+  completed:{label:"Hoàn thành",className:"bg-up"}, cancelled:{label:"Đã hủy",className:"bg-neutral"},
+};
+const signalStatus = {
+  new:{label:"Mới",className:"bg-brand"}, watch:{label:"Theo dõi",className:"bg-warn"}, dismissed:{label:"Đã bỏ qua",className:"bg-neutral"},
+};
+function stateTag(status, source){ const s=(source==="signal"?signalStatus:actionStatus)[status]||actionStatus.pending; return `<span class="tag ${s.className}">${s.label}</span>`; }
+function actionRows(){
+  const positions=DATA.portfolio?.positions||[], stored=workspace().actions||{};
+  return (DATA.portfolio?.today||[]).map(item=>{
+    const p=positions.find(row=>row.t===item.t), id=`portfolio:${item.t}`;
+    const automatic=p?.buy&&p.price!=null&&p.price<p.buy[0]?"waiting":"pending";
+    return {id,t:item.t,action:item.a,zone:p?.buy?range(p.buy):item.z||"—",price:p?.price??null,chg:p?.chg??null,
+      sector:p?.sector||"Chưa rõ ngành",context:p?.thesis||"Khuyến nghị danh mục",status:stored[id]?.status||automatic, source:"Danh mục"};
+  });
+}
+function signalRows(){
+  const positions=DATA.portfolio?.positions||[], stored=workspace().signals||{}, calls=repAgg(DATA.reports||[]).stocks;
+  const map=new Map();
+  positions.forEach(p=>map.set(p.t,{t:p.t,p,calls:[]}));
+  calls.forEach(c=>{const row=map.get(c.t)||{t:c.t,p:null,calls:[]}; row.calls=Object.values(c.calls||{}); map.set(c.t,row);});
+  return [...map.values()].map(row=>{
+    const {t,p}=row, brokerCalls=row.calls||[], positive=brokerCalls.filter(c=>["MUA","KHẢ QUAN"].includes(c.rec)).length;
+    const portfolioSignals=p?signals(p):[];
+    const isRisk=portfolioSignals.includes("Cần xử lý")||portfolioSignals.includes("Sát vùng vi phạm");
+    const recommendation=isRisk?portfolioSignals[0]:(brokerCalls.length&&positive/brokerCalls.length>=.6?"MUA":p?.status?.includes("GIẢM")?"BÁN":"THEO DÕI");
+    const evidence=[p?"Danh mục Calida":null,brokerCalls.length?`${positive}/${brokerCalls.length} CTCK Mua/Khả quan`:null].filter(Boolean).join(" · ")||"Chưa đủ dữ liệu xác nhận";
+    return {id:`signal:${t}`,t,sector:p?.sector||"Theo báo cáo CTCK",price:p?.price??null,chg:p?.chg??null,recommendation,
+      evidence,source:brokerCalls.length?`${brokerCalls.length} CTCK${p?" + danh mục":""}`:"Danh mục",strength:Math.min(3,Math.max(1,brokerCalls.length?Math.round(positive/brokerCalls.length*3):isRisk?3:1)),
+      status:stored[`signal:${t}`]?.status||"new", hasAction:actionRows().some(a=>a.t===t)};
+  }).sort((a,b)=>(a.status!=="new")-(b.status!=="new")||b.strength-a.strength||a.t.localeCompare(b.t));
+}
+function strength(n){return `<span class="signal-strength" aria-label="Độ mạnh ${n}/3">${[1,2,3].map(i=>`<i class="${i<=n?"on":""}"></i>`).join("")}</span>`;}
+async function setWorkspaceStatus(collection,id,status){
+  if(!canEdit(collection)){notify("Tài khoản này chỉ có quyền xem module.","err");return;}
+  try{
+    const r=await api(`/api/${collection}/${encodeURIComponent(id)}/status`,{status},"PATCH");
+    DATA.workspace ||= {actions:{},signals:{}}; DATA.workspace[collection] ||= {}; DATA.workspace[collection][id]=r.state;
+    render(); notify("Đã cập nhật trạng thái.");
+  }catch(e){notify("Không cập nhật được trạng thái: "+e.message,"err");}
+}
+function pgActions(){
+  const all=actionRows(), writable=canEdit("actions"), tabs=["Tất cả","Cần xử lý","Chờ điều kiện giá","Hoàn thành"];
+  const q=STATE.actionQuery.trim().toUpperCase();
+  const rows=all.filter(row=>(STATE.actionTab==="Tất cả"||actionStatus[row.status]?.label===STATE.actionTab)&&( !q||[row.t,row.sector,row.context,row.action].join(" ").toUpperCase().includes(q))&&(!STATE.actionTicker||row.t===STATE.actionTicker));
+  const count=status=>all.filter(row=>row.status===status).length;
+  const filters=`<div class="work-filters"><input id="actionQ" value="${esc(STATE.actionQuery)}" placeholder="Tìm mã hoặc ngành" aria-label="Tìm action"><select id="actionTicker" aria-label="Lọc action theo mã"><option value="">Tất cả mã</option>${all.map(row=>`<option value="${esc(row.t)}" ${STATE.actionTicker===row.t?"selected":""}>${esc(row.t)}</option>`).join("")}</select>${STATE.actionTicker?'<button class="btn ghost" data-clear-action-filter>Bỏ lọc mã</button>':""}</div>`;
+  return `<h1>Action Desk</h1><p class="sub">Theo dõi các hành động đã có căn cứ từ danh mục; cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
+    <div class="tabs section-tabs" role="tablist" aria-label="Trạng thái action">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}
+    <div class="grid cols-auto-220" style="margin-bottom:14px">${kpiCard("desk","bg-brand",all.length,"action từ danh mục")}${kpiCard("alert","bg-down",count("pending"),"cần xử lý")}${kpiCard("cal","bg-warn",count("waiting"),"chờ điều kiện giá")}${kpiCard("target","bg-up",count("completed"),"đã hoàn thành")}</div>
+    <div class="card">${head("desk","Danh sách action",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Hành động</th><th>Vùng giá</th><th>Trạng thái</th><th>Nguồn</th>${writable?'<th></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:200px">${esc(row.context)}</td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td>${stateTag(row.status)}</td><td class="muted">${row.source}</td>${writable?`<td><div class="work-actions">${row.status!=="completed"?`<button class="btn ghost" data-action-status="completed" data-work-id="${row.id}">Hoàn thành</button>`:""}${row.status!=="waiting"?`<button class="link" data-action-status="waiting" data-work-id="${row.id}">Chờ giá</button>`:""}</div></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?8:7}" class="work-empty">Không có action phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Action được lấy từ mục “Hành động theo danh mục”; không tự tạo lệnh giao dịch.</p></div>`;
+}
+function pgSignals(){
+  const all=signalRows(), writable=canEdit("signals"), tabs=["Mới","Theo dõi","Đã bỏ qua"];
+  const q=STATE.signalQuery.trim().toUpperCase();
+  const rows=all.filter(row=>(STATE.signalTab==="Mới"?row.status==="new":signalStatus[row.status]?.label===STATE.signalTab)&&(!q||[row.t,row.sector,row.evidence,row.recommendation].join(" ").toUpperCase().includes(q)));
+  const count=status=>all.filter(row=>row.status===status).length;
+  return `<h1>Signal Center</h1><p class="sub">Đồng thuận được tổng hợp từ danh mục Calida và báo cáo CTCK; signal không phải lệnh giao dịch.</p>${sectionStamp("reports","Báo cáo đến")}
+    <div class="status-flow"><span>Danh mục & báo cáo CTCK</span><b>›</b><span>Đồng thuận theo mã</span><b>›</b><span>Action Desk hoặc theo dõi</span></div>
+    <div class="tabs section-tabs" role="tablist" aria-label="Trạng thái signal">${tabs.map(tab=>{const status=Object.entries(signalStatus).find(([,v])=>v.label===tab)?.[0];return `<button role="tab" data-signaltab="${tab}" aria-selected="${STATE.signalTab===tab}">${tab} <span class="muted">(${count(status)})</span></button>`;}).join("")}</div>
+    <div class="work-filters"><input id="signalQ" value="${esc(STATE.signalQuery)}" placeholder="Tìm mã, ngành hoặc nhận định" aria-label="Tìm signal"></div>
+    <div class="grid cols-auto-220" style="margin-bottom:14px">${kpiCard("bolt","bg-brand",count("new"),"signal mới")}${kpiCard("target","bg-up",all.filter(row=>row.recommendation==="MUA").length,"tín hiệu mua")}${kpiCard("alert","bg-down",all.filter(row=>row.recommendation==="Cần xử lý").length,"cần xem ngay")}${kpiCard("brief","bg-neutral",all.filter(row=>row.hasAction).length,"đã có action liên quan")}</div>
+    <div class="card">${head("bolt","Danh sách signal",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Đồng thuận</th><th>Nguồn</th><th>Độ mạnh</th><th>Trạng thái</th>${writable?'<th></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:220px">${statusTag(row.recommendation)}<div class="muted" style="font-size:12px;margin-top:4px">${esc(row.evidence)}</div></td><td>${esc(row.source)}</td><td>${strength(row.strength)}</td><td>${stateTag(row.status,"signal")}</td>${writable?`<td><div class="work-actions">${row.status!=="watch"?`<button class="btn ghost" data-signal-status="watch" data-work-id="${row.id}">Theo dõi</button>`:""}${row.status!=="dismissed"?`<button class="link" data-signal-status="dismissed" data-work-id="${row.id}">Bỏ qua</button>`:""}${row.hasAction&&canView("actions")?`<button class="link" data-open-action="${row.t}">Mở action</button>`:""}</div></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?7:6}" class="work-empty">Không có signal phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Độ mạnh dựa trên tỷ lệ CTCK Mua/Khả quan hoặc cảnh báo danh mục; không dùng dữ liệu bot mô phỏng.</p></div>`;
+}
+
 /* ============ Administration ============ */
 const roleLabel={viewer:"Chỉ xem",analyst:"Phân tích",admin:"Quản trị viên"};
-const rolePermission={viewer:"Xem dashboard và thư viện báo cáo",analyst:"Xem dữ liệu, dùng AI và thêm báo cáo",admin:"Toàn quyền dữ liệu, pipeline và quản lý tài khoản"};
-const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",admin:"Quản trị"};
-const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||(role==="analyst"&&module==="reports")} ]));
+const rolePermission={viewer:"Xem các module được cấp",analyst:"Xem dữ liệu, dùng AI, thêm báo cáo và cập nhật Action/Signal",admin:"Toàn quyền dữ liệu, pipeline và quản lý tài khoản"};
+const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",actions:"Action Desk",signals:"Signal Center",admin:"Quản trị"};
+const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||(role==="analyst"&&["reports","actions","signals"].includes(module))} ]));
 function permissionSummary(permissions){
   const rights=Object.entries(permissions||{}).filter(([,p])=>p?.view).map(([module,p])=>{
-    const editLabel=p.edit?(["reports","admin"].includes(module)?" (chỉnh sửa)":" (quyền lưu sẵn)"):"";
+    const editLabel=p.edit?(["reports","actions","signals","admin"].includes(module)?" (chỉnh sửa)":" (quyền lưu sẵn)"):"";
     return `${moduleLabel[module]||module}${editLabel}`;
   });
   return rights.length?`Quyền hiện có: ${rights.join(", ")}`:"Chưa được cấp quyền module";
@@ -707,7 +791,7 @@ function permissionSummary(permissions){
 function permissionMatrix(permissions, role){
   const current=permissions||moduleDefaults(role);
   return `<div class="tbl-wrap" style="margin-top:14px"><table class="permission-matrix"><thead><tr><th>Module</th><th class="num">Xem</th><th class="num">Chỉnh sửa</th></tr></thead><tbody>${Object.entries(moduleLabel).map(([module,label])=>{
-    const p=current[module]||{view:false,edit:false}, restricted=module==="admin"&&role!=="admin", editable=["reports","admin"].includes(module);
+    const p=current[module]||{view:false,edit:false}, restricted=module==="admin"&&role!=="admin", editable=["reports","actions","signals","admin"].includes(module);
     const note=module==="admin"?'Chỉ dành cho vai trò admin':!editable?'Chưa hỗ trợ chỉnh sửa.':"";
     return `<tr><td><b>${label}</b>${note?`<div class="muted" style="font-size:12px">${note}</div>`:""}</td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="view" ${p.view?"checked":""} ${restricted?"disabled":""} aria-label="Xem ${label}"></label></td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="edit" ${p.edit?"checked":""} ${restricted||!editable?"disabled":""} aria-label="Chỉnh sửa ${label}${!editable?" (chưa hỗ trợ)":""}"></label></td></tr>`;
   }).join("")}</tbody></table></div>`;
@@ -782,7 +866,7 @@ function openUserDialog(username=""){
     <div class="fgrid"><label>Tên đăng nhập<input id="adminUsername" value="${esc(existing?.username||"")}" ${existing?"disabled":""} autocomplete="username"></label>
       <label>Vai trò<select id="adminRole" ${self?"disabled":""}>${Object.entries(roleLabel).map(([role,label])=>`<option value="${role}" ${role===selected?"selected":""}>${esc(label)}</option>`).join("")}</select></label>
       <label style="grid-column:1/-1">${existing?"Mật khẩu mới (tùy chọn)":"Mật khẩu"}<input id="adminPassword" type="password" autocomplete="new-password" ${existing?"":"required"}></label></div>
-    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo module</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Quyền chỉnh sửa đang áp dụng cho Báo cáo CTCK và Quản trị; các module còn lại được lưu sẵn để mở rộng chức năng sau này.</p>
+    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo module</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Có thể cấp quyền chỉnh sửa Báo cáo CTCK, Action Desk, Signal Center và Quản trị theo từng tài khoản.</p>
     ${permissionMatrix(existing?.permissions||moduleDefaults(selected),selected)}
     ${self?'<p class="muted" style="font-size:12px">Bạn không thể tự hạ vai trò; hệ thống luôn phải có ít nhất một quản trị viên có quyền quản trị.</p>':""}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="adminSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveUser" data-user-id="${esc(existing?.username||"")}">${existing?"Lưu thay đổi":"Tạo tài khoản"}</button></div>`;
@@ -910,6 +994,12 @@ document.addEventListener("click",e=>{
   if(d.pfdt){STATE.pfDetailTab=d.pfdt;render();}
   if(d.invtab){STATE.invTab=d.invtab;render();}
   if(d.fundtab){STATE.fundTab=d.fundtab;render();}
+  if(d.actiontab){STATE.actionTab=d.actiontab;render();return;}
+  if(d.signaltab){STATE.signalTab=d.signaltab;render();return;}
+  if(d.actionStatus){setWorkspaceStatus("actions",d.workId,d.actionStatus);return;}
+  if(d.signalStatus){setWorkspaceStatus("signals",d.workId,d.signalStatus);return;}
+  if(d.openAction){STATE.actionTicker=d.openAction;STATE.actionTab="Tất cả";go("actions");return;}
+  if("clearActionFilter" in d){STATE.actionTicker="";render();return;}
   if(d.rp){STATE.repPeriod=d.rp;render();}
   if(d.rt){STATE.repType=d.rt;render();}
   if(d.reptab){STATE.repTab=d.reptab;render();}
@@ -938,6 +1028,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||"";
+  if(e.target.id==="actionTicker"){STATE.actionTicker=e.target.value;render();return;}
   if(e.target.dataset.action==="view"&&!e.target.checked){ const edit=$(`#adminBody [data-permission="${e.target.dataset.permission}"][data-action="edit"]`); if(edit) edit.checked=false; }
   if(e.target.dataset.action==="edit"&&e.target.checked){ const view=$(`#adminBody [data-permission="${e.target.dataset.permission}"][data-action="view"]`); if(view) view.checked=true; }
   if(e.target.id==="adminRole"){
@@ -945,7 +1036,14 @@ document.addEventListener("change",e=>{
     $("#adminBody").querySelectorAll('[data-permission="admin"]').forEach(input=>{input.disabled=restricted;if(restricted) input.checked=false;});
   }
 });
-document.addEventListener("input",e=>{if(e.target.id==="chatIn") STATE.chatDraft=e.target.value;});
+document.addEventListener("input",e=>{
+  if(e.target.id==="chatIn"){STATE.chatDraft=e.target.value;return;}
+  if(["actionQ","signalQ"].includes(e.target.id)){
+    const key=e.target.id==="actionQ"?"actionQuery":"signalQuery", value=e.target.value, caret=e.target.selectionStart;
+    STATE[key]=value; render();
+    const field=$("#"+e.target.id); if(field){field.focus();field.setSelectionRange(caret,caret);}
+  }
+});
 document.addEventListener("keydown",e=>{
   if(e.key==="Tab"&&document.body.classList.contains("nav-open")){
     const drawer=$("#appNav"), focusable=drawer?[...drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]:[];

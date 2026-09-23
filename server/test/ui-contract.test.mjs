@@ -9,7 +9,7 @@ const html = readFileSync(path.join(ROOT, "web", "index.html"), "utf8");
 const source = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
   .map((match) => match[1]).find((script) => script.includes("function pgOverview"));
 const fixture = JSON.parse(readFileSync(path.join(ROOT, "web", "data", "dashboard.json"), "utf8"));
-const modules = ["overview", "brief", "portfolio", "flows", "funds", "reports", "admin"];
+const modules = ["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "admin"];
 
 // Exercise the real render functions without fetching data or starting polling.
 // This is a render-contract check, not a substitute for browser layout testing.
@@ -73,9 +73,9 @@ test("theme text tokens meet normal-text contrast on their surfaces", () => {
   }
 });
 
-test("all seven modules render the existing dashboard fixture", () => {
+test("all nine modules render the existing dashboard fixture", () => {
   const ui = app();
-  for (const name of ["Overview", "Brief", "Portfolio", "Flows", "Funds", "Reports", "Admin"]) {
+  for (const name of ["Overview", "Brief", "Portfolio", "Flows", "Funds", "Reports", "Actions", "Signals", "Admin"]) {
     const result = ui.run(`pg${name}()`);
     assert.match(result, /<h1\b/, name);
     assert.doesNotMatch(result, /\b(?:NaN|undefined)\b/, name);
@@ -99,7 +99,7 @@ test("restricted navigation and write actions remain permission-gated", () => {
 test("empty collections render without crashing", () => {
   const ui = app();
   ui.run("DATA.reports=[]; DATA.news=[]; DATA.events=[]; DATA.portfolio.positions=[];");
-  for (const name of ["Overview", "Brief", "Portfolio", "Reports", "Admin"]) {
+  for (const name of ["Overview", "Brief", "Portfolio", "Reports", "Actions", "Signals", "Admin"]) {
     assert.doesNotThrow(() => ui.run(`pg${name}()`), name);
   }
 });
