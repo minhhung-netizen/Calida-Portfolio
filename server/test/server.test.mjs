@@ -57,6 +57,12 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     const health = await request("/api/health");
     assert.equal(health.status, 200);
     assert.equal((await health.json()).service, "calida-analyst");
+    const manifest = await request("/manifest.webmanifest");
+    assert.equal(manifest.status, 200, "PWA manifest phải truy cập được trước khi đăng nhập");
+    assert.equal((await manifest.json()).display, "standalone");
+    const worker = await request("/sw.js");
+    assert.equal(worker.status, 200, "service worker phải truy cập được trước khi đăng nhập");
+    assert.match(await worker.text(), /showNotification/);
     const ready = await request("/api/ready");
     assert.equal(ready.status, 200);
     assert.equal((await ready.json()).dashboard.ready, true);
@@ -67,6 +73,11 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     const session = await me.json();
     assert.equal(session.user.role, "admin");
     assert.ok(session.csrfToken, "CALIDA_USERS_JSON phải tạo được session ngay cả khi thiếu SESSION_SECRET");
+    const pushConfig = await request("/api/notifications/config", { headers: { cookie } });
+    assert.equal(pushConfig.status, 200);
+    assert.equal((await pushConfig.json()).available, false, "không có VAPID key thì không được nhận subscription");
+    const pushSubscribe = await request("/api/notifications/subscriptions", { method: "POST", headers: { cookie, "content-type": "application/json", "x-csrf-token": session.csrfToken }, body: JSON.stringify({ subscription: { endpoint: "https://push.example.test/device", keys: { p256dh: "key", auth: "auth" } } }) });
+    assert.equal(pushSubscribe.status, 503, "chưa cấu hình VAPID phải trả hướng dẫn thay vì lưu subscription vô hiệu");
     const appPage = await request("/", { headers: { cookie } });
     assert.equal(appPage.status, 200);
     const csp = appPage.headers.get("content-security-policy") || "";

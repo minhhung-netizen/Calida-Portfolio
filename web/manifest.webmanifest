@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "Calida Analyst",
+  "short_name": "Calida",
+  "description": "Calida Asset Management · Hệ thống phân tích và vận hành danh mục.",
+  "start_url": "/#overview",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#1F5EEA",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

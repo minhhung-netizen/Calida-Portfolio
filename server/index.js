@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
+import webpush from "web-push";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -46,12 +47,26 @@ const AUDIT_LOG = path.join(LOG_DIR, "audit.jsonl");
 const USER_STORE_DIR = path.join(STATE_DIR, "auth");
 const USER_STORE = path.join(USER_STORE_DIR, "users.json");
 const WORKSPACE_STORE = path.join(STATE_DIR, "workspace-state.json");
+const PUSH_STORE = path.join(STATE_DIR, "push-subscriptions.json");
 const ROLE_RANK = Object.freeze({ viewer: 0, analyst: 1, admin: 2 });
 const isRole = (role) => Object.hasOwn(ROLE_RANK, role);
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
 const MODULES = Object.freeze(["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "admin"]);
 const MODULE_SET = new Set(MODULES);
 const STARTED_AT = new Date().toISOString();
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "";
+let PUSH_ENABLED = false;
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_SUBJECT) {
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    PUSH_ENABLED = true;
+  } catch (error) {
+    console.error(`VAPID không hợp lệ; Web Push đang tắt: ${error.message}`);
+  }
+}
 
 fs.mkdirSync(path.dirname(REPORT_JOBS), { recursive: true });
 fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -149,6 +164,99 @@ function writeWorkspaceState(state) {
   fs.writeFileSync(temp, JSON.stringify(safe, null, 2), "utf8");
   fs.renameSync(temp, WORKSPACE_STORE);
   return safe;
+}
+
+const PUSH_PREFERENCES = Object.freeze(["signals", "actions", "pipeline"]);
+const defaultPushPreferences = () => ({ signals: true, actions: true, pipeline: true });
+
+function cleanPushPreferences(value) {
+  const preferences = defaultPushPreferences();
+  if (!value || typeof value !== "object" || Array.isArray(value)) return preferences;
+  for (const key of PUSH_PREFERENCES) if (typeof value[key] === "boolean") preferences[key] = value[key];
+  return preferences;
+}
+
+function cleanPushSubscription(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Gói đăng ký thông báo không hợp lệ");
+  const endpoint = String(value.endpoint || "").trim();
+  const p256dh = String(value.keys?.p256dh || "").trim();
+  const auth = String(value.keys?.auth || "").trim();
+  try {
+    const url = new URL(endpoint);
+    if (url.protocol !== "https:") throw new Error("endpoint phải dùng HTTPS");
+  } catch { throw new Error("Endpoint thông báo không hợp lệ"); }
+  if (!p256dh || !auth || p256dh.length > 1024 || auth.length > 1024) throw new Error("Khóa đăng ký thông báo không hợp lệ");
+  return { endpoint, expirationTime: Number.isFinite(value.expirationTime) ? value.expirationTime : null, keys: { p256dh, auth } };
+}
+
+function readPushStore() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(PUSH_STORE, "utf8"));
+    if (!parsed || !Array.isArray(parsed.subscriptions)) throw new Error("invalid push store");
+    return parsed.subscriptions.filter((entry) => {
+      try { cleanPushSubscription(entry.subscription); return USERNAME_RE.test(entry.username || ""); }
+      catch { return false; }
+    }).map((entry) => ({
+      username: entry.username,
+      subscription: cleanPushSubscription(entry.subscription),
+      preferences: cleanPushPreferences(entry.preferences),
+      createdAt: entry.createdAt || null,
+      updatedAt: entry.updatedAt || null,
+    }));
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    console.error(`Không đọc được kho đăng ký thông báo: ${error.message}`);
+    return [];
+  }
+}
+
+function writePushStore(subscriptions) {
+  const temp = `${PUSH_STORE}.${crypto.randomUUID()}.tmp`;
+  fs.writeFileSync(temp, `${JSON.stringify({ version: 1, subscriptions }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(temp, PUSH_STORE);
+}
+
+function savePushSubscription(username, rawSubscription, rawPreferences) {
+  const subscription = cleanPushSubscription(rawSubscription);
+  const current = readPushStore();
+  const now = new Date().toISOString();
+  const previous = current.find((entry) => entry.username === username && entry.subscription.endpoint === subscription.endpoint);
+  const next = current.filter((entry) => entry.subscription.endpoint !== subscription.endpoint);
+  next.push({ username, subscription, preferences: cleanPushPreferences(rawPreferences), createdAt: previous?.createdAt || now, updatedAt: now });
+  writePushStore(next);
+  return { subscription, preferences: cleanPushPreferences(rawPreferences) };
+}
+
+function removePushSubscription(username, endpoint) {
+  const current = readPushStore();
+  const next = current.filter((entry) => entry.username !== username || (endpoint && entry.subscription.endpoint !== endpoint));
+  if (next.length !== current.length) writePushStore(next);
+  return current.length - next.length;
+}
+
+async function dispatchPush({ preference, module, title, body, url = "/", tag = "calida" }) {
+  if (!PUSH_ENABLED) return { delivered: 0, skipped: true };
+  const candidates = readPushStore().filter((entry) => {
+    const user = findUser(entry.username);
+    return user && entry.preferences[preference] && hasModulePermission(user, module, "view");
+  });
+  const expired = new Set();
+  let delivered = 0;
+  for (const entry of candidates) {
+    try {
+      await webpush.sendNotification(entry.subscription, JSON.stringify({ title, body, url, tag }), { TTL: 300, urgency: "high" });
+      delivered += 1;
+    } catch (error) {
+      if ([404, 410].includes(error.statusCode)) expired.add(entry.subscription.endpoint);
+      else console.error(`Không gửi được push tới ${entry.username}: ${error.message}`);
+    }
+  }
+  if (expired.size) writePushStore(readPushStore().filter((entry) => !expired.has(entry.subscription.endpoint)));
+  return { delivered, skipped: false };
+}
+
+function queuePush(payload) {
+  void dispatchPush(payload).catch((error) => console.error(`Push notification lỗi: ${error.message}`));
 }
 
 function publicWorkspaceState(user) {
@@ -426,6 +534,16 @@ app.use(helmet({
 }));
 app.use(express.json({ limit: `${Math.max(1, MAX_UPLOAD_MB + 8)}mb` }));
 
+// PWA assets phải truy cập được trước đăng nhập để iOS/Android có thể cài và
+// cập nhật service worker. Worker không cache dữ liệu hoặc HTML có phân quyền.
+app.get("/manifest.webmanifest", (req, res) => res.type("application/manifest+json").sendFile(path.join(WEB_DIR, "manifest.webmanifest")));
+app.get("/sw.js", (req, res) => {
+  res.set("Cache-Control", "no-cache");
+  res.set("Service-Worker-Allowed", "/");
+  return res.type("application/javascript").sendFile(path.join(WEB_DIR, "sw.js"));
+});
+app.get("/icon.svg", (req, res) => res.type("image/svg+xml").sendFile(path.join(WEB_DIR, "icon.svg")));
+
 function protectSite(req, res, next) {
   if (!authEnabled()) { req.user = readSession(req); return next(); }
   const session = readSession(req);
@@ -479,6 +597,46 @@ app.post("/api/auth/logout", requireCsrf, (req, res) => {
   const { maxAge, ...clearOptions } = sessionCookieOptions(req); // clearCookie tự đặt expiry; không truyền maxAge.
   res.clearCookie(COOKIE_NAME, clearOptions);
   return res.json({ ok: true });
+});
+
+// ---------- Web Push subscriptions ----------
+app.get("/api/notifications/config", (req, res) => {
+  const subscriptions = readPushStore().filter((entry) => entry.username === req.user.u);
+  res.set("Cache-Control", "no-store");
+  return res.json({ available: PUSH_ENABLED, publicKey: PUSH_ENABLED ? VAPID_PUBLIC_KEY : null, subscribed: subscriptions.length > 0, preferences: subscriptions[0]?.preferences || defaultPushPreferences() });
+});
+
+app.post("/api/notifications/subscriptions", requireCsrf, writeLimit, (req, res) => {
+  if (!PUSH_ENABLED) return res.status(503).json({ error: "Web Push chưa được cấu hình trên máy chủ. Hãy đặt VAPID keys trên Railway." });
+  try {
+    const saved = savePushSubscription(req.user.u, req.body?.subscription, req.body?.preferences);
+    audit(req, "push.subscribe", { endpoint: new URL(saved.subscription.endpoint).host, preferences: saved.preferences });
+    return res.status(201).json({ ok: true, preferences: saved.preferences });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+app.delete("/api/notifications/subscriptions", requireCsrf, writeLimit, (req, res) => {
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+  const removed = removePushSubscription(req.user.u, endpoint);
+  audit(req, "push.unsubscribe", { removed });
+  return res.json({ ok: true, removed });
+});
+
+app.post("/api/notifications/test", requireCsrf, writeLimit, async (req, res) => {
+  if (!PUSH_ENABLED) return res.status(503).json({ error: "Web Push chưa được cấu hình trên máy chủ. Hãy đặt VAPID keys trên Railway." });
+  const ownSubscriptions = readPushStore().filter((entry) => entry.username === req.user.u);
+  if (!ownSubscriptions.length) return res.status(404).json({ error: "Thiết bị này chưa đăng ký nhận thông báo" });
+  const expired = new Set();
+  let delivered = 0;
+  for (const entry of ownSubscriptions) {
+    try {
+      await webpush.sendNotification(entry.subscription, JSON.stringify({ title: "Calida Analyst", body: "Thiết bị đã sẵn sàng nhận thông báo.", url: "/#overview", tag: "calida-test" }), { TTL: 60, urgency: "high" });
+      delivered += 1;
+    } catch (error) { if ([404, 410].includes(error.statusCode)) expired.add(entry.subscription.endpoint); else console.error(`Push test lỗi: ${error.message}`); }
+  }
+  if (expired.size) writePushStore(readPushStore().filter((entry) => !expired.has(entry.subscription.endpoint)));
+  audit(req, "push.test", { delivered });
+  return delivered ? res.json({ ok: true, delivered }) : res.status(502).json({ error: "Không gửi được thông báo; hãy bật lại quyền thông báo trên thiết bị." });
 });
 
 // ---------- administration: users and access roles ----------
@@ -617,6 +775,7 @@ function startPipeline(args, reason) {
     (error) => {
       pipelineState = { ...pipelineState, status: "error", finishedAt: new Date().toISOString(), error: error.message };
       audit(null, "pipeline.complete", { reason, status: "error", error: error.message.slice(0, 300) });
+      queuePush({ preference: "pipeline", module: "admin", title: "Calida · Pipeline lỗi", body: `Không hoàn tất: ${reason}. Mở Quản trị để xem nhật ký.`, url: "/#admin", tag: "calida-pipeline-error" });
       throw error;
     },
   ).finally(() => { running = null; });
@@ -718,9 +877,13 @@ function updateWorkspaceStatus(req, collection) {
   const status = String(req.body?.status || "");
   if (!WORKSPACE_ID.test(id) || !WORKSPACE_STATUS[collection].has(status)) return { error: "Trạng thái workspace không hợp lệ" };
   const state = readWorkspaceState();
+  const previous = state[collection][id]?.status;
   state[collection][id] = { status, updatedAt: new Date().toISOString(), updatedBy: req.user.u };
   writeWorkspaceState(state);
   audit(req, `${collection.slice(0, -1)}.status`, { id, status });
+  if (collection === "signals" && status === "new" && previous !== "new") {
+    queuePush({ preference: "signals", module: "signals", title: "Calida · Signal mới", body: `Có signal mới cho ${id.split(":")[1]}.`, url: "/#signals", tag: `calida-${id}` });
+  }
   return { state: state[collection][id] };
 }
 
@@ -760,6 +923,9 @@ function updateActionDetails(req) {
   };
   writeWorkspaceState(state);
   audit(req, "action.update", { id, status: state.actions[id].status, plannedQuantity, completedQuantity, deadline });
+  if (state.actions[id].status === "pending" && previous.status !== "pending") {
+    queuePush({ preference: "actions", module: "actions", title: "Calida · Action cần xử lý", body: `${id.split(":")[1]} đang chờ xử lý${deadline ? ` trước ${deadline}` : ""}.`, url: "/#actions", tag: `calida-${id}` });
+  }
   return { state: state.actions[id] };
 }
 

@@ -33,8 +33,18 @@ Các file mẫu chứa sheet `_HUONG_DAN`. Có thể xóa sheet này sau khi đ�
    - `GOOGLE_SA_JSON`: toàn bộ JSON service account.
    - `GOOGLE_SA_FILE=/app/secrets/service-account.json`.
    - `PORTFOLIO_SHEET_ID`, `FUNDS_SHEET_ID`, `OPERATIONS_SHEET_ID`, `REPORTS_SHEET_ID`.
-4. Deploy và chờ endpoint `/api/ready` trả `200`.
-5. Đăng nhập admin, vào **Quản trị → Vận hành dữ liệu**, chọn **Đồng bộ toàn bộ nguồn** lần đầu.
+4. Nếu dùng thông báo iPhone/PWA, tạo VAPID keys một lần bằng `cd server && npm run generate:vapid`, rồi đặt `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` trên Railway. Không lưu private key vào Git.
+5. Deploy và chờ endpoint `/api/ready` trả `200`.
+6. Đăng nhập admin, vào **Quản trị → Vận hành dữ liệu**, chọn **Đồng bộ toàn bộ nguồn** lần đầu.
+
+## 3a. Bật thông báo trên iPhone
+
+1. Mở domain HTTPS của Calida bằng Safari trên iPhone.
+2. Chọn **Chia sẻ → Thêm vào Màn hình chính**; mở lại từ biểu tượng Calida thay vì tab Safari.
+3. Đăng nhập, bấm biểu tượng chuông ở góc trên và chọn **Bật thông báo** khi iOS hỏi quyền.
+4. Chọn các nhóm cảnh báo phù hợp rồi bấm **Gửi thử**. Lỗi Pipeline chỉ gửi tới tài khoản có quyền xem Quản trị.
+
+Subscription được lưu riêng theo tài khoản/thiết bị trong Railway Volume. Khi đổi điện thoại, thực hiện lại các bước này; khi người dùng tắt thông báo, hệ thống xóa subscription của thiết bị đó.
 
 `GOOGLE_SA_JSON`, `SESSION_SECRET`, mật khẩu và API key chỉ đặt trong Railway Variables. Không đặt vào Git hay Google Sheet.
 

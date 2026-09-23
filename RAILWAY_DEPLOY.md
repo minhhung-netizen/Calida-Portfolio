@@ -33,6 +33,8 @@ Tối thiểu cho server:
 - `SESSION_SECRET=<chuỗi ngẫu nhiên dài, khác ACCESS_TOKEN>`
 - `SESSION_TTL_HOURS=8`
 - `SESSION_COOKIE_SECURE=auto`
+- `VAPID_SUBJECT=mailto:email-cua-doi-van-hanh@domain.com`
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` để bật thông báo PWA/Web Push
 - `PIPELINE_TIME=16:30`
 - `TZ=Asia/Ho_Chi_Minh`
 - `REBUILD_ON_BOOT=false` — giữ mặc định này để web khởi động độc lập với Google Sheets/vnstock. Chỉ đặt `true` cho **một lần deploy có chủ đích** khi cần dựng lại từ dữ liệu trên Volume; đặt lại `false` ngay sau đó.
@@ -49,6 +51,15 @@ Nếu pipeline đọc Google Sheets:
 Các biến khác lấy theo `.env.example`.
 
 Không đặt `ACCESS_TOKEN`, `SESSION_SECRET`, `GOOGLE_SA_JSON` hoặc mật khẩu trong Git. Khi `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` được cấu hình, mọi trang và API đều yêu cầu đăng nhập. `viewer`, `analyst`, `admin` là bộ quyền mặc định; admin có thể ghi đè theo từng user cho từng module: `overview`, `brief`, `portfolio`, `flows`, `funds`, `reports`, `actions`, `signals`, `admin`. Quyền `edit` của `reports` cho phép thêm/sửa/xóa báo cáo và dùng AI; quyền `edit` của `actions` cho phép cập nhật tiến độ Action Desk; quyền `edit` của `signals` cho phép cập nhật trạng thái Signal Center; quyền `edit` của `admin` cho phép quản lý user/pipeline. Module `admin` chỉ có thể được cấp cho tài khoản có role `admin`.
+
+### Bật thông báo iPhone / PWA
+
+1. Trong thư mục `server`, chạy một lần `npm run generate:vapid`, rồi lưu ba giá trị `subject`, `publicKey`, `privateKey` vào các Railway Variables `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`.
+2. Không thay VAPID key sau khi đã có người đăng ký; nếu bắt buộc thay, người dùng phải bật lại thông báo trên thiết bị.
+3. Sau khi deploy HTTPS, người dùng iPhone mở Calida bằng Safari, chọn **Chia sẻ → Thêm vào Màn hình chính**, mở lại từ biểu tượng Calida và bấm chuông **Thông báo** để cho phép nhận push.
+4. Server lưu subscription trên Railway Volume tại `/app/data/push-subscriptions.json`. Không commit file này; backup Volume đã bao gồm dữ liệu đăng ký.
+
+Thông báo chỉ được gửi đến tài khoản có quyền xem module tương ứng: Signal mới, Action cần xử lý và lỗi Pipeline (chỉ tài khoản có quyền Quản trị). Người dùng tự chọn loại thông báo hoặc tắt trên từng thiết bị.
 
 Sau khi đăng nhập bằng admin, mở **Quản trị** ở thanh bên để tạo, sửa vai trò, đặt lại mật khẩu, xóa tài khoản và tick quyền **Xem/Chỉnh sửa** cho từng module. Hệ thống lưu mật khẩu ở dạng băm và ma trận quyền trong `/app/data/auth/users.json` trên Railway Volume; sau lần thay đổi đầu tiên, kho này là nguồn tài khoản chính thay cho `ACCESS_TOKEN`/`CALIDA_USERS_JSON`. Không commit thư mục `data/auth/` và cần có Volume backup trước khi vận hành. Khi phân quyền được bật, giao diện lấy dữ liệu qua `/api/dashboard`; đường dẫn thô `/data/dashboard.json` bị chặn để tránh lộ dữ liệu module chưa được cấp.
 

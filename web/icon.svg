@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Calida">
+  <rect width="192" height="192" rx="42" fill="#1F5EEA"/>
+  <g fill="#fff" transform="translate(96 96)">
+    <circle r="16"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(45)"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(90)"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(135)"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(180)"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(225)"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(270)"/>
+    <ellipse cx="0" cy="-50" rx="14" ry="30" transform="rotate(315)"/>
+  </g>
+</svg>

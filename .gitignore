@@ -6,6 +6,7 @@ data/*.tmp.db
 data/logs/
 data/inbox/*.jsonl
 data/auth/
+data/push-subscriptions.json
 __pycache__/
 
 .venv/

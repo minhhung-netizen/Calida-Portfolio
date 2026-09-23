@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calida Analyst System</title>
+<meta name="theme-color" content="#1F5EEA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon.svg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -203,7 +208,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
     <div class="topbar">
       <button class="menu-btn" id="menuBtn" aria-label="Mở menu điều hướng" aria-controls="nav" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Tìm mã cổ phiếu, báo cáo, quỹ đầu tư…" aria-label="Tìm kiếm"></label>
-      <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><div id="dataState" class="tag data-state bg-neutral" title="Trạng thái dữ liệu">Đang tải dữ liệu</div><button class="link" id="logoutBtn" title="Đăng xuất">Đăng xuất</button><div class="avatar" id="userAvatar">C</div></div>
+      <div class="right"><div class="date"><b id="dateTxt"></b><div class="muted" id="dowTxt"></div></div><div id="dataState" class="tag data-state bg-neutral" title="Trạng thái dữ liệu">Đang tải dữ liệu</div><button class="icon-btn" id="notificationBtn" aria-label="Cài đặt thông báo" title="Cài đặt thông báo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button><button class="link" id="logoutBtn" title="Đăng xuất">Đăng xuất</button><div class="avatar" id="userAvatar">C</div></div>
     </div>
     <div id="page"></div>
   </main>
@@ -212,6 +217,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 <dialog id="addDlg"><div class="dlg" id="addBody"></div></dialog>
 <dialog id="adminDlg"><div class="dlg" id="adminBody"></div></dialog>
 <dialog id="actionDlg"><div class="dlg" id="actionBody"></div></dialog>
+<dialog id="notificationDlg"><div class="dlg" id="notificationBody"></div></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="config.js"></script>
@@ -227,6 +233,9 @@ let CURRENT_USER = null;
 let CSRF_TOKEN = "";
 let toastTimer = null;
 let adminPollTimer = null;
+let PUSH_CONFIG = {available:false, publicKey:null, subscribed:false, preferences:{signals:true,actions:true,pipeline:true}};
+let PUSH_REGISTRATION = null;
+let PUSH_DEVICE_SUBSCRIBED = false;
 try {
   const savedTheme = localStorage.getItem("calida-theme");
   if(savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
@@ -287,6 +296,80 @@ function setTheme(theme){
   document.documentElement.dataset.theme=theme;
   try{localStorage.setItem("calida-theme",theme);}catch{ /* Theme still works for this session. */ }
 }
+const pushSupported=()=>Boolean(window.isSecureContext&&"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window);
+const isInstalledPwa=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+function base64UrlToUint8Array(value){
+  const padding="=".repeat((4-value.length%4)%4), base64=(value+padding).replace(/-/g,"+").replace(/_/g,"/");
+  const raw=atob(base64); return Uint8Array.from(raw,c=>c.charCodeAt(0));
+}
+function pushPreferencesFromDialog(){
+  return Object.fromEntries(["signals","actions","pipeline"].map(key=>[key,!!$(`#notificationBody [data-push-pref="${key}"]`)?.checked]));
+}
+function paintNotificationButton(){
+  const button=$("#notificationBtn"); if(!button) return;
+  const label=!pushSupported()?"Thông báo không được trình duyệt hỗ trợ":!PUSH_CONFIG.available?"Thông báo đang chờ cấu hình máy chủ":PUSH_DEVICE_SUBSCRIBED?"Thông báo đang bật trên thiết bị này":"Bật thông báo";
+  button.setAttribute("aria-label",label); button.title=label;
+  button.classList.toggle("bg-brand",PUSH_DEVICE_SUBSCRIBED);
+}
+async function setupPush(){
+  if(!pushSupported()) { paintNotificationButton(); return; }
+  try{
+    PUSH_REGISTRATION=await navigator.serviceWorker.register("/sw.js",{scope:"/"});
+    const subscription=await PUSH_REGISTRATION.pushManager.getSubscription();
+    PUSH_DEVICE_SUBSCRIBED=Boolean(subscription);
+  }catch(error){ console.warn("Không đăng ký được service worker",error); }
+  if(API_OK){
+    try{ PUSH_CONFIG=await api("/api/notifications/config"); }
+    catch(error){ console.warn("Không tải được cấu hình thông báo",error); }
+  }
+  paintNotificationButton();
+}
+function openNotificationDialog(){
+  const body=$("#notificationBody"), permission=window.Notification?.permission||"unsupported", supported=pushSupported();
+  const pref=PUSH_CONFIG.preferences||{};
+  const status=!supported?"Trình duyệt hoặc kết nối hiện tại chưa hỗ trợ Web Push. Hãy dùng HTTPS trên iPhone/Chrome/Safari mới nhất."
+    :!PUSH_CONFIG.available?"Máy chủ chưa có VAPID keys. Quản trị viên cần cấu hình Railway trước khi có thể bật thông báo."
+    :permission==="denied"?"Quyền thông báo đang bị chặn. Hãy bật lại trong Cài đặt thông báo của iPhone hoặc trình duyệt."
+    :!isInstalledPwa()?"Trên iPhone, hãy chọn Chia sẻ → Thêm vào Màn hình chính, sau đó mở Calida từ biểu tượng ứng dụng để bật thông báo."
+    :PUSH_DEVICE_SUBSCRIBED?"Thiết bị này đang nhận thông báo theo các lựa chọn bên dưới.":"Bật thông báo để nhận Signal mới, Action cần xử lý và cảnh báo pipeline theo quyền tài khoản của bạn.";
+  const unavailable=!supported||!PUSH_CONFIG.available||permission==="denied";
+  body.innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Thông báo</h2><button class="icon-btn" id="notificationClose" aria-label="Đóng cài đặt thông báo">✕</button></div>
+    <p class="muted" style="margin:6px 0 14px">${esc(status)}</p>
+    <fieldset ${unavailable?"disabled":""} style="border:0;padding:0;margin:0"><legend style="font-size:14px;font-weight:600;margin-bottom:8px">Nhận thông báo khi</legend>
+      ${[["signals","Signal mới"],["actions","Action cần xử lý"],["pipeline","Pipeline lỗi (chỉ tài khoản có quyền Quản trị)"]].map(([key,label])=>`<label class="row" style="padding:8px 0;align-items:flex-start"><input type="checkbox" data-push-pref="${key}" ${pref[key]!==false?"checked":""} style="width:18px;height:18px;margin:1px 2px 0 0;accent-color:var(--brand)"><span>${esc(label)}</span></label>`).join("")}
+    </fieldset>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Thông báo chỉ gửi cho module bạn được phép xem. Bạn có thể tắt bất kỳ lúc nào trên thiết bị này.</p>
+    <div class="row" style="margin-top:16px;justify-content:flex-end;flex-wrap:wrap"><button class="btn ghost" id="testNotification" ${unavailable||!PUSH_DEVICE_SUBSCRIBED?"disabled":""}>Gửi thử</button>${PUSH_DEVICE_SUBSCRIBED?`<button class="btn ghost" id="disableNotifications" ${unavailable?"disabled":""}>Tắt trên thiết bị này</button>`:""}<button class="btn" id="enableNotifications" ${unavailable?"disabled":""}>${PUSH_DEVICE_SUBSCRIBED?"Lưu lựa chọn":"Bật thông báo"}</button></div>`;
+  $("#notificationDlg").showModal();
+}
+async function enableNotifications(){
+  const button=$("#enableNotifications"); if(button) button.disabled=true;
+  try{
+    if(!pushSupported()) throw new Error("Trình duyệt này chưa hỗ trợ thông báo");
+    if(!PUSH_CONFIG.available||!PUSH_CONFIG.publicKey) throw new Error("Máy chủ chưa được cấu hình Web Push");
+    const permission=Notification.permission==="granted"?"granted":await Notification.requestPermission();
+    if(permission!=="granted") throw new Error("Bạn chưa cho phép nhận thông báo. Hãy cho phép khi trình duyệt yêu cầu.");
+    PUSH_REGISTRATION=PUSH_REGISTRATION||await navigator.serviceWorker.register("/sw.js",{scope:"/"});
+    let subscription=await PUSH_REGISTRATION.pushManager.getSubscription();
+    if(!subscription) subscription=await PUSH_REGISTRATION.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64UrlToUint8Array(PUSH_CONFIG.publicKey)});
+    const result=await api("/api/notifications/subscriptions",{subscription:subscription.toJSON(),preferences:pushPreferencesFromDialog()});
+    PUSH_CONFIG={...PUSH_CONFIG,subscribed:true,preferences:result.preferences}; PUSH_DEVICE_SUBSCRIBED=true; paintNotificationButton(); $("#notificationDlg").close(); notify("Đã bật thông báo cho thiết bị này.");
+  }catch(error){ notify(error.message,"err"); if(button) button.disabled=false; }
+}
+async function disableNotifications(){
+  const button=$("#disableNotifications"); if(button) button.disabled=true;
+  try{
+    const subscription=await PUSH_REGISTRATION?.pushManager.getSubscription();
+    if(subscription){ await api("/api/notifications/subscriptions",{endpoint:subscription.endpoint},"DELETE"); await subscription.unsubscribe(); }
+    PUSH_DEVICE_SUBSCRIBED=false; await setupPush(); $("#notificationDlg").close(); notify("Đã tắt thông báo trên thiết bị này.");
+  }catch(error){ notify("Không thể tắt thông báo: "+error.message,"err"); if(button) button.disabled=false; }
+}
+async function testNotification(){
+  const button=$("#testNotification"); if(button) button.disabled=true;
+  try{const result=await api("/api/notifications/test",{}); notify(`Đã gửi thử ${result.delivered} thông báo.`);}
+  catch(error){notify("Không gửi được thông báo thử: "+error.message,"err");}
+  finally{if(button) button.disabled=false;}
+}
 const I = {
   home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   doc:'<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/>',
@@ -306,6 +389,7 @@ const I = {
   shield:'<path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/>',
   desk:'<path d="M4 5h16M4 12h11M4 19h7"/><path d="m17 17 2 2 3-4"/>',
   bolt:'<path d="m13 2-9 12h7l-1 8 9-12h-7z"/>',
+  bell:'<path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
   plus:'<path d="M12 5v14M5 12h14"/>'
 };
 const svg = (k, sw=2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
@@ -1083,6 +1167,11 @@ document.addEventListener("click",e=>{
   if(t.id==="reloadOps"){STATE.adminOps=null;STATE.adminOpsError="";loadAdminOperations();}
   if(t.id==="runBuild") runPipeline(true);
   if(t.id==="runFull") runPipeline(false);
+  if(t.id==="notificationBtn") openNotificationDialog();
+  if(t.id==="notificationClose") $("#notificationDlg").close();
+  if(t.id==="enableNotifications") enableNotifications();
+  if(t.id==="disableNotifications") disableNotifications();
+  if(t.id==="testNotification") testNotification();
   if(t.id==="adminDlgClose") $("#adminDlg").close();
   if(t.id==="actionDlgClose") $("#actionDlg").close();
   if(t.id==="saveAction") saveActionDetails(t.dataset.actionId||"");
@@ -1173,6 +1262,7 @@ async function refresh(force, announce=false){
     const auth=await api("/api/auth/me");
     API_OK=!!health.ok; CURRENT_USER=auth.user; CSRF_TOKEN=auth.csrfToken||"";
   }catch(e){ API_OK=false; }
+  await setupPush();
   await refresh(true);
   if(CFG.REFRESH_MINUTES>0) setInterval(()=>refresh(false), CFG.REFRESH_MINUTES*60000);
   window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page&&canView(h)){STATE.page=h;render();}});
