@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calida Analyst System</title>
-<meta name="theme-color" content="#1F5EEA">
+<meta name="theme-color" content="#090909">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -24,20 +24,20 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0B1430; --panel:#111D40; --panel-2:#16244D; --line:#223261;
-    --ink:#E6ECFF; --ink-2:#B9C4E4; --muted:#8190B8;
-    --brand:#83A8FF; --brand-soft:#1C2E63; --on-brand:#0B1430;
-    --up:#34C774; --up-soft:#133A2A; --down:#FF5C6C; --down-soft:#43202B;
-    --warn:#F5A742; --warn-soft:#3F2E14; --neutral-soft:#1D2A52;
+    --bg:#090909; --panel:#121212; --panel-2:#1C1C1C; --line:#343434;
+    --ink:#F5F5F5; --ink-2:#D4D4D4; --muted:#A3A3A3;
+    --brand:#91B4FF; --brand-soft:#1D2635; --on-brand:#090909;
+    --up:#5EEA92; --up-soft:#10291A; --down:#FF7B86; --down-soft:#35171A;
+    --warn:#FFC15A; --warn-soft:#3D2C10; --neutral-soft:#262626;
     --shadow:none;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0B1430; --panel:#111D40; --panel-2:#16244D; --line:#223261;
-  --ink:#E6ECFF; --ink-2:#B9C4E4; --muted:#8190B8;
-  --brand:#83A8FF; --brand-soft:#1C2E63; --on-brand:#0B1430;
-  --up:#34C774; --up-soft:#133A2A; --down:#FF5C6C; --down-soft:#43202B;
-  --warn:#F5A742; --warn-soft:#3F2E14; --neutral-soft:#1D2A52;
+  --bg:#090909; --panel:#121212; --panel-2:#1C1C1C; --line:#343434;
+  --ink:#F5F5F5; --ink-2:#D4D4D4; --muted:#A3A3A3;
+  --brand:#91B4FF; --brand-soft:#1D2635; --on-brand:#090909;
+  --up:#5EEA92; --up-soft:#10291A; --down:#FF7B86; --down-soft:#35171A;
+  --warn:#FFC15A; --warn-soft:#3D2C10; --neutral-soft:#262626;
   --shadow:none;
 }
 *{box-sizing:border-box}
@@ -239,6 +239,8 @@ let PUSH_DEVICE_SUBSCRIBED = false;
 try {
   const savedTheme = localStorage.getItem("calida-theme");
   if(savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+  const initialDark=savedTheme==="dark"||(savedTheme!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);
+  const themeColor=document.querySelector('meta[name="theme-color"]'); if(themeColor) themeColor.content=initialDark?"#090909":"#1F5EEA";
 } catch { /* Theme preference is optional. */ }
 const can = role => ({viewer:0,analyst:1,admin:2}[CURRENT_USER?.role] ?? -1) >= ({viewer:0,analyst:1,admin:2}[role] ?? 99);
 const canView = module => API_OK ? Boolean(CURRENT_USER?.permissions?.[module]?.view) : module !== "admin";
@@ -294,6 +296,8 @@ function sectionStamp(id, label="Dữ liệu"){
 }
 function setTheme(theme){
   document.documentElement.dataset.theme=theme;
+  const themeColor=document.querySelector('meta[name="theme-color"]');
+  if(themeColor) themeColor.content=theme==="dark"?"#090909":"#1F5EEA";
   try{localStorage.setItem("calida-theme",theme);}catch{ /* Theme still works for this session. */ }
 }
 const pushSupported=()=>Boolean(window.isSecureContext&&"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window);
