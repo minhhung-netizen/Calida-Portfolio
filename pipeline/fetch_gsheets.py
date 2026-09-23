@@ -4,7 +4,7 @@ Cần: service account có quyền Viewer trên 2 sheet (share email của servi
 """
 import io
 import pandas as pd
-from config import (GOOGLE_SA_FILE, PORTFOLIO_SHEET_ID, FUNDS_SHEET_ID, PORTFOLIO_MAP, FUNDS_MAP,
+from config import (GOOGLE_SA_FILE, PORTFOLIO_SHEET_ID, FUNDS_SHEET_ID, OPERATIONS_SHEET_ID, REPORTS_SHEET_ID, PORTFOLIO_MAP, FUNDS_MAP, OPERATIONS_MAP, REPORTS_MAP,
                     WEIGHTS_AS_FRACTION, NAV_DIVISOR)
 from schema import SCHEMA
 from xlsx_io import write_sheets, upsert
@@ -112,6 +112,20 @@ def run():
         print("  Fmarket DB…")
         for (file, dst), df in apply_map(download(FUNDS_SHEET_ID), FUNDS_MAP).items():
             print(f"    {dst}: {upsert(file, dst, df)} dòng")
+    else:
+        print("  Bỏ qua Fmarket DB (chưa đặt FUNDS_SHEET_ID)")
+    if OPERATIONS_SHEET_ID:
+        print("  Operations Data…")
+        for (file, dst), df in apply_map(download(OPERATIONS_SHEET_ID), OPERATIONS_MAP).items():
+            print(f"    {dst}: {upsert(file, dst, df)} dòng")
+    else:
+        print("  Bỏ qua Operations Data (chưa đặt OPERATIONS_SHEET_ID)")
+    if REPORTS_SHEET_ID:
+        print("  Báo cáo CTCK…")
+        for (file, dst), df in apply_map(download(REPORTS_SHEET_ID), REPORTS_MAP).items():
+            print(f"    {dst}: {upsert(file, dst, df)} dòng")
+    else:
+        print("  Bỏ qua Báo cáo CTCK (chưa đặt REPORTS_SHEET_ID)")
 
 
 if __name__ == "__main__":

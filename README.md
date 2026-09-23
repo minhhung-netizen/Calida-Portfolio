@@ -8,7 +8,8 @@ Hệ thống phân tích gồm 6 trang: Tổng quan · Bản tin · Danh mục �
  vnstock ───────────────────►   market.xlsx    ─┐
  Google Sheet Portfolio ────►   portfolio.xlsx  │
  Google Sheet Fmarket DB ───►   funds.xlsx      ├─► build_db ─► calida.db ─► export_json ─► web/data/dashboard.json ─► web/index.html
- Nhập tay / vendor ─────────►   flows.xlsx      │                                                   ▲
+ Google Sheet Báo cáo CTCK ─►  reports.xlsx     │                                                   ▲
+ Nhập tay / vendor ─────────►   flows.xlsx      │                                                   │
  Nút "Thêm báo cáo" ─► inbox ►  reports.xlsx   ─┘                                                   │
                                                                              server/index.js ───────┘  (/api/chat, /api/extract, /api/reports)
 ```
@@ -52,14 +53,14 @@ Mỗi bước lấy dữ liệu chạy độc lập: một nguồn lỗi thì c�
 | `portfolio.xlsx / PRICES` | vnstock (các mã trong POSITIONS) | ✅ |
 | `portfolio.xlsx / SUMMARY` | Nhập tay: hiệu suất YTD, phân bổ tài sản | ✍️ |
 | `funds.xlsx / *` | Google Sheet Fmarket DB (pipeline Colab hiện có) | ✅ |
-| `reports.xlsx / *` | Nút "Thêm báo cáo" trên giao diện, hoặc nhập tay | ✅/✍️ |
+| `reports.xlsx / *` | Google Sheet Báo cáo CTCK (hoặc nút "Thêm báo cáo" trên giao diện) | ✅/✍️ |
 
 ## Cấu hình cần chỉnh
 
-**1. Ánh xạ cột Google Sheet** – `pipeline/config.py` → `PORTFOLIO_MAP`, `FUNDS_MAP`.
+**1. Ánh xạ cột Google Sheet** – `pipeline/config.py` → `PORTFOLIO_MAP`, `FUNDS_MAP`, `OPERATIONS_MAP`, `REPORTS_MAP`.
 Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên cột chuẩn. Tiêu đề trong file hiện chỉ là **giả định**. Nếu sai, lần chạy đầu sẽ báo lỗi kèm danh sách tiêu đề thực tế để bạn sửa.
 
-**2. Service account** – tạo trong Google Cloud, bật Drive API, tải JSON về `secrets/service-account.json`. Sau đó share 2 sheet cho email của service account với quyền Viewer.
+**2. Service account** – tạo trong Google Cloud, bật Drive API, tải JSON về `secrets/service-account.json`. Sau đó share các sheet đang dùng (bao gồm Báo cáo CTCK) cho email của service account với quyền Viewer.
 
 **3. Đơn vị** – `WEIGHTS_AS_FRACTION` (tỷ trọng lưu dạng 0,12 hay 12) và `NAV_DIVISOR` (NAV tính theo đồng hay tỷ).
 

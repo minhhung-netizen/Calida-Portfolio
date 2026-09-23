@@ -26,6 +26,8 @@ JSON_OUT = ROOT / "web" / "data" / "dashboard.json"
 GOOGLE_SA_FILE = os.getenv("GOOGLE_SA_FILE", "")             # đường dẫn file service account JSON
 PORTFOLIO_SHEET_ID = os.getenv("PORTFOLIO_SHEET_ID", "")
 FUNDS_SHEET_ID = os.getenv("FUNDS_SHEET_ID", "")
+OPERATIONS_SHEET_ID = os.getenv("OPERATIONS_SHEET_ID", "")
+REPORTS_SHEET_ID = os.getenv("REPORTS_SHEET_ID", "")
 
 # ---- Giá ----
 PRICE_LOOKBACK_DAYS = int(os.getenv("PRICE_LOOKBACK_DAYS", "400"))
@@ -72,6 +74,42 @@ FUNDS_MAP = {
     }, {}),
     "TOP HOLDINGS": ("funds.xlsx", "TOP_HOLDINGS", {
         "period": "period", "fund_code": "fund_code", "ticker": "ticker", "weight_pct": "weight_pct",
+    }, {}),
+}
+
+# Google Sheet vận hành nhập tay cho các module không có nguồn tự động.
+# Tiêu đề sheet/cột phải khớp file Calida_Operations_Data_Mau.xlsx.
+OPERATIONS_MAP = {
+    "VIEW": ("market.xlsx", "VIEW", {
+        "date": "date", "sentiment": "sentiment", "support_lo": "support_lo", "support_hi": "support_hi",
+        "resist_lo": "resist_lo", "resist_hi": "resist_hi", "expected_lo": "expected_lo", "expected_hi": "expected_hi",
+        "today_text": "today_text", "week_text": "week_text", "focus_sectors": "focus_sectors", "risks": "risks",
+        "strategy_short": "strategy_short", "strategy_long": "strategy_long", "week_actions": "week_actions",
+    }, {}),
+    "NEWS": ("market.xlsx", "NEWS", {"published_at": "published_at", "tab": "tab", "title": "title", "source": "source", "url": "url"}, {}),
+    "EVENTS": ("market.xlsx", "EVENTS", {"date": "date", "time": "time", "name": "name", "country": "country", "impact": "impact", "forecast": "forecast", "previous": "previous"}, {}),
+    "INVESTOR_FLOW": ("flows.xlsx", "INVESTOR_FLOW", {"date": "date", "investor": "investor", "net_value": "net_value"}, {}),
+    "TICKER_FLOW": ("flows.xlsx", "TICKER_FLOW", {"date": "date", "ticker": "ticker", "net_value": "net_value", "main_investor": "main_investor", "note": "note"}, {}),
+    "SECTOR_FLOW": ("flows.xlsx", "SECTOR_FLOW", {"date": "date", "sector": "sector", "net_value": "net_value", "chg_pct": "chg_pct", "weight_pct": "weight_pct"}, {}),
+    "SUMMARY": ("portfolio.xlsx", "SUMMARY", {"date": "date", "ytd_pct": "ytd_pct", "stock_pct": "stock_pct", "cash_pct": "cash_pct", "other_pct": "other_pct"}, {}),
+}
+
+# Google Sheet Báo cáo CTCK. Giữ nguyên tiêu đề tiếng Việt của file mẫu
+# Calida_Bao_Cao_CTCK_Mau.xlsx để đội phân tích nhập liệu trực tiếp.
+REPORTS_MAP = {
+    "BAO_CAO_CTCK": ("reports.xlsx", "REPORTS", {
+        "ID": "id", "CTCK": "broker", "Ngày": "date", "Loại": "type", "Tiêu đề": "title",
+        "Quan điểm": "stance", "Target VN-Index": "vn_target", "Tầm nhìn": "horizon",
+        "Tóm tắt": "summary", "Nguồn": "source",
+    }, {}),
+    "KHUYEN_NGHI_CP": ("reports.xlsx", "REPORT_STOCKS", {
+        "ID báo cáo": "report_id", "Mã cổ phiếu": "ticker", "Khuyến nghị": "rec", "Target": "target",
+    }, {}),
+    "QUAN_DIEM_NGANH": ("reports.xlsx", "REPORT_SECTORS", {
+        "ID báo cáo": "report_id", "Ngành": "sector", "View": "view",
+    }, {}),
+    "RUI_RO": ("reports.xlsx", "REPORT_RISKS", {
+        "ID báo cáo": "report_id", "Chủ đề rủi ro": "topic", "Mức độ": "severity",
     }, {}),
 }
 
