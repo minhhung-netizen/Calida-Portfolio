@@ -45,6 +45,7 @@ Nếu pipeline đọc Google Sheets:
 - `FUNDS_SHEET_ID`
 - `OPERATIONS_SHEET_ID` (Sheet Vận hành dữ liệu: Bản tin, Dòng tiền và SUMMARY)
 - `REPORTS_SHEET_ID` (Sheet Báo cáo CTCK: báo cáo, khuyến nghị, ngành và rủi ro)
+- `FLOWS_MODULE_ENABLED=false` để tạm dừng Dòng tiền. Khi mở lại, đổi thành `true` sau khi ba sheet FLOW đã hợp lệ rồi deploy lại.
 - `GOOGLE_SA_JSON` = toàn bộ nội dung JSON của Google service account
 - `GOOGLE_SA_FILE=/app/secrets/service-account.json`
 

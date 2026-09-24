@@ -32,6 +32,7 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || "";
 const PYTHON = process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
 const PIPELINE_TIME = process.env.PIPELINE_TIME ?? "16:30";
+const FLOWS_MODULE_ENABLED = String(process.env.FLOWS_MODULE_ENABLED || "false").trim().toLowerCase() === "true";
 const PIPELINE_TIMEOUT_MS = Number(process.env.PIPELINE_TIMEOUT_MS || 20 * 60 * 1000);
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 60 * 1000);
 const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 20);
@@ -838,20 +839,22 @@ const asList = (value) => Array.isArray(value) ? value : [];
 
 function dashboardForUser(data, user) {
   const permissions = effectivePermissions(user);
+  const pausedFlows = { asOf: null, investors: { "Hôm nay": {}, MTD: {}, YTD: {} }, history: { dates: [] }, tickers: [], sectors: [] };
+  const features = { ...data.features, flowsEnabled: FLOWS_MODULE_ENABLED };
   // Tổng quan là dashboard điều hành nên được phép dùng số liệu tổng hợp. Các
   // tài khoản chỉ được cấp module riêng chỉ nhận đúng dữ liệu module đó.
-  if (permissions.overview.view) return { ...data, workspace: publicWorkspaceState(user) };
+  if (permissions.overview.view) return { ...data, features, flows: FLOWS_MODULE_ENABLED ? data.flows : pausedFlows, workspace: publicWorkspaceState(user) };
   const result = {
-    asOf: data.asOf,
+    asOf: data.asOf, features,
     meta: data.meta,
     market: { index: data.market?.index ?? null },
     news: [], events: [], reports: [], funds: null,
-    flows: { asOf: null, investors: { "Hôm nay": {}, MTD: {}, YTD: {} }, history: { dates: [] }, tickers: [], sectors: [] },
+    flows: pausedFlows,
     portfolio: { ytd: null, alloc: {}, positions: [], today: [], history: [] }, workspace: publicWorkspaceState(user),
   };
   if (permissions.brief.view) Object.assign(result, { market: data.market, news: data.news, events: data.events });
   if (permissions.portfolio.view) result.portfolio = data.portfolio;
-  if (permissions.flows.view) result.flows = data.flows;
+  if (FLOWS_MODULE_ENABLED && permissions.flows.view) result.flows = data.flows;
   if (permissions.funds.view) result.funds = data.funds;
   if (permissions.reports.view) result.reports = data.reports;
   // Hai module mới chỉ trình bày action/signal có căn cứ từ danh mục và báo cáo.
@@ -1040,7 +1043,7 @@ app.get("/api/admin/operations", requireModule("admin", "edit"), (req, res) => {
     freshness = data.meta?.freshness || [];
     quality = data.meta?.quality || quality;
   } catch { /* Report the pipeline state even without dashboard data. */ }
-  return res.json({ pipeline: { ...pipelineState, queuedJobs }, freshness, quality, audit: recentAudit() });
+  return res.json({ pipeline: { ...pipelineState, queuedJobs }, modules: { flowsEnabled: FLOWS_MODULE_ENABLED }, freshness, quality, audit: recentAudit() });
 });
 
 app.post("/api/chat", requireModule("reports", "edit"), requireCsrf, aiLimit, async (req, res) => {

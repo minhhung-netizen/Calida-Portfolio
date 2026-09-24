@@ -136,6 +136,14 @@ test("transaction history remains visible after the last position is closed", ()
   assert.match(ui.run("pgPortfolio()"), /Closed-position-history-sentinel/);
 });
 
+test("Dòng tiền tạm dừng được ẩn khỏi điều hướng và có thông báo khôi phục", () => {
+  const ui = app();
+  ui.run('DATA.features={flowsEnabled:false}; STATE.page="flows"; render();');
+  assert.doesNotMatch(ui.element("#nav").innerHTML, /Dòng tiền/);
+  assert.match(ui.element("#page").innerHTML, /Dòng tiền tạm dừng/);
+  assert.match(ui.element("#page").innerHTML, /Quay về Tổng quan/);
+});
+
 test("report sections and administration panels preserve their controls", () => {
   const ui = app();
   ui.run('STATE.repTab="Thư viện"');

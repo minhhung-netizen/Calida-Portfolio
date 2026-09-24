@@ -497,7 +497,8 @@ const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổ
   repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,
   actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
 
-const availablePages=()=>PAGES.filter(p=>canView(p.id));
+const flowsEnabled=()=>DATA?.features?.flowsEnabled!==false;
+const availablePages=()=>PAGES.filter(p=>canView(p.id)&&(p.id!=="flows"||flowsEnabled()));
 function renderNav(){
   $("#nav").innerHTML=availablePages().map(p=>`<button data-go="${p.id}" ${STATE.page===p.id?'aria-current="page"':""}>${svg(p.icon,1.8)}${p.label}</button>`).join("");
 }
@@ -519,12 +520,13 @@ function syncNav(){
   if(matchMedia("(max-width:860px)").matches) setNav(false);
   else { document.body.classList.remove("nav-open"); drawer.inert=false; drawer.setAttribute("aria-hidden","false"); }
 }
-function go(id){ if(!canView(id)) return; setNav(false); STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
+function go(id){ if(!canView(id)||(id==="flows"&&!flowsEnabled())) return; setNav(false); STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
 function render(){
   if(STATE.page==="reports"&&$("#chatIn")) STATE.chatDraft=$("#chatIn").value;
   const pages=availablePages();
   if(!pages.length){ $("#nav").innerHTML=""; $("#page").innerHTML='<div class="card"><h1>Chưa được cấp quyền module</h1><p class="prose">Liên hệ quản trị viên để được cấp quyền xem ít nhất một module.</p></div>'; return; }
-  if(!pages.some(p=>p.id===STATE.page)) STATE.page=pages[0].id;
+  const pausedFlowRoute=STATE.page==="flows"&&!flowsEnabled()&&canView("flows");
+  if(!pages.some(p=>p.id===STATE.page)&&!pausedFlowRoute) STATE.page=pages[0].id;
   renderNav();
   const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,actions:pgActions,signals:pgSignals,admin:pgAdmin}[STATE.page]||pgOverview;
   $("#page").innerHTML=fn();
@@ -578,7 +580,7 @@ function pgOverview(){
   <div class="grid cols-auto-200" style="margin-top:14px">
     ${shortcut("brief","doc","Bản tin",`${DATA.news.length} tin nổi bật | ${DATA.events.length} sự kiện`)}
     ${shortcut("portfolio","brief","Danh mục",`${st.open} mã đang mở | ${st.c["Cần xử lý"]} mã cần xử lý`)}
-    ${shortcut("flows","flow","Dòng tiền",fl["Khối ngoại"]==null?"Chưa có dữ liệu dòng tiền":`Khối ngoại ${fl["Khối ngoại"]<0?"bán":"mua"} ròng | Cá nhân ${fl["Cá nhân"]<0?"bán":"mua"} ròng`)}
+    ${flowsEnabled()?shortcut("flows","flow","Dòng tiền",fl["Khối ngoại"]==null?"Chưa có dữ liệu dòng tiền":`Khối ngoại ${fl["Khối ngoại"]<0?"bán":"mua"} ròng | Cá nhân ${fl["Cá nhân"]<0?"bán":"mua"} ròng`):""}
     ${shortcut("funds","fund","Quỹ đầu tư",`${f.updated} quỹ | ${nf(f.stockW,0)}% tỷ trọng CP`)}
     ${shortcut("reports","rep","Báo cáo CTCK",`${repFilterWindow(7).length} báo cáo 7 ngày | ${agg.risks.filter(r=>r.sev===3).length} rủi ro mức cao`)}
   </div>`;
@@ -612,12 +614,12 @@ function pgBrief(){
         <div class="box" style="background:var(--up-soft)"><b class="up">Ngắn hạn</b><p class="prose" style="margin-top:6px">${esc(m.strategyShort)}</p></div>
         <div class="box" style="background:var(--warn-soft)"><b class="warn">Trung & dài hạn</b><p class="prose" style="margin-top:6px">${esc(m.strategyLong)}</p></div></div>
       <div class="label-sm">Ngành tiêu điểm ${m.focusSectors.map(s=>`<span class="chip" style="margin:0">${esc(s)}</span>`).join("")}</div></div>
-    <div class="card">${head("flow","Theo dõi dòng tiền",goLink("flows"))}
+    ${flowsEnabled()?`<div class="card">${head("flow","Theo dõi dòng tiền",goLink("flows"))}
       <div class="grid cols-auto-150">
         <div><div class="label-sm" style="margin-top:0">Nhà đầu tư (tỷ)</div>${Object.entries(inv).map(([k,v])=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><span style="flex:1">${k}</span><b class="${cls(v)}">${sgn(v)}</b></div>`).join("")}</div>
         <div><div class="label-sm" style="margin-top:0">Top mua ròng</div>${buys.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${esc(x.t)}</b><span class="up">${sgn(x.v)}</span></div>`).join("")}</div>
         <div><div class="label-sm" style="margin-top:0">Top bán ròng</div>${sells.map(x=>`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><b style="flex:1">${esc(x.t)}</b><span class="down">${sgn(x.v)}</span></div>`).join("")}</div>
-      </div></div>
+      </div></div>`:""}
   </div>
   <div class="card" style="margin-top:14px">${head("cal","Sự kiện cần theo dõi")}${DATA.events.length?"":'<div class="empty">Chưa có sự kiện nào từ hôm nay trở đi trong sheet EVENTS.</div>'}
     <div class="tbl-wrap"><table><thead><tr><th>Thời gian</th><th>Sự kiện</th><th>Quốc gia</th><th>Mức ảnh hưởng</th><th class="num">Dự báo</th><th class="num">Kỳ trước</th></tr></thead>
@@ -671,6 +673,7 @@ const kpiCard=(ic,bg,v,l,c="")=>`<div class="card kpi"><div class="badge ${bg}">
 
 /* ============ PAGE: Dòng tiền ============ */
 function pgFlows(){
+  if(!flowsEnabled()) return `<h1>Dòng tiền thị trường</h1><p class="sub">Phân hệ đang tạm dừng để hoàn thiện nguồn dữ liệu.</p><div class="card"><div class="box" role="status"><b>Dòng tiền tạm dừng</b><p class="muted" style="margin:6px 0 12px">Các dữ liệu FLOW không được đồng bộ hoặc kiểm tra nên sẽ không làm gián đoạn các phân hệ khác.</p><button class="btn ghost" data-go="overview">Quay về Tổng quan</button></div></div>`;
   const F=DATA.flows, today=latestFlowValues(F), mtd=F.investors["MTD"], cur=STATE.invTab==="Hôm nay"?today:F.investors[STATE.invTab];
   const tot=Object.values(cur).reduce((s,v)=>s+Math.abs(v||0),0)||1;
   const latestLabel=flowDateLabel(F), flowLabel=latestLabel?`Dữ liệu ${latestLabel}.`:"Chưa có dữ liệu dòng tiền.";
@@ -1015,10 +1018,11 @@ function pgAdmin(){
       const quality=ops.quality||{status:"unknown",issues:[]};
       const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","report.update":"Cập nhật báo cáo","report.delete":"Xóa báo cáo","pipeline.queue":"Yêu cầu chạy quy trình dữ liệu","pipeline.complete":"Quy trình dữ liệu hoàn tất"};
       const busy=p.status==="running"||p.queuedJobs>0;
-      return `<div class="grid" style="gap:14px"><div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
+      const flowsPaused=ops.modules?.flowsEnabled===false;
+      return `<div class="grid" style="gap:14px">${flowsPaused?`<div class="box" role="status"><b>Dòng tiền đang tạm dừng</b><p class="muted" style="font-size:12px;margin:4px 0 0">Đồng bộ Vận hành hiện chỉ xử lý Nhận định, Tin tức, Sự kiện và Tổng quan danh mục. Đặt <code>FLOWS_MODULE_ENABLED=true</code> trên Railway rồi deploy lại khi nguồn FLOW đã sẵn sàng.</p></div>`:""}<div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
         <p class="muted" style="margin:8px 0 0">${p.reason?`Lần gần nhất: ${esc(p.reason)}${p.finishedAt?` · ${new Date(p.finishedAt).toLocaleString("vi-VN")}`:""}`:"Chưa có lần chạy trong phiên này."}${p.error?`<br><span class="down">${esc(p.error)}</span>`:""}</p>
         <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="runBuild" ${busy?"disabled":""}>Dựng lại bảng điều hành</button><button class="btn ghost" id="runFull" ${busy?"disabled":""}>Đồng bộ tất cả nguồn</button><span class="muted" style="font-size:12px">Đồng bộ tất cả sẽ gọi 4 Google Sheets và nguồn giá.</span></div>
-        <div class="box" style="margin-top:12px;padding:12px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>Đồng bộ từng nguồn</b><p class="muted" style="font-size:12px;margin:4px 0 0">Danh mục, Vận hành và Quỹ dùng bản chụp mới để loại bỏ dòng cũ trên Railway. Báo cáo CTCK gộp theo mã để giữ các báo cáo được tạo trên web.</p></div><div class="row" style="gap:8px;flex-wrap:wrap">${[["portfolio","Danh mục"],["operations","Vận hành"],["funds","Quỹ"],["reports","Báo cáo CTCK"]].map(([source,label])=>`<button class="btn ghost" data-pipeline-mode="${source}" ${busy?"disabled":""} aria-label="Đồng bộ ${label}">${label}</button>`).join("")}</div></div></div></div>
+        <div class="box" style="margin-top:12px;padding:12px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>Đồng bộ từng nguồn</b><p class="muted" style="font-size:12px;margin:4px 0 0">Danh mục, Vận hành và Quỹ dùng bản chụp mới để loại bỏ dòng cũ trên Railway. Báo cáo CTCK gộp theo mã để giữ các báo cáo được tạo trên web.${flowsPaused?" Dòng tiền đang tạm dừng nên không nằm trong lượt đồng bộ Vận hành.":""}</p></div><div class="row" style="gap:8px;flex-wrap:wrap">${[["portfolio","Danh mục"],["operations","Vận hành"],["funds","Quỹ"],["reports","Báo cáo CTCK"]].map(([source,label])=>`<button class="btn ghost" data-pipeline-mode="${source}" ${busy?"disabled":""} aria-label="Đồng bộ ${label}">${label}</button>`).join("")}</div></div></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần cập nhật gần nhất.</p>'}</div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
@@ -1056,9 +1060,9 @@ function scheduleAdminPoll(){
 async function runPipeline(mode){
   const details={
     build:"Dựng lại bảng điều hành từ dữ liệu hiện có?",
-    all:"Đồng bộ tất cả nguồn dữ liệu? Dữ liệu cũ từ Danh mục, Vận hành và Quỹ sẽ được thay bằng bản mới từ Google Sheets. Thao tác có thể mất vài phút.",
+    all:"Đồng bộ tất cả nguồn dữ liệu? Dữ liệu cũ từ Danh mục, Vận hành và Quỹ sẽ được thay bằng bản mới từ Google Sheets. Dòng tiền đang tạm dừng sẽ không được xử lý. Thao tác có thể mất vài phút.",
     portfolio:"Đồng bộ Danh mục? Dữ liệu danh mục lưu trước đó trên Railway sẽ được thay bằng bản hiện có trên Google Sheets.",
-    operations:"Đồng bộ Vận hành? Dữ liệu thị trường và dòng tiền lưu trước đó trên Railway sẽ được thay bằng bản hiện có trên Google Sheets.",
+    operations:"Đồng bộ Vận hành? Nhận định, tin tức, sự kiện và tổng quan danh mục lưu trên Railway sẽ được thay bằng bản hiện có trên Google Sheets. Dòng tiền đang tạm dừng nên không được xử lý.",
     funds:"Đồng bộ Quỹ? Dữ liệu quỹ lưu trước đó trên Railway sẽ được thay bằng bản hiện có trên Google Sheets.",
     reports:"Đồng bộ Báo cáo CTCK? Dữ liệu trùng mã được cập nhật từ Google Sheets; báo cáo tạo trên web vẫn được giữ.",
   };

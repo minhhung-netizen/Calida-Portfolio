@@ -131,6 +131,8 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(adminDashboard.workspace.actions["portfolio:FPT"].status, "completed");
     assert.equal(adminDashboard.workspace.actions["portfolio:FPT"].completedQuantity, 5000);
     assert.equal(adminDashboard.workspace.signals["signal:FPT"].status, "watch");
+    assert.equal(adminDashboard.features.flowsEnabled, false, "Dòng tiền mặc định phải được tạm dừng");
+    assert.deepEqual(adminDashboard.flows.tickers, [], "không trả dữ liệu Dòng tiền cũ khi module đang tạm dừng");
 
     const scopedPermissions = {
       overview: { view: false, edit: false }, brief: { view: false, edit: false }, portfolio: { view: false, edit: false },

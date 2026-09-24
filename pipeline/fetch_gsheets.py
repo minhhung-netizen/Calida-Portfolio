@@ -4,7 +4,7 @@ Cần: service account có quyền Viewer trên 2 sheet (share email của servi
 """
 import io
 import pandas as pd
-from config import (GOOGLE_SA_FILE, PORTFOLIO_SHEET_ID, FUNDS_SHEET_ID, OPERATIONS_SHEET_ID, REPORTS_SHEET_ID, PORTFOLIO_MAP, FUNDS_MAP, OPERATIONS_MAP, REPORTS_MAP,
+from config import (GOOGLE_SA_FILE, PORTFOLIO_SHEET_ID, FUNDS_SHEET_ID, OPERATIONS_SHEET_ID, REPORTS_SHEET_ID, PORTFOLIO_MAP, FUNDS_MAP, OPERATIONS_MAP, REPORTS_MAP, FLOWS_MODULE_ENABLED,
                     WEIGHTS_AS_FRACTION, NAV_DIVISOR)
 from schema import SCHEMA
 from xlsx_io import write_sheets, upsert
@@ -16,6 +16,16 @@ XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # bộ sẽ thay thế đúng các sheet mà nguồn đó quản lý, để một dòng đã bị xóa hoặc
 # sửa trên Google Sheets không tiếp tục nằm lại trong Railway Volume. Riêng báo
 # cáo CTCK được gộp theo khóa nhằm bảo toàn các báo cáo tạo trực tiếp trên web.
+FLOW_SOURCE_SHEETS = frozenset({"INVESTOR_FLOW", "TICKER_FLOW", "SECTOR_FLOW"})
+
+
+def operations_mapping():
+    """Không đọc FLOW khi module Dòng tiền tạm dừng."""
+    if FLOWS_MODULE_ENABLED:
+        return OPERATIONS_MAP
+    return {name: item for name, item in OPERATIONS_MAP.items() if name not in FLOW_SOURCE_SHEETS}
+
+
 SOURCE_DEFINITIONS = {
     "portfolio": {
         "label": "Danh mục", "sheet_id": PORTFOLIO_SHEET_ID,
@@ -23,7 +33,7 @@ SOURCE_DEFINITIONS = {
     },
     "operations": {
         "label": "Vận hành", "sheet_id": OPERATIONS_SHEET_ID,
-        "mapping": OPERATIONS_MAP, "snapshot": True,
+        "mapping": operations_mapping, "snapshot": True,
     },
     "funds": {
         "label": "Quỹ", "sheet_id": FUNDS_SHEET_ID,
@@ -166,7 +176,8 @@ def run(sources=None):
             continue
         mode = "bản chụp" if definition["snapshot"] else "gộp theo khóa"
         print(f"  {definition['label']} ({mode})…")
-        frames = apply_map(download(sheet_id), definition["mapping"])
+        mapping = definition["mapping"]() if callable(definition["mapping"]) else definition["mapping"]
+        frames = apply_map(download(sheet_id), mapping)
         if definition["snapshot"]:
             write_snapshot(frames)
         else:

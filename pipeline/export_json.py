@@ -7,7 +7,7 @@ import math
 import sqlite3
 from datetime import datetime
 import pandas as pd
-from config import DB_PATH, JSON_OUT, FUND_UNIVERSE_TOTAL
+from config import DB_PATH, JSON_OUT, FUND_UNIVERSE_TOTAL, FLOWS_MODULE_ENABLED
 from schema import INVESTORS, ACTION_STATUSES
 from number_normalizer import format_number, normalize_number_text
 
@@ -280,6 +280,7 @@ def run():
                  "dbBuiltAt": meta.built_at.iloc[0] if len(meta) else None,
                  "rows": dict(zip(meta.table, meta.rows.astype(int))),
                  "freshness": freshness(con), "quality": quality(con)},
+        "features": {"flowsEnabled": FLOWS_MODULE_ENABLED},
         "market": market(con, as_of), "news": news(con, as_of), "events": events(con, as_of),
         "flows": flows(con, as_of), "portfolio": portfolio(con, as_of),
         "funds": funds(con), "reports": reports(con),

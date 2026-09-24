@@ -28,6 +28,9 @@ PORTFOLIO_SHEET_ID = os.getenv("PORTFOLIO_SHEET_ID", "")
 FUNDS_SHEET_ID = os.getenv("FUNDS_SHEET_ID", "")
 OPERATIONS_SHEET_ID = os.getenv("OPERATIONS_SHEET_ID", "")
 REPORTS_SHEET_ID = os.getenv("REPORTS_SHEET_ID", "")
+# Dòng tiền có thể tạm ngưng độc lập để lỗi dữ liệu FLOW không chặn các module
+# khác. Chỉ bật lại khi nguồn INVESTOR_FLOW/TICKER_FLOW/SECTOR_FLOW đã sẵn sàng.
+FLOWS_MODULE_ENABLED = os.getenv("FLOWS_MODULE_ENABLED", "false").strip().lower() == "true"
 
 # ---- Giá ----
 PRICE_LOOKBACK_DAYS = int(os.getenv("PRICE_LOOKBACK_DAYS", "400"))

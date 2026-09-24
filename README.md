@@ -43,6 +43,10 @@ python pipeline/run.py --build-only
 
 Mỗi bước lấy dữ liệu chạy độc lập: một nguồn lỗi thì các bước sau vẫn chạy trên dữ liệu cũ. Chỉ khi bước build/export lỗi, pipeline mới thoát với mã 1.
 
+### Tạm dừng Dòng tiền
+
+Đặt `FLOWS_MODULE_ENABLED=false` để tạm dừng Dòng tiền. Pipeline sẽ không đồng bộ các sheet `INVESTOR_FLOW`, `TICKER_FLOW`, `SECTOR_FLOW`, không kiểm tra chúng và không đưa dữ liệu cũ vào dashboard. Các module khác vẫn đồng bộ bình thường. Khi nguồn FLOW đã chuẩn hóa, đặt biến thành `true` và deploy lại.
+
 ## Nguồn dữ liệu
 
 | File / sheet | Nguồn | Tự động? |
