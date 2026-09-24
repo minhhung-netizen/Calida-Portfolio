@@ -877,7 +877,8 @@ const WORKSPACE_STATUS = Object.freeze({
   actions: new Set(["pending", "waiting", "completed", "cancelled"]),
   signals: new Set(["new", "watch", "dismissed"]),
 });
-const WORKSPACE_ID = /^(?:portfolio|signal):[A-Z0-9._-]{1,16}$/;
+const WORKSPACE_ID = /^(?:(?:portfolio|signal):[A-Z0-9._-]{1,16}|manual:[a-f0-9-]{36})$/;
+const MANUAL_ACTIONS = new Set(["MUA", "BÁN", "TĂNG TỶ TRỌNG", "GIẢM TỶ TRỌNG", "THEO DÕI"]);
 
 function updateWorkspaceStatus(req, collection) {
   const id = String(req.params.id || "");
@@ -900,10 +901,51 @@ function actionQuantity(value) {
   return value;
 }
 
+function manualActionInput(body, previous = {}) {
+  const ticker = String(body.ticker ?? previous.ticker ?? "").trim().toUpperCase();
+  const action = String(body.action ?? previous.action ?? "").trim().toUpperCase();
+  const context = String(body.context ?? previous.context ?? "").trim();
+  const sector = String(body.sector ?? previous.sector ?? "Chủ động khai báo").trim();
+  const zone = String(body.zone ?? previous.zone ?? "—").trim();
+  const priceValue = body.price ?? previous.price ?? null;
+  const price = priceValue === "" || priceValue === null ? null : Number(priceValue);
+  if (!/^[A-Z0-9._-]{1,16}$/.test(ticker)) throw new Error("Mã chứng khoán chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang (tối đa 16 ký tự)");
+  if (!MANUAL_ACTIONS.has(action)) throw new Error("Hành động khuyến nghị không hợp lệ");
+  if (!context || context.length > 300) throw new Error("Ngữ cảnh khuyến nghị cần từ 1 đến 300 ký tự");
+  if (!sector || sector.length > 80) throw new Error("Ngành cần từ 1 đến 80 ký tự");
+  if (!zone || zone.length > 80) throw new Error("Vùng giá cần từ 1 đến 80 ký tự");
+  if (price !== null && (!Number.isFinite(price) || price < 0 || price > 10_000_000)) throw new Error("Giá tham chiếu không hợp lệ");
+  return { ticker, action, context, sector, zone, price };
+}
+
+function createManualAction(req) {
+  const body = req.body || {};
+  let details, plannedQuantity, completedQuantity;
+  try {
+    details = manualActionInput(body);
+    plannedQuantity = actionQuantity(body.plannedQuantity);
+    completedQuantity = actionQuantity(body.completedQuantity);
+  } catch (error) { return { error: error.message }; }
+  if (plannedQuantity !== null && completedQuantity !== null && completedQuantity > plannedQuantity) return { error: "Khối lượng đã thực hiện không thể lớn hơn khối lượng hành động" };
+  const deadline = body.deadline == null || body.deadline === "" ? null : String(body.deadline);
+  if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return { error: "Hạn xử lý phải theo định dạng YYYY-MM-DD" };
+  const note = body.note == null ? "" : String(body.note).trim();
+  if (note.length > 300) return { error: "Ghi chú không được quá 300 ký tự" };
+  const id = `manual:${crypto.randomUUID()}`;
+  const state = readWorkspaceState();
+  state.actions[id] = { kind: "manual", ...details, status: String(body.status || "pending"), plannedQuantity, completedQuantity, deadline, note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy: req.user.u };
+  if (!WORKSPACE_STATUS.actions.has(state.actions[id].status)) return { error: "Trạng thái hành động không hợp lệ" };
+  writeWorkspaceState(state);
+  audit(req, "action.create", { id, ticker: details.ticker, action: details.action, status: state.actions[id].status });
+  if (state.actions[id].status === "pending") queuePush({ preference: "actions", module: "actions", title: "Calida · Khuyến nghị mới", body: `${details.ticker}: ${details.action}${deadline ? ` trước ${deadline}` : ""}.`, url: "/#actions", tag: `calida-${id}` });
+  return { action: { id, ...state.actions[id] } };
+}
+
 function updateActionDetails(req) {
   const id = String(req.params.id || "");
   const body = req.body || {};
-  if (!WORKSPACE_ID.test(id) || !id.startsWith("portfolio:")) return { error: "Hành động không hợp lệ" };
+  const isManual = id.startsWith("manual:");
+  if (!WORKSPACE_ID.test(id) || (!id.startsWith("portfolio:") && !isManual)) return { error: "Hành động không hợp lệ" };
   if (body.status !== undefined && !WORKSPACE_STATUS.actions.has(String(body.status))) return { error: "Trạng thái hành động không hợp lệ" };
   let plannedQuantity;
   let completedQuantity;
@@ -918,8 +960,15 @@ function updateActionDetails(req) {
   if (note.length > 300) return { error: "Ghi chú không được quá 300 ký tự" };
   const state = readWorkspaceState();
   const previous = state.actions[id] || {};
+  if (isManual && previous.kind !== "manual") return { error: "Không tìm thấy khuyến nghị thủ công" };
+  let details = {};
+  if (isManual) {
+    try { details = manualActionInput(body, previous); }
+    catch (error) { return { error: error.message }; }
+  }
   state.actions[id] = {
     ...previous,
+    ...details,
     status: String(body.status || previous.status || "pending"),
     plannedQuantity,
     completedQuantity,
@@ -936,8 +985,29 @@ function updateActionDetails(req) {
   return { state: state.actions[id] };
 }
 
+function deleteManualAction(req) {
+  const id = String(req.params.id || "");
+  if (!WORKSPACE_ID.test(id) || !id.startsWith("manual:")) return { error: "Chỉ có thể xóa khuyến nghị tạo thủ công" };
+  const state = readWorkspaceState();
+  if (state.actions[id]?.kind !== "manual") return { error: "Không tìm thấy khuyến nghị thủ công" };
+  delete state.actions[id];
+  writeWorkspaceState(state);
+  audit(req, "action.delete", { id });
+  return { id };
+}
+
+app.post("/api/actions", requireModule("actions", "edit"), requireCsrf, writeLimit, (req, res) => {
+  const result = createManualAction(req);
+  return result.error ? res.status(400).json(result) : res.status(201).json({ ok: true, ...result });
+});
+
 app.patch("/api/actions/:id", requireModule("actions", "edit"), requireCsrf, writeLimit, (req, res) => {
   const result = updateActionDetails(req);
+  return result.error ? res.status(400).json(result) : res.json({ ok: true, ...result });
+});
+
+app.delete("/api/actions/:id", requireModule("actions", "edit"), requireCsrf, writeLimit, (req, res) => {
+  const result = deleteManualAction(req);
   return result.error ? res.status(400).json(result) : res.json({ ok: true, ...result });
 });
 

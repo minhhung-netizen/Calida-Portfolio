@@ -148,14 +148,20 @@ test("report sections and administration panels preserve their controls", () => 
   assert.match(ui.run("pgAdmin()"), /id="addUser"/);
 });
 
-test("Khuyến nghị hành động giữ các điều khiển vận hành và không tự tạo khối lượng", () => {
+test("Khuyến nghị hành động giữ các điều khiển vận hành và cho phép tạo chủ động theo quyền", () => {
   const ui = app();
+  ui.run('DATA.workspace={actions:{"manual:123e4567-e89b-12d3-a456-426614174000":{kind:"manual",ticker:"VNM",action:"MUA",sector:"Tiêu dùng",price:62.5,zone:"61 – 63",context:"Luận điểm thủ công",status:"pending",plannedQuantity:1000,completedQuantity:0,note:"Chờ xác nhận"}},signals:{}};');
   const result = ui.run("pgActions()");
   assert.match(result, /KL hành động/);
   assert.match(result, /data-edit-action=/);
+  assert.match(result, /id="addAction"/);
+  assert.match(result, /Luận điểm thủ công/);
+  assert.match(result, /Chủ động/);
   assert.match(result, /Tín hiệu mới/);
   assert.match(result, /Chưa khai báo/);
   assert.doesNotMatch(result, /20\.000|50\.000|100\.000/, "khối lượng mẫu không được đưa vào dữ liệu thật");
+  const readOnly = app(["actions"], []);
+  assert.doesNotMatch(readOnly.run("pgActions()"), /id="addAction"/);
 });
 
 test("existing data tabs keep rendering without changing the source data", () => {

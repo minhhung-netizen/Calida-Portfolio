@@ -810,9 +810,8 @@ function repDetail(r){
 }
 
 /* ============ Khuyến nghị hành động + Trung tâm tín hiệu ============
-   Không tạo thêm dữ liệu thị trường: hành động lấy từ portfolio.today, tín hiệu
-   tổng hợp từ danh mục và các báo cáo CTCK hiện có. Trạng thái thao tác được
-   lưu qua API riêng và tuân theo quyền từng module. */
+   Hành động có thể lấy từ portfolio.today hoặc do người được cấp quyền chủ động
+   khai báo. Trạng thái thao tác được lưu qua API riêng và tuân theo quyền từng module. */
 const workspace = () => DATA.workspace || {actions:{},signals:{}};
 const actionStatus = {
   pending:{label:"Cần xử lý",className:"bg-down"}, waiting:{label:"Chờ điều kiện giá",className:"bg-warn"},
@@ -824,7 +823,7 @@ const signalStatus = {
 function stateTag(status, source){ const s=(source==="signal"?signalStatus:actionStatus)[status]||actionStatus.pending; return `<span class="tag ${s.className}">${s.label}</span>`; }
 function actionRows(){
   const positions=DATA.portfolio?.positions||[], stored=workspace().actions||{};
-  return (DATA.portfolio?.today||[]).map(item=>{
+  const portfolioRows=(DATA.portfolio?.today||[]).map(item=>{
     const p=positions.find(row=>row.t===item.t), id=`portfolio:${item.t}`;
     const saved=stored[id]||{};
     const automatic=p?.buy&&p.price!=null&&p.price<p.buy[0]?"waiting":"pending";
@@ -832,8 +831,14 @@ function actionRows(){
     const completed=Number.isSafeInteger(saved.completedQuantity)?saved.completedQuantity:null;
     return {id,t:item.t,action:item.a,zone:p?.buy?range(p.buy):item.z||"—",price:p?.price??null,chg:p?.chg??null,
       sector:p?.sector||"Chưa rõ ngành",context:p?.thesis||"Khuyến nghị danh mục",status:saved.status||automatic, source:"Danh mục", sourceDetail:p?.book||"Danh mục",
-      plannedQuantity:planned,completedQuantity:completed,deadline:saved.deadline||null,note:saved.note||""};
+      plannedQuantity:planned,completedQuantity:completed,deadline:saved.deadline||null,note:saved.note||"",manual:false};
   });
+  const manualRows=Object.entries(stored).filter(([id,saved])=>id.startsWith("manual:")&&saved?.kind==="manual").map(([id,saved])=>({
+    id,t:saved.ticker,action:saved.action,zone:saved.zone||"—",price:saved.price??null,chg:null,sector:saved.sector||"Chủ động khai báo",
+    context:saved.context,status:saved.status||"pending",source:"Chủ động",sourceDetail:"Khai báo thủ công",plannedQuantity:Number.isSafeInteger(saved.plannedQuantity)?saved.plannedQuantity:null,
+    completedQuantity:Number.isSafeInteger(saved.completedQuantity)?saved.completedQuantity:null,deadline:saved.deadline||null,note:saved.note||"",manual:true,
+  }));
+  return [...portfolioRows,...manualRows];
 }
 const actionQty=v=>v==null?"—":nf(v,0);
 function actionProgress(row){
@@ -871,15 +876,34 @@ function openActionDialog(id){
   const row=actionRows().find(item=>item.id===id);
   if(!row||!canEdit("actions")) return;
   const options=Object.entries(actionStatus).map(([value,item])=>`<option value="${value}" ${row.status===value?"selected":""}>${item.label}</option>`).join("");
+  const recommendationOptions=["MUA","BÁN","TĂNG TỶ TRỌNG","GIẢM TỶ TRỌNG","THEO DÕI"].map(value=>`<option value="${value}" ${row.action===value?"selected":""}>${value}</option>`).join("");
+  const manualFields=row.manual?`<div class="fgrid" style="margin-bottom:12px"><label>Mã<input id="actionManualTicker" value="${esc(row.t)}" readonly></label><label>Hành động<select id="actionManualRecommendation">${recommendationOptions}</select></label>
+      <label>Ngành<input id="actionManualSector" maxlength="80" value="${esc(row.sector)}"></label><label>Giá tham chiếu<input id="actionManualPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${row.price??""}" placeholder="Không bắt buộc"></label>
+      <label>Vùng giá<input id="actionManualZone" maxlength="80" value="${esc(row.zone)}"></label><label style="grid-column:1/-1">Ngữ cảnh khuyến nghị<textarea id="actionManualContext" maxlength="300">${esc(row.context)}</textarea></label></div>`:"";
   $("#actionBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Cập nhật hành động ${esc(row.t)}</h2><button class="icon-btn" id="actionDlgClose" aria-label="Đóng">✕</button></div>
     <p class="muted" style="margin:4px 0 12px">${esc(row.action)} · ${esc(row.sector)} · ${esc(row.sourceDetail)}</p>
-    <div class="box" style="margin-bottom:14px"><b>${esc(row.context)}</b><div class="muted" style="font-size:12px;margin-top:4px">Vùng giá: ${esc(row.zone)} · Giá hiện tại: ${nf(row.price,2)}</div></div>
+    ${manualFields||`<div class="box" style="margin-bottom:14px"><b>${esc(row.context)}</b><div class="muted" style="font-size:12px;margin-top:4px">Vùng giá: ${esc(row.zone)} · Giá hiện tại: ${nf(row.price,2)}</div></div>`}
     <div class="fgrid"><label>Trạng thái<select id="actionStatus">${options}</select></label><label>Hạn xử lý<input id="actionDeadline" type="date" value="${esc(row.deadline||"")}"></label>
       <label>Khối lượng hành động<input id="actionPlanned" type="number" inputmode="numeric" min="0" step="1" value="${row.plannedQuantity??""}" placeholder="Ví dụ: 20000"></label>
       <label>Đã thực hiện<input id="actionCompleted" type="number" inputmode="numeric" min="0" step="1" value="${row.completedQuantity??""}" placeholder="Ví dụ: 5000"></label>
       <label style="grid-column:1/-1">Ghi chú tiến độ<textarea id="actionNote" maxlength="300" placeholder="Thông tin thực hiện, lý do chờ…">${esc(row.note)}</textarea></label></div>
     <p class="muted" style="font-size:12px;margin:10px 0 0">Khối lượng và deadline là dữ liệu vận hành do người dùng khai báo; hệ thống không tự suy đoán từ giá thị trường.</p>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="actionSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveAction" data-action-id="${esc(id)}">Lưu cập nhật</button></div>`;
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="actionSaveStatus" style="font-size:12.5px;flex:1"></span>${row.manual?`<button class="btn ghost actions-danger" id="deleteManualAction" data-action-id="${esc(id)}">Xóa</button>`:""}<button class="btn" id="saveAction" data-action-id="${esc(id)}">Lưu cập nhật</button></div>`;
+  $("#actionDlg").showModal();
+}
+function openManualActionDialog(){
+  if(!canEdit("actions")) return;
+  const recommendationOptions=["MUA","BÁN","TĂNG TỶ TRỌNG","GIẢM TỶ TRỌNG","THEO DÕI"].map(value=>`<option value="${value}">${value}</option>`).join("");
+  const statusOptions=Object.entries(actionStatus).map(([value,item])=>`<option value="${value}">${item.label}</option>`).join("");
+  $("#actionBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Thêm khuyến nghị hành động</h2><button class="icon-btn" id="actionDlgClose" aria-label="Đóng">✕</button></div>
+    <p class="muted" style="margin:4px 0 14px">Tạo khuyến nghị chủ động. Nội dung này tách biệt với dữ liệu danh mục và được ghi nhận người tạo.</p>
+    <div class="fgrid"><label>Mã chứng khoán<input id="newActionTicker" maxlength="16" autocomplete="off" placeholder="Ví dụ: FPT"></label><label>Hành động<select id="newActionRecommendation">${recommendationOptions}</select></label>
+      <label>Ngành<input id="newActionSector" maxlength="80" value="Chủ động khai báo"></label><label>Giá tham chiếu<input id="newActionPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Không bắt buộc"></label>
+      <label>Vùng giá<input id="newActionZone" maxlength="80" value="—" placeholder="Ví dụ: 95 – 98"></label><label>Trạng thái<select id="newActionStatus">${statusOptions}</select></label>
+      <label>Khối lượng hành động<input id="newActionPlanned" type="number" inputmode="numeric" min="0" step="1" placeholder="Ví dụ: 20,000"></label><label>Hạn xử lý<input id="newActionDeadline" type="date"></label>
+      <label style="grid-column:1/-1">Ngữ cảnh khuyến nghị<textarea id="newActionContext" maxlength="300" placeholder="Luận điểm và điều kiện thực hiện"></textarea></label>
+      <label style="grid-column:1/-1">Ghi chú tiến độ<textarea id="newActionNote" maxlength="300" placeholder="Không bắt buộc"></textarea></label></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="actionSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveManualAction">Thêm khuyến nghị</button></div>`;
   $("#actionDlg").showModal();
 }
 async function saveActionDetails(id){
@@ -893,12 +917,35 @@ async function saveActionDetails(id){
   try { planned=parseQuantity($("#actionPlanned").value,"Khối lượng hành động"); completed=parseQuantity($("#actionCompleted").value,"Khối lượng đã thực hiện"); }
   catch(error){status.textContent=error.message;return;}
   if(planned!==null&&completed!==null&&completed>planned){status.textContent="Khối lượng đã thực hiện không thể lớn hơn khối lượng hành động.";return;}
+  const row=actionRows().find(item=>item.id===id);
+  const payload={status:$("#actionStatus").value,plannedQuantity:planned,completedQuantity:completed,deadline:$("#actionDeadline").value||null,note:$("#actionNote").value};
+  if(row?.manual) Object.assign(payload,{ticker:$("#actionManualTicker").value,action:$("#actionManualRecommendation").value,sector:$("#actionManualSector").value,price:$("#actionManualPrice").value,zone:$("#actionManualZone").value,context:$("#actionManualContext").value});
   const button=$("#saveAction"); button.disabled=true; status.textContent="Đang lưu…";
   try{
-    const state=await api(`/api/actions/${encodeURIComponent(id)}`,{status:$("#actionStatus").value,plannedQuantity:planned,completedQuantity:completed,deadline:$("#actionDeadline").value||null,note:$("#actionNote").value},"PATCH");
+    const state=await api(`/api/actions/${encodeURIComponent(id)}`,payload,"PATCH");
     DATA.workspace ||= {actions:{},signals:{}}; DATA.workspace.actions ||= {}; DATA.workspace.actions[id]=state.state;
     $("#actionDlg").close(); render(); notify("Đã cập nhật action.");
   }catch(error){status.textContent="Không lưu được: "+error.message;button.disabled=false;}
+}
+async function saveManualAction(){
+  const status=$("#actionSaveStatus"), parseQuantity=(value,label)=>{
+    if(value==="") return null; const number=Number(value); if(!Number.isSafeInteger(number)||number<0) throw new Error(`${label} phải là số nguyên không âm.`); return number;
+  };
+  let planned;
+  try { planned=parseQuantity($("#newActionPlanned").value,"Khối lượng hành động"); }
+  catch(error){status.textContent=error.message;return;}
+  const button=$("#saveManualAction"); button.disabled=true; status.textContent="Đang tạo…";
+  try{
+    const result=await api("/api/actions",{ticker:$("#newActionTicker").value,action:$("#newActionRecommendation").value,sector:$("#newActionSector").value,price:$("#newActionPrice").value,zone:$("#newActionZone").value,context:$("#newActionContext").value,status:$("#newActionStatus").value,plannedQuantity:planned,completedQuantity:0,deadline:$("#newActionDeadline").value||null,note:$("#newActionNote").value},"POST");
+    DATA.workspace ||= {actions:{},signals:{}}; DATA.workspace.actions ||= {}; DATA.workspace.actions[result.action.id]=result.action;
+    $("#actionDlg").close(); STATE.actionTab="Tất cả"; render(); notify("Đã thêm khuyến nghị hành động.");
+  }catch(error){status.textContent="Không tạo được: "+error.message;button.disabled=false;}
+}
+async function deleteManualAction(id){
+  if(!confirm("Xóa khuyến nghị hành động này?")) return;
+  const status=$("#actionSaveStatus"), button=$("#deleteManualAction"); button.disabled=true; status.textContent="Đang xóa…";
+  try{ await api(`/api/actions/${encodeURIComponent(id)}`,{},"DELETE"); delete DATA.workspace.actions[id]; $("#actionDlg").close(); render(); notify("Đã xóa khuyến nghị."); }
+  catch(error){status.textContent="Không xóa được: "+error.message;button.disabled=false;}
 }
 function pgActions(){
   const all=actionRows().sort((a,b)=>(a.status==="completed")-(b.status==="completed")||a.t.localeCompare(b.t)), writable=canEdit("actions"), tabs=["Tất cả","Cần xử lý","Chờ điều kiện giá","Hoàn thành"];
@@ -912,10 +959,10 @@ function pgActions(){
   const reminder=withoutPlan?`${withoutPlan} hành động chưa khai báo khối lượng hoặc hạn xử lý.`:incomplete.length?`${incomplete.length} hành động đang mở cần theo dõi tiến độ.`:"Không còn hành động mở cần cập nhật.";
   const filters=`<div class="work-filters"><input id="actionQ" value="${esc(STATE.actionQuery)}" placeholder="Tìm mã, ngữ cảnh hoặc ghi chú" aria-label="Tìm hành động"><select id="actionSector" aria-label="Lọc hành động theo ngành"><option value="">Tất cả ngành</option>${sectors.map(sector=>`<option value="${esc(sector)}" ${STATE.actionSector===sector?"selected":""}>${esc(sector)}</option>`).join("")}</select><select id="actionSource" aria-label="Lọc hành động theo nguồn"><option value="">Tất cả nguồn</option>${sources.map(source=>`<option value="${esc(source)}" ${STATE.actionSource===source?"selected":""}>${esc(source)}</option>`).join("")}</select>${STATE.actionTicker?`<span class="tag bg-brand">Mã: ${esc(STATE.actionTicker)}</span><button class="btn ghost" data-clear-action-filter>Bỏ lọc mã</button>`:""}</div>`;
   const summary=(tab,icon,colour,value,label,goPage="")=>`<button ${goPage?`data-go="${goPage}"`: `data-actiontab="${tab}"`}><span class="action-kpi"><span class="badge ${colour}">${svg(icon)}</span><span><span class="num">${nf(value)}</span><span class="caption">${label}</span></span></span><span class="link" style="pointer-events:none">›</span></button>`;
-  return `<h1>Khuyến nghị hành động</h1><p class="sub">Theo dõi hành động từ danh mục, khai báo khối lượng và cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
+  return `<h1>Khuyến nghị hành động</h1><p class="sub">Theo dõi hành động từ danh mục hoặc chủ động tạo mới, khai báo khối lượng và cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
     <div class="card action-reminder"><div class="row"><div class="action-kpi"><span class="badge bg-warn">${svg("cal")}</span><div><b>Nhắc việc bàn tác nghiệp</b><div class="muted" style="font-size:12.5px">${esc(reminder)}</div></div></div>${writable&&incomplete.length?`<button class="btn ghost" data-setup-next-action="${incomplete[0].id}">Cập nhật</button>`:""}</div></div>
     <div class="action-summary">${summary("Cần xử lý","alert","bg-down",count("pending"),"cần xử lý")}${summary("Chờ điều kiện giá","cal","bg-warn",count("waiting"),"chờ điều kiện giá")}${summary("","bolt","bg-brand",freshSignals.length,"tín hiệu mới cần xem","signals")}${summary("Hoàn thành","target","bg-up",count("completed"),"hoàn thành")}</div>
-    <div class="action-layout"><div><div class="card">${head("desk","Danh sách hành động",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tabs section-tabs" role="tablist" aria-label="Trạng thái hành động">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Hành động</th><th>Vùng giá</th><th class="num">KL hành động</th><th>Đã thực hiện</th><th class="num">Còn lại</th><th>Hạn xử lý</th><th>Trạng thái</th>${writable?'<th aria-label="Thao tác"></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:190px">${esc(row.context)}${row.note?`<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(row.note)}</div>`:""}<div class="muted" style="font-size:11.5px">${esc(row.source)}</div></td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td class="num">${actionQty(row.plannedQuantity)}</td><td>${actionProgress(row)}</td><td class="num">${actionRemaining(row)}</td><td>${row.deadline?fmtD(row.deadline):'<span class="muted">—</span>'}</td><td>${stateTag(row.status)}</td>${writable?`<td><button class="action-more" data-edit-action="${row.id}" aria-label="Cập nhật hành động ${esc(row.t)}" title="Cập nhật hành động">•••</button></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?11:10}" class="work-empty">Không có hành động phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Hành động lấy từ “Hành động theo danh mục”. Khối lượng, hạn xử lý và tiến độ chỉ thay đổi khi người có quyền cập nhật.</p></div></div>
+    <div class="action-layout"><div><div class="card">${head("desk","Danh sách hành động",writable?'<button class="btn" id="addAction">+ Thêm khuyến nghị</button>':'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tabs section-tabs" role="tablist" aria-label="Trạng thái hành động">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Hành động</th><th>Vùng giá</th><th class="num">KL hành động</th><th>Đã thực hiện</th><th class="num">Còn lại</th><th>Hạn xử lý</th><th>Trạng thái</th>${writable?'<th aria-label="Thao tác"></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:190px">${esc(row.context)}${row.note?`<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(row.note)}</div>`:""}<div class="muted" style="font-size:11.5px">${esc(row.source)}</div></td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td class="num">${actionQty(row.plannedQuantity)}</td><td>${actionProgress(row)}</td><td class="num">${actionRemaining(row)}</td><td>${row.deadline?fmtD(row.deadline):'<span class="muted">—</span>'}</td><td>${stateTag(row.status)}</td>${writable?`<td><button class="action-more" data-edit-action="${row.id}" aria-label="Cập nhật hành động ${esc(row.t)}" title="Cập nhật hành động">•••</button></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?11:10}" class="work-empty">Không có hành động phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Khuyến nghị có thể lấy từ danh mục hoặc do người có quyền chủ động tạo. Các nội dung tạo thủ công được đánh dấu nguồn “Chủ động”.</p></div></div>
       <aside class="action-side" aria-label="Thông tin hỗ trợ bàn tác nghiệp"><div class="card">${head("bolt",`Tín hiệu mới (${freshSignals.length})`,canView("signals")?'<button class="link" data-go="signals">Xem tất cả</button>':"")}<ul class="side-list">${freshSignals.map(signal=>`<li><button class="link" style="margin:0;padding:0" data-open-signal="${signal.t}">${esc(signal.t)}</button>${statusTag(signal.recommendation)}<span class="muted">${esc(signal.evidence)}</span></li>`).join("")||'<li class="muted">Không có tín hiệu mới.</li>'}</ul></div>
       <div class="card">${head("cal","Cần khai báo tiến độ")}<ul class="side-list">${incomplete.map(row=>`<li><div><b>${esc(row.t)}</b><div class="muted">${row.plannedQuantity==null?"Chưa có khối lượng":`${actionRemaining(row)} còn lại`}${row.deadline?` · ${fmtD(row.deadline)}`:""}</div></div>${writable?`<button class="link" data-edit-action="${row.id}">Cập nhật</button>`:""}</li>`).join("")||'<li class="muted">Không có hành động đang mở.</li>'}</ul></div></aside></div>`;
 }
@@ -1158,6 +1205,7 @@ document.addEventListener("click",e=>{
   if(d.openSignal){STATE.signalQuery=d.openSignal;go("signals");return;}
   if(d.editAction){openActionDialog(d.editAction);return;}
   if(d.setupNextAction){openActionDialog(d.setupNextAction);return;}
+  if(t.id==="addAction"){openManualActionDialog();return;}
   if("clearActionFilter" in d){STATE.actionTicker="";render();return;}
   if(d.rp){STATE.repPeriod=d.rp;render();}
   if(d.rt){STATE.repType=d.rt;render();}
@@ -1184,6 +1232,8 @@ document.addEventListener("click",e=>{
   if(t.id==="adminDlgClose") $("#adminDlg").close();
   if(t.id==="actionDlgClose") $("#actionDlg").close();
   if(t.id==="saveAction") saveActionDetails(t.dataset.actionId||"");
+  if(t.id==="saveManualAction") saveManualAction();
+  if(t.id==="deleteManualAction") deleteManualAction(t.dataset.actionId||"");
   if(t.id==="saveUser") saveUser(t.dataset.userId||"");
   if(t.id==="dlgClose") $("#addDlg").close();
   if(t.id==="extractBtn") extract();

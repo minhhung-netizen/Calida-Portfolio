@@ -111,6 +111,16 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.deepEqual((await response.json()).state.plannedQuantity, 20000);
     response = await request("/api/actions/portfolio%3AFPT", { method: "PATCH", ...common, body: JSON.stringify({ plannedQuantity: 100, completedQuantity: 101 }) });
     assert.equal(response.status, 400, "không được khai báo khối lượng hoàn thành vượt kế hoạch");
+    response = await request("/api/actions", { method: "POST", ...common, body: JSON.stringify({ ticker: "VNM", action: "MUA", sector: "Tiêu dùng", price: 62.5, zone: "61 – 63", context: "Khuyến nghị chủ động để kiểm thử.", plannedQuantity: 1000, completedQuantity: 0, deadline: "2026-09-30", note: "Chờ xác nhận", status: "pending" }) });
+    assert.equal(response.status, 201, "admin phải tạo được khuyến nghị hành động chủ động");
+    const manualAction = await response.json();
+    assert.match(manualAction.action.id, /^manual:/);
+    assert.equal(manualAction.action.ticker, "VNM");
+    response = await request(`/api/actions/${encodeURIComponent(manualAction.action.id)}`, { method: "PATCH", ...common, body: JSON.stringify({ ticker: "VNM", action: "TĂNG TỶ TRỌNG", sector: "Tiêu dùng", price: 62.5, zone: "60 – 63", context: "Đã điều chỉnh luận điểm.", plannedQuantity: 1000, completedQuantity: 200, deadline: "2026-09-30", note: "Đã giải ngân một phần", status: "waiting" }) });
+    assert.equal(response.status, 200, "admin phải cập nhật được khuyến nghị chủ động");
+    assert.equal((await response.json()).state.action, "TĂNG TỶ TRỌNG");
+    response = await request(`/api/actions/${encodeURIComponent(manualAction.action.id)}`, { method: "DELETE", ...common });
+    assert.equal(response.status, 200, "admin phải xóa được khuyến nghị chủ động");
     response = await request("/api/signals/signal%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "watch" }) });
     assert.equal(response.status, 200, "admin phải cập nhật được trạng thái signal");
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "not-a-status" }) });
