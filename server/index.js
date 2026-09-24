@@ -269,10 +269,10 @@ function publicWorkspaceState(user) {
 
 function normalizePermissionOverrides(raw, role) {
   if (raw == null) return {};
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Quyền theo module không hợp lệ");
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Quyền theo phân hệ không hợp lệ");
   const normalized = {};
   for (const [module, value] of Object.entries(raw)) {
-    if (!MODULE_SET.has(module) || !value || typeof value !== "object" || Array.isArray(value)) throw new Error("Module phân quyền không hợp lệ");
+    if (!MODULE_SET.has(module) || !value || typeof value !== "object" || Array.isArray(value)) throw new Error("Phân hệ phân quyền không hợp lệ");
     const permission = {};
     for (const action of ["view", "edit"]) {
       if (Object.hasOwn(value, action)) {
@@ -761,9 +761,9 @@ function startPipeline(args, reason) {
     child.stderr.on("data", onData);
     child.on("error", (error) => finish(new Error(`Không chạy được ${PYTHON}: ${error.message}`)));
     child.on("close", (code, signal) => {
-      if (timedOut) return finish(new Error(`Pipeline quá thời gian cho phép (${Math.round(PIPELINE_TIMEOUT_MS / 60000)} phút)`));
+      if (timedOut) return finish(new Error(`Quy trình dữ liệu quá thời gian cho phép (${Math.round(PIPELINE_TIMEOUT_MS / 60000)} phút)`));
       if (code === 0) return finish(null, tail);
-      return finish(new Error(`Pipeline lỗi (mã ${code ?? signal ?? "không rõ"}). Xem ${logFile}\n${tail.slice(-500)}`));
+      return finish(new Error(`Quy trình dữ liệu lỗi (mã ${code ?? signal ?? "không rõ"}). Xem ${logFile}\n${tail.slice(-500)}`));
     });
   });
   running = job.then(
@@ -775,7 +775,7 @@ function startPipeline(args, reason) {
     (error) => {
       pipelineState = { ...pipelineState, status: "error", finishedAt: new Date().toISOString(), error: error.message };
       audit(null, "pipeline.complete", { reason, status: "error", error: error.message.slice(0, 300) });
-      queuePush({ preference: "pipeline", module: "admin", title: "Calida · Pipeline lỗi", body: `Không hoàn tất: ${reason}. Mở Quản trị để xem nhật ký.`, url: "/#admin", tag: "calida-pipeline-error" });
+      queuePush({ preference: "pipeline", module: "admin", title: "Calida · Quy trình dữ liệu lỗi", body: `Không hoàn tất: ${reason}. Mở Quản trị để xem nhật ký.`, url: "/#admin", tag: "calida-pipeline-error" });
       throw error;
     },
   ).finally(() => { running = null; });
@@ -882,7 +882,7 @@ function updateWorkspaceStatus(req, collection) {
   writeWorkspaceState(state);
   audit(req, `${collection.slice(0, -1)}.status`, { id, status });
   if (collection === "signals" && status === "new" && previous !== "new") {
-    queuePush({ preference: "signals", module: "signals", title: "Calida · Signal mới", body: `Có signal mới cho ${id.split(":")[1]}.`, url: "/#signals", tag: `calida-${id}` });
+    queuePush({ preference: "signals", module: "signals", title: "Calida · Tín hiệu mới", body: `Có tín hiệu mới cho ${id.split(":")[1]}.`, url: "/#signals", tag: `calida-${id}` });
   }
   return { state: state[collection][id] };
 }
@@ -896,17 +896,17 @@ function actionQuantity(value) {
 function updateActionDetails(req) {
   const id = String(req.params.id || "");
   const body = req.body || {};
-  if (!WORKSPACE_ID.test(id) || !id.startsWith("portfolio:")) return { error: "Action không hợp lệ" };
-  if (body.status !== undefined && !WORKSPACE_STATUS.actions.has(String(body.status))) return { error: "Trạng thái action không hợp lệ" };
+  if (!WORKSPACE_ID.test(id) || !id.startsWith("portfolio:")) return { error: "Hành động không hợp lệ" };
+  if (body.status !== undefined && !WORKSPACE_STATUS.actions.has(String(body.status))) return { error: "Trạng thái hành động không hợp lệ" };
   let plannedQuantity;
   let completedQuantity;
   try {
     plannedQuantity = actionQuantity(body.plannedQuantity);
     completedQuantity = actionQuantity(body.completedQuantity);
   } catch (error) { return { error: error.message }; }
-  if (plannedQuantity !== null && completedQuantity !== null && completedQuantity > plannedQuantity) return { error: "Khối lượng đã thực hiện không thể lớn hơn khối lượng action" };
+  if (plannedQuantity !== null && completedQuantity !== null && completedQuantity > plannedQuantity) return { error: "Khối lượng đã thực hiện không thể lớn hơn khối lượng hành động" };
   const deadline = body.deadline == null || body.deadline === "" ? null : String(body.deadline);
-  if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return { error: "Deadline phải theo định dạng YYYY-MM-DD" };
+  if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return { error: "Hạn xử lý phải theo định dạng YYYY-MM-DD" };
   const note = body.note == null ? "" : String(body.note).trim();
   if (note.length > 300) return { error: "Ghi chú không được quá 300 ký tự" };
   const state = readWorkspaceState();
@@ -924,7 +924,7 @@ function updateActionDetails(req) {
   writeWorkspaceState(state);
   audit(req, "action.update", { id, status: state.actions[id].status, plannedQuantity, completedQuantity, deadline });
   if (state.actions[id].status === "pending" && previous.status !== "pending") {
-    queuePush({ preference: "actions", module: "actions", title: "Calida · Action cần xử lý", body: `${id.split(":")[1]} đang chờ xử lý${deadline ? ` trước ${deadline}` : ""}.`, url: "/#actions", tag: `calida-${id}` });
+    queuePush({ preference: "actions", module: "actions", title: "Calida · Hành động cần xử lý", body: `${id.split(":")[1]} đang chờ xử lý${deadline ? ` trước ${deadline}` : ""}.`, url: "/#actions", tag: `calida-${id}` });
   }
   return { state: state.actions[id] };
 }

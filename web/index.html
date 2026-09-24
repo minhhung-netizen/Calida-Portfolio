@@ -283,12 +283,12 @@ function notify(message, type="ok"){
 }
 function dataState(){
   const raw=DATA?.asOf;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw||"")) return {text:"Chưa rõ ngày dữ liệu",className:"bg-warn",title:"Dashboard chưa có ngày dữ liệu hợp lệ"};
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw||"")) return {text:"Chưa rõ ngày dữ liệu",className:"bg-warn",title:"Bảng điều hành chưa có ngày dữ liệu hợp lệ"};
   const asOf=new Date(`${raw}T00:00:00`), today=new Date(); today.setHours(0,0,0,0);
   const age=Math.max(0,Math.floor((today-asOf)/864e5));
   const quality=DATA.meta?.quality?.status;
-  if(quality && quality!=="ok") return {text:`Dữ liệu ${fmtD(raw)} · cần rà soát`,className:"bg-warn",title:"Pipeline có cảnh báo chất lượng dữ liệu"};
-  return {text:age>2?`Dữ liệu ${fmtD(raw)} · ${age} ngày trước`:`Dữ liệu đến ${fmtD(raw)}`,className:age>2?"bg-warn":"bg-up",title:`Dashboard tạo lúc ${DATA.meta?.generatedAt||"không rõ"}`};
+  if(quality && quality!=="ok") return {text:`Dữ liệu ${fmtD(raw)} · cần rà soát`,className:"bg-warn",title:"Quy trình dữ liệu có cảnh báo chất lượng"};
+  return {text:age>2?`Dữ liệu ${fmtD(raw)} · ${age} ngày trước`:`Dữ liệu đến ${fmtD(raw)}`,className:age>2?"bg-warn":"bg-up",title:`Bảng điều hành tạo lúc ${DATA.meta?.generatedAt||"không rõ"}`};
 }
 function freshnessValue(id){ return DATA?.meta?.freshness?.find(item=>item.id===id)?.value||null; }
 function sectionStamp(id, label="Dữ liệu"){
@@ -336,14 +336,14 @@ function openNotificationDialog(){
     :!PUSH_CONFIG.available?"Máy chủ chưa có VAPID keys. Quản trị viên cần cấu hình Railway trước khi có thể bật thông báo."
     :permission==="denied"?"Quyền thông báo đang bị chặn. Hãy bật lại trong Cài đặt thông báo của iPhone hoặc trình duyệt."
     :!isInstalledPwa()?"Trên iPhone, hãy chọn Chia sẻ → Thêm vào Màn hình chính, sau đó mở Calida từ biểu tượng ứng dụng để bật thông báo."
-    :PUSH_DEVICE_SUBSCRIBED?"Thiết bị này đang nhận thông báo theo các lựa chọn bên dưới.":"Bật thông báo để nhận Signal mới, Action cần xử lý và cảnh báo pipeline theo quyền tài khoản của bạn.";
+    :PUSH_DEVICE_SUBSCRIBED?"Thiết bị này đang nhận thông báo theo các lựa chọn bên dưới.":"Bật thông báo để nhận tín hiệu mới, hành động cần xử lý và cảnh báo quy trình dữ liệu theo quyền tài khoản của bạn.";
   const unavailable=!supported||!PUSH_CONFIG.available||permission==="denied";
   body.innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Thông báo</h2><button class="icon-btn" id="notificationClose" aria-label="Đóng cài đặt thông báo">✕</button></div>
     <p class="muted" style="margin:6px 0 14px">${esc(status)}</p>
     <fieldset ${unavailable?"disabled":""} style="border:0;padding:0;margin:0"><legend style="font-size:14px;font-weight:600;margin-bottom:8px">Nhận thông báo khi</legend>
-      ${[["signals","Signal mới"],["actions","Action cần xử lý"],["pipeline","Pipeline lỗi (chỉ tài khoản có quyền Quản trị)"]].map(([key,label])=>`<label class="row" style="padding:8px 0;align-items:flex-start"><input type="checkbox" data-push-pref="${key}" ${pref[key]!==false?"checked":""} style="width:18px;height:18px;margin:1px 2px 0 0;accent-color:var(--brand)"><span>${esc(label)}</span></label>`).join("")}
+      ${[["signals","Tín hiệu mới"],["actions","Hành động cần xử lý"],["pipeline","Quy trình dữ liệu lỗi (chỉ tài khoản có quyền Quản trị)"]].map(([key,label])=>`<label class="row" style="padding:8px 0;align-items:flex-start"><input type="checkbox" data-push-pref="${key}" ${pref[key]!==false?"checked":""} style="width:18px;height:18px;margin:1px 2px 0 0;accent-color:var(--brand)"><span>${esc(label)}</span></label>`).join("")}
     </fieldset>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">Thông báo chỉ gửi cho module bạn được phép xem. Bạn có thể tắt bất kỳ lúc nào trên thiết bị này.</p>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Thông báo chỉ gửi cho phân hệ bạn được phép xem. Bạn có thể tắt bất kỳ lúc nào trên thiết bị này.</p>
     <div class="row" style="margin-top:16px;justify-content:flex-end;flex-wrap:wrap"><button class="btn ghost" id="testNotification" ${unavailable||!PUSH_DEVICE_SUBSCRIBED?"disabled":""}>Gửi thử</button>${PUSH_DEVICE_SUBSCRIBED?`<button class="btn ghost" id="disableNotifications" ${unavailable?"disabled":""}>Tắt trên thiết bị này</button>`:""}<button class="btn" id="enableNotifications" ${unavailable?"disabled":""}>${PUSH_DEVICE_SUBSCRIBED?"Lưu lựa chọn":"Bật thông báo"}</button></div>`;
   $("#notificationDlg").showModal();
 }
@@ -423,9 +423,9 @@ const statusTag = s => {
 };
 
 /* ============ computed: portfolio signals ============
-   Rule theo hệ thống Portfolio Automation:
+   Quy tắc theo hệ thống danh mục:
    - Về vùng mua: Low trong [vùng mua thấp, vùng mua cao]
-   - Đạt target: giá ≥ target
+   - Đạt mục tiêu: giá ≥ giá mục tiêu
    - Cần xử lý: giá ≤ vùng vi phạm
    - Sát vùng vi phạm: giá ≤ vùng vi phạm × 1,03 */
 function signals(p){
@@ -484,8 +484,8 @@ const PAGES=[
   {id:"flows",label:"Dòng tiền",icon:"flow"},
   {id:"funds",label:"Quỹ đầu tư",icon:"fund"},
   {id:"reports",label:"Báo cáo CTCK",icon:"rep"},
-  {id:"actions",label:"Action Desk",icon:"desk"},
-  {id:"signals",label:"Signal Center",icon:"bolt"},
+  {id:"actions",label:"Khuyến nghị hành động",icon:"desk"},
+  {id:"signals",label:"Trung tâm tín hiệu",icon:"bolt"},
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
@@ -547,7 +547,7 @@ function pgOverview(){
     <div class="card kpi"><div class="badge bg-brand">${svg("trend")}</div><div style="flex:1"><div class="l">VN-Index</div><div class="v">${nf(m.index,2)}</div><div class="${cls(m.chg)}">${sgn(m.chg,2)} (${sgn(m.pct,2,"%")})</div></div><div style="width:90px">${spark(m.spark,90,44)}</div></div>
     <div class="card kpi"><div class="badge bg-down">${svg("flow")}</div><div><div class="l">Khối ngoại</div><div class="v ${cls(fl["Khối ngoại"])}">${sgn(fl["Khối ngoại"])} tỷ</div><div class="l">${fl["Khối ngoại"]==null?"Chưa có dữ liệu":`${fl["Khối ngoại"]<0?"Bán":fl["Khối ngoại"]>0?"Mua":"Cân bằng"} ròng ${flowLabel||"phiên gần nhất"}`}</div></div></div>
     <div class="card kpi"><div class="badge bg-up">${svg("trend")}</div><div><div class="l">Hiệu suất danh mục</div><div class="v ${cls(DATA.portfolio.ytd)}">${sgn(DATA.portfolio.ytd,1,"%")}</div><div class="l">Từ đầu năm</div></div></div>
-    <div class="card kpi"><div class="badge bg-brand">${svg("rep")}</div><div><div class="l">Đồng thuận CTCK (30 ngày)</div><div class="v">${nf(agg.vnMed)}</div><div class="l">Target VN-Index trung vị · ${agg.brokers.length} CTCK</div></div></div>
+    <div class="card kpi"><div class="badge bg-brand">${svg("rep")}</div><div><div class="l">Đồng thuận CTCK (30 ngày)</div><div class="v">${nf(agg.vnMed)}</div><div class="l">Mục tiêu VN-Index trung vị · ${agg.brokers.length} CTCK</div></div></div>
   </div>`;
   const view = STATE.ovTab==="Hôm nay" ? `
       <h3 style="margin:4px 0">Nhận định thị trường</h3><p class="prose" style="margin-top:4px">${esc(m.today)}</p>
@@ -636,16 +636,16 @@ function pgPortfolio(){
   } else if(!P.positions?.length){
     body=`<div class="card" style="margin-top:14px">${head("brief","Danh mục hiện tại")}<div class="empty">Chưa có vị thế nào để hiển thị. Hãy đồng bộ hoặc bổ sung dữ liệu danh mục.</div></div>`;
   } else {
-    const table=`<div class="card">${head("brief","Danh mục hiện tại")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th>Ngành</th><th>Trạng thái</th><th class="num">Giá hiện tại</th><th>Vùng mua</th><th class="num">Target</th><th class="num">Vi phạm</th><th class="num">Hiệu suất</th><th>Cảnh báo</th></tr></thead><tbody>
+    const table=`<div class="card">${head("brief","Danh mục hiện tại")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th>Ngành</th><th>Trạng thái</th><th class="num">Giá hiện tại</th><th>Vùng mua</th><th class="num">Mục tiêu</th><th class="num">Vi phạm</th><th class="num">Hiệu suất</th><th>Cảnh báo</th></tr></thead><tbody>
       ${P.positions.map(p=>{const pf=perf(p), sg=signals(p); return `<tr class="click ${STATE.pfSel===p.t?"sel":""}" data-pfsel="${esc(p.t)}" tabindex="0"><td class="t">${esc(p.t)}</td><td>${esc(p.sector)}</td><td>${statusTag(p.status)}</td><td class="num">${p.price==null?'<span class="muted" title="Chưa có giá trong PRICES">—</span>':nf(p.price,1)}</td><td>${range(p.buy)}</td><td class="num">${nf(p.target,1)}</td><td class="num">${nf(p.stop,1)}</td><td class="num ${cls(pf)}">${pf==null?"—":sgn(pf,1,"%")}</td><td>${sg.map(s=>`<span class="tag ${s==="Cần xử lý"?"bg-down":s==="Sát vùng vi phạm"?"bg-warn":"bg-up"}">${esc(s)}</span>`).join(" ")||'<span class="muted">—</span>'}</td></tr>`}).join("")}</tbody></table></div></div>`;
     const selected=P.positions.find(p=>p.t===STATE.pfSel)||P.positions[0];
     const sel={...selected,t:esc(selected.t)}, pf=perf(selected);
     const brokerCalls=repAgg(DATA.reports).stocks.find(s=>s.t===selected.t);
-    const detailBody = STATE.pfDetailTab==="Tổng quan" ? `<dl><dt>Giá hiện tại</dt><dd>${nf(sel.price,1)} <span class="${cls(sel.chg)}">${sgn(sel.chg,1)}</span></dd><dt>Danh mục</dt><dd>${esc(sel.book||"—")}</dd><dt>Ngày khuyến nghị</dt><dd>${sel.recDate}</dd><dt>Giá vốn</dt><dd>${nf(sel.cost,2)}</dd><dt>Vùng mua</dt><dd>${range(sel.buy)}</dd><dt>Target</dt><dd>${nf(sel.target,1)}</dd><dt>Vùng vi phạm</dt><dd>${nf(sel.stop,1)}</dd><dt>Hiệu suất</dt><dd class="${cls(pf)}">${pf==null?"Chưa mua":sgn(pf,1,"%")}</dd></dl>`
+    const detailBody = STATE.pfDetailTab==="Tổng quan" ? `<dl><dt>Giá hiện tại</dt><dd>${nf(sel.price,1)} <span class="${cls(sel.chg)}">${sgn(sel.chg,1)}</span></dd><dt>Danh mục</dt><dd>${esc(sel.book||"—")}</dd><dt>Ngày khuyến nghị</dt><dd>${sel.recDate}</dd><dt>Giá vốn</dt><dd>${nf(sel.cost,2)}</dd><dt>Vùng mua</dt><dd>${range(sel.buy)}</dd><dt>Mục tiêu</dt><dd>${nf(sel.target,1)}</dd><dt>Vùng vi phạm</dt><dd>${nf(sel.stop,1)}</dd><dt>Hiệu suất</dt><dd class="${cls(pf)}">${pf==null?"Chưa mua":sgn(pf,1,"%")}</dd></dl>`
       : STATE.pfDetailTab==="Luận điểm" ? `<p class="prose" style="margin:0">${esc(sel.thesis)}</p>`
-      : brokerCalls ? `<table><thead><tr><th>CTCK</th><th>KN</th><th class="num">Target</th></tr></thead><tbody>${Object.entries(brokerCalls.calls).map(([b,c])=>`<tr><td>${esc(b)}</td><td>${statusTag(c.rec)}</td><td class="num">${nf(c.target,1)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Chưa có báo cáo CTCK nào nhắc tới ${sel.t}.</div>`;
+      : brokerCalls ? `<table><thead><tr><th>CTCK</th><th>KN</th><th class="num">Mục tiêu</th></tr></thead><tbody>${Object.entries(brokerCalls.calls).map(([b,c])=>`<tr><td>${esc(b)}</td><td>${statusTag(c.rec)}</td><td class="num">${nf(c.target,1)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Chưa có báo cáo CTCK nào nhắc tới ${sel.t}.</div>`;
     const detail=`<div class="card detail">${head("doc",`${sel.t} <span class="muted" style="font-weight:400;font-size:13px">${esc(sel.name)}</span>`)}
-      <div class="seg">${["Tổng quan","Luận điểm","View CTCK"].map(t=>`<button data-pfdt="${t}" aria-selected="${STATE.pfDetailTab===t}">${t}</button>`).join("")}</div>${detailBody}</div>`;
+      <div class="seg">${["Tổng quan","Luận điểm","Quan điểm CTCK"].map(t=>`<button data-pfdt="${t}" aria-selected="${STATE.pfDetailTab===t}">${t}</button>`).join("")}</div>${detailBody}</div>`;
     const sectors=Object.entries(st.bySector).sort((a,b)=>b[1]-a[1]); const tot=sectors.reduce((s,x)=>s+x[1],0);
     const side=`<div class="grid">
       <div class="card">${head("target","Hành động trong ngày")}${actionTable(P.today)}</div>
@@ -753,12 +753,12 @@ function pgReports(){
   const kpis=`<div class="grid cols-auto-200">
     ${kpiCard("rep","bg-brand",list.length,"báo cáo trong kỳ")}
     ${kpiCard("users","bg-brand",A.brokers.length,"công ty chứng khoán")}
-    ${kpiCard("target","bg-up",nf(A.vnMed),`Target VN-Index trung vị (${nf(A.vnMin)} – ${nf(A.vnMax)})`)}
+    ${kpiCard("target","bg-up",nf(A.vnMed),`Mục tiêu VN-Index trung vị (${nf(A.vnMin)} – ${nf(A.vnMax)})`)}
     ${kpiCard("alert","bg-down",A.risks.filter(r=>r.sev===3).length,`rủi ro mức cao / ${A.risks.length} chủ đề`,"down")}
     <div class="card"><div class="l muted" style="font-size:13px">Quan điểm mới nhất của từng CTCK</div>
       <div class="stack" style="margin:10px 0 8px;height:14px">${Object.entries(A.stanceCnt).map(([k,v])=>`<i style="width:${v/stanceTot*100}%;background:${stanceCol[k]}" title="${k}: ${v}"></i>`).join("")}</div>
       <div style="font-size:12px" class="muted">${Object.entries(A.stanceCnt).filter(([,v])=>v).map(([k,v])=>`<span style="color:${stanceCol[k]}">●</span> ${k} ${v}`).join("  ")}</div></div></div>`;
-  const brokerTbl=`<div class="card">${head("users","View theo công ty chứng khoán")}<div class="tbl-wrap"><table><thead><tr><th>CTCK</th><th class="num">Số BC</th><th>Quan điểm</th><th class="num">Target VN-Index</th><th class="num">vs hiện tại</th><th>Ngành ưu tiên</th><th>Báo cáo mới nhất</th></tr></thead><tbody>
+  const brokerTbl=`<div class="card">${head("users","Quan điểm theo công ty chứng khoán")}<div class="tbl-wrap"><table><thead><tr><th>CTCK</th><th class="num">Số BC</th><th>Quan điểm</th><th class="num">Mục tiêu VN-Index</th><th class="num">so với hiện tại</th><th>Ngành ưu tiên</th><th>Báo cáo mới nhất</th></tr></thead><tbody>
     ${A.brokers.map(b=>{const up=b.target?(b.target/DATA.market.index-1)*100:null; return `<tr class="click" data-rsel="${esc(b.latest.id)}"><td class="t">${esc(b.broker)}</td><td class="num">${b.n}</td><td>${statusTag(b.latest.stance)}</td><td class="num">${nf(b.target)}</td><td class="num ${cls(up)}">${up==null?"—":sgn(up,1,"%")}</td><td style="white-space:normal;min-width:160px">${esc([...b.ow].slice(0,3).join(", "))||"—"}</td><td style="white-space:normal;min-width:180px">${esc(b.latest.title)}<div class="muted" style="font-size:12px">${fmtD(b.latest.date)}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="empty">Không có báo cáo trong bộ lọc này.</td></tr>`}</tbody></table></div></div>`;
   const secRows=Object.entries(A.sectors).map(([s,o])=>({s,ow:o.ow.size,uw:o.uw.size,net:o.ow.size-o.uw.size,owB:[...o.ow],uwB:[...o.uw]})).sort((a,b)=>b.net-a.net||b.ow-a.ow);
   const maxS=Math.max(1,...secRows.map(r=>r.ow+r.uw));
@@ -769,9 +769,9 @@ function pgReports(){
     <p class="muted" style="font-size:12px;margin:8px 0 0">Số CTCK khuyến nghị tăng tỷ trọng / giảm tỷ trọng. Rê chuột để xem tên CTCK.</p></div>`;
   const stockRows=A.stocks.map(s=>{const c=Object.values(s.calls), buy=c.filter(x=>["MUA","KHẢ QUAN"].includes(x.rec)).length, tg=c.map(x=>x.target).filter(Boolean), avg=tg.reduce((a,b)=>a+b,0)/tg.length, px=priceOf(s.t);
     return {...s,n:c.length,buy,avg,min:Math.min(...tg),max:Math.max(...tg),px,up:px?(avg/px-1)*100:null,inPf:!!px};}).sort((a,b)=>b.n-a.n||b.buy-a.buy);
-  const stockCard=`<div class="card">${head("trend","Đồng thuận cổ phiếu")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Số CTCK</th><th class="num">Mua / Khả quan</th><th class="num">Target TB</th><th class="num">Upside</th><th>Calida</th></tr></thead><tbody>
+  const stockCard=`<div class="card">${head("trend","Đồng thuận cổ phiếu")}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Số CTCK</th><th class="num">Mua / Khả quan</th><th class="num">Mục tiêu TB</th><th class="num">Tiềm năng tăng</th><th>Calida</th></tr></thead><tbody>
     ${stockRows.map(s=>`<tr title="${esc(Object.entries(s.calls).map(([b,c])=>`${b}: ${c.rec} ${c.target}`).join(" | "))}"><td class="t">${esc(s.t)}</td><td class="num">${s.n}</td><td class="num">${s.buy}/${s.n}</td><td class="num">${nf(s.avg,1)}${s.n>1?`<div class="muted" style="font-size:11px">${nf(s.min,1)} – ${nf(s.max,1)}</div>`:""}</td><td class="num ${cls(s.up)}">${s.up==null?"—":sgn(s.up,1,"%")}</td><td>${s.inPf?'<span class="tag bg-brand">Có</span>':'<span class="muted">—</span>'}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">Chưa có khuyến nghị cổ phiếu.</td></tr>`}</tbody></table></div>
-    <p class="muted" style="font-size:12px;margin:8px 0 0">Mỗi CTCK chỉ lấy khuyến nghị mới nhất. Upside tính với giá hiện tại trong danh mục Calida.</p></div>`;
+    <p class="muted" style="font-size:12px;margin:8px 0 0">Mỗi CTCK chỉ lấy khuyến nghị mới nhất. Tiềm năng tăng được tính với giá hiện tại trong danh mục Calida.</p></div>`;
   const sevTag=s=>s===3?'<span class="tag bg-down">Cao</span>':s===2?'<span class="tag bg-warn">Trung bình</span>':'<span class="tag bg-neutral">Thấp</span>';
   const riskCard=`<div class="card">${head("shield","Tổng hợp rủi ro")}<div class="tbl-wrap"><table><thead><tr><th>Chủ đề rủi ro</th><th>Mức cao nhất</th><th class="num">Số lần nhắc</th><th>CTCK cảnh báo</th></tr></thead><tbody>
     ${A.risks.map(r=>`<tr><td><b>${esc(r.k)}</b></td><td>${sevTag(r.sev)}</td><td class="num">${r.n}</td><td style="white-space:normal;min-width:180px" class="muted">${esc([...r.brokers].join(", "))}</td></tr>`).join("")||`<tr><td colspan="4" class="empty">Chưa có rủi ro nào được ghi nhận.</td></tr>`}</tbody></table></div>
@@ -783,7 +783,7 @@ function pgReports(){
   const chatCard=canWrite?`<div class="card">${head("chat","Hỏi đáp báo cáo")}
     <div class="chat"><div class="msgs" id="msgs" aria-live="polite"></div>
       <div class="suggest" id="suggest"></div>
-      <div class="composer"><textarea id="chatIn" placeholder="Hỏi về view, target, rủi ro của các CTCK…" aria-label="Câu hỏi">${esc(STATE.chatDraft)}</textarea><button class="btn" id="chatSend">Gửi</button></div>
+      <div class="composer"><textarea id="chatIn" placeholder="Hỏi về quan điểm, mục tiêu, rủi ro của các CTCK…" aria-label="Câu hỏi">${esc(STATE.chatDraft)}</textarea><button class="btn" id="chatSend">Gửi</button></div>
       <div class="muted" style="font-size:11.5px;margin-top:6px">Trả lời chỉ dựa trên thư viện báo cáo, có dẫn nguồn CTCK và ngày.</div></div></div>`
     : `<div class="card">${head("chat","Hỏi đáp báo cáo")}<div class="empty">Tài khoản này chỉ có quyền xem dữ liệu.</div></div>`;
   const sectionTabs=`<div class="tabs section-tabs" role="tablist" aria-label="Nội dung báo cáo">${["Tổng hợp","Thư viện","Hỏi đáp"].map(t=>`<button role="tab" data-reptab="${t}" aria-selected="${STATE.repTab===t}">${t}</button>`).join("")}</div>`;
@@ -797,7 +797,7 @@ const fmtD=d=>{const [y,m,dd]=d.split("-");return `${dd}/${m}/${y}`;};
 function repDetail(r){
   const actions=canEdit("reports")?`<button class="link" data-edit-rep="${esc(r.id)}">Chỉnh sửa</button><button class="link actions-danger" data-delete-rep="${esc(r.id)}">Xóa</button>`:"";
   return `<div class="box" style="margin-bottom:12px"><div class="row"><b style="flex:1">${esc(r.title)}</b>${statusTag(r.stance)}${actions}<button class="icon-btn" data-rsel="" aria-label="Đóng">✕</button></div>
-    <div class="muted" style="font-size:12.5px">${esc(r.broker)} · ${fmtD(r.date)} · ${esc(r.type)} · Tầm nhìn ${esc(r.horizon||"—")}${r.vnTarget?` · Target VN-Index ${nf(r.vnTarget)}`:""}</div>
+    <div class="muted" style="font-size:12.5px">${esc(r.broker)} · ${fmtD(r.date)} · ${esc(r.type)} · Tầm nhìn ${esc(r.horizon||"—")}${r.vnTarget?` · Mục tiêu VN-Index ${nf(r.vnTarget)}`:""}</div>
     <p class="prose" style="margin-top:8px">${esc(r.summary)}</p>
     <div class="label-sm">Tăng tỷ trọng ${r.ow.map(s=>`<span class="chip" style="margin:0">${esc(s)}</span>`).join("")||"—"}</div>
     ${r.uw.length?`<div class="label-sm">Giảm tỷ trọng ${r.uw.map(s=>`<span class="chip risk" style="margin:0">${esc(s)}</span>`).join("")}</div>`:""}
@@ -805,8 +805,8 @@ function repDetail(r){
     <div class="label-sm">Rủi ro ${r.risks.map(k=>`<span class="chip risk" style="margin:0">${esc(k.k)}</span>`).join("")}</div></div>`;
 }
 
-/* ============ Action Desk + Signal Center ============
-   Không tạo thêm dữ liệu thị trường: action lấy từ portfolio.today, signal
+/* ============ Khuyến nghị hành động + Trung tâm tín hiệu ============
+   Không tạo thêm dữ liệu thị trường: hành động lấy từ portfolio.today, tín hiệu
    tổng hợp từ danh mục và các báo cáo CTCK hiện có. Trạng thái thao tác được
    lưu qua API riêng và tuân theo quyền từng module. */
 const workspace = () => DATA.workspace || {actions:{},signals:{}};
@@ -867,11 +867,11 @@ function openActionDialog(id){
   const row=actionRows().find(item=>item.id===id);
   if(!row||!canEdit("actions")) return;
   const options=Object.entries(actionStatus).map(([value,item])=>`<option value="${value}" ${row.status===value?"selected":""}>${item.label}</option>`).join("");
-  $("#actionBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Cập nhật action ${esc(row.t)}</h2><button class="icon-btn" id="actionDlgClose" aria-label="Đóng">✕</button></div>
+  $("#actionBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Cập nhật hành động ${esc(row.t)}</h2><button class="icon-btn" id="actionDlgClose" aria-label="Đóng">✕</button></div>
     <p class="muted" style="margin:4px 0 12px">${esc(row.action)} · ${esc(row.sector)} · ${esc(row.sourceDetail)}</p>
     <div class="box" style="margin-bottom:14px"><b>${esc(row.context)}</b><div class="muted" style="font-size:12px;margin-top:4px">Vùng giá: ${esc(row.zone)} · Giá hiện tại: ${nf(row.price,2)}</div></div>
-    <div class="fgrid"><label>Trạng thái<select id="actionStatus">${options}</select></label><label>Deadline<input id="actionDeadline" type="date" value="${esc(row.deadline||"")}"></label>
-      <label>Khối lượng action<input id="actionPlanned" type="number" inputmode="numeric" min="0" step="1" value="${row.plannedQuantity??""}" placeholder="Ví dụ: 20000"></label>
+    <div class="fgrid"><label>Trạng thái<select id="actionStatus">${options}</select></label><label>Hạn xử lý<input id="actionDeadline" type="date" value="${esc(row.deadline||"")}"></label>
+      <label>Khối lượng hành động<input id="actionPlanned" type="number" inputmode="numeric" min="0" step="1" value="${row.plannedQuantity??""}" placeholder="Ví dụ: 20000"></label>
       <label>Đã thực hiện<input id="actionCompleted" type="number" inputmode="numeric" min="0" step="1" value="${row.completedQuantity??""}" placeholder="Ví dụ: 5000"></label>
       <label style="grid-column:1/-1">Ghi chú tiến độ<textarea id="actionNote" maxlength="300" placeholder="Thông tin thực hiện, lý do chờ…">${esc(row.note)}</textarea></label></div>
     <p class="muted" style="font-size:12px;margin:10px 0 0">Khối lượng và deadline là dữ liệu vận hành do người dùng khai báo; hệ thống không tự suy đoán từ giá thị trường.</p>
@@ -886,9 +886,9 @@ async function saveActionDetails(id){
     return number;
   };
   let planned, completed;
-  try { planned=parseQuantity($("#actionPlanned").value,"Khối lượng action"); completed=parseQuantity($("#actionCompleted").value,"Khối lượng đã thực hiện"); }
+  try { planned=parseQuantity($("#actionPlanned").value,"Khối lượng hành động"); completed=parseQuantity($("#actionCompleted").value,"Khối lượng đã thực hiện"); }
   catch(error){status.textContent=error.message;return;}
-  if(planned!==null&&completed!==null&&completed>planned){status.textContent="Khối lượng đã thực hiện không thể lớn hơn khối lượng action.";return;}
+  if(planned!==null&&completed!==null&&completed>planned){status.textContent="Khối lượng đã thực hiện không thể lớn hơn khối lượng hành động.";return;}
   const button=$("#saveAction"); button.disabled=true; status.textContent="Đang lưu…";
   try{
     const state=await api(`/api/actions/${encodeURIComponent(id)}`,{status:$("#actionStatus").value,plannedQuantity:planned,completedQuantity:completed,deadline:$("#actionDeadline").value||null,note:$("#actionNote").value},"PATCH");
@@ -905,33 +905,33 @@ function pgActions(){
   const freshSignals=signalRows().filter(row=>row.status==="new").slice(0,5);
   const incomplete=all.filter(row=>!["completed","cancelled"].includes(row.status));
   const withoutPlan=incomplete.filter(row=>row.plannedQuantity==null).length;
-  const reminder=withoutPlan?`${withoutPlan} action chưa khai báo khối lượng hoặc deadline.`:incomplete.length?`${incomplete.length} action đang mở cần theo dõi tiến độ.`:"Không còn action mở cần cập nhật.";
-  const filters=`<div class="work-filters"><input id="actionQ" value="${esc(STATE.actionQuery)}" placeholder="Tìm mã, ngữ cảnh hoặc ghi chú" aria-label="Tìm action"><select id="actionSector" aria-label="Lọc action theo ngành"><option value="">Tất cả ngành</option>${sectors.map(sector=>`<option value="${esc(sector)}" ${STATE.actionSector===sector?"selected":""}>${esc(sector)}</option>`).join("")}</select><select id="actionSource" aria-label="Lọc action theo nguồn"><option value="">Tất cả nguồn</option>${sources.map(source=>`<option value="${esc(source)}" ${STATE.actionSource===source?"selected":""}>${esc(source)}</option>`).join("")}</select>${STATE.actionTicker?`<span class="tag bg-brand">Mã: ${esc(STATE.actionTicker)}</span><button class="btn ghost" data-clear-action-filter>Bỏ lọc mã</button>`:""}</div>`;
+  const reminder=withoutPlan?`${withoutPlan} hành động chưa khai báo khối lượng hoặc hạn xử lý.`:incomplete.length?`${incomplete.length} hành động đang mở cần theo dõi tiến độ.`:"Không còn hành động mở cần cập nhật.";
+  const filters=`<div class="work-filters"><input id="actionQ" value="${esc(STATE.actionQuery)}" placeholder="Tìm mã, ngữ cảnh hoặc ghi chú" aria-label="Tìm hành động"><select id="actionSector" aria-label="Lọc hành động theo ngành"><option value="">Tất cả ngành</option>${sectors.map(sector=>`<option value="${esc(sector)}" ${STATE.actionSector===sector?"selected":""}>${esc(sector)}</option>`).join("")}</select><select id="actionSource" aria-label="Lọc hành động theo nguồn"><option value="">Tất cả nguồn</option>${sources.map(source=>`<option value="${esc(source)}" ${STATE.actionSource===source?"selected":""}>${esc(source)}</option>`).join("")}</select>${STATE.actionTicker?`<span class="tag bg-brand">Mã: ${esc(STATE.actionTicker)}</span><button class="btn ghost" data-clear-action-filter>Bỏ lọc mã</button>`:""}</div>`;
   const summary=(tab,icon,colour,value,label,goPage="")=>`<button ${goPage?`data-go="${goPage}"`: `data-actiontab="${tab}"`}><span class="action-kpi"><span class="badge ${colour}">${svg(icon)}</span><span><span class="num">${nf(value)}</span><span class="caption">${label}</span></span></span><span class="link" style="pointer-events:none">›</span></button>`;
-  return `<h1>Action Desk</h1><p class="sub">Theo dõi hành động từ danh mục, khai báo khối lượng và cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
-    <div class="card action-reminder"><div class="row"><div class="action-kpi"><span class="badge bg-warn">${svg("cal")}</span><div><b>Nhắc việc Action Desk</b><div class="muted" style="font-size:12.5px">${esc(reminder)}</div></div></div>${writable&&incomplete.length?`<button class="btn ghost" data-setup-next-action="${incomplete[0].id}">Cập nhật</button>`:""}</div></div>
-    <div class="action-summary">${summary("Cần xử lý","alert","bg-down",count("pending"),"cần xử lý")}${summary("Chờ điều kiện giá","cal","bg-warn",count("waiting"),"chờ điều kiện giá")}${summary("","bolt","bg-brand",freshSignals.length,"signal mới cần xem","signals")}${summary("Hoàn thành","target","bg-up",count("completed"),"hoàn thành")}</div>
-    <div class="action-layout"><div><div class="card">${head("desk","Danh sách action",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tabs section-tabs" role="tablist" aria-label="Trạng thái action">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Action</th><th>Vùng giá</th><th class="num">KL action</th><th>Đã thực hiện</th><th class="num">Còn lại</th><th>Deadline</th><th>Trạng thái</th>${writable?'<th aria-label="Thao tác"></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:190px">${esc(row.context)}${row.note?`<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(row.note)}</div>`:""}<div class="muted" style="font-size:11.5px">${esc(row.source)}</div></td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td class="num">${actionQty(row.plannedQuantity)}</td><td>${actionProgress(row)}</td><td class="num">${actionRemaining(row)}</td><td>${row.deadline?fmtD(row.deadline):'<span class="muted">—</span>'}</td><td>${stateTag(row.status)}</td>${writable?`<td><button class="action-more" data-edit-action="${row.id}" aria-label="Cập nhật action ${esc(row.t)}" title="Cập nhật action">•••</button></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?11:10}" class="work-empty">Không có action phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Action lấy từ “Hành động theo danh mục”. Khối lượng, deadline và tiến độ chỉ thay đổi khi người có quyền cập nhật.</p></div></div>
-      <aside class="action-side" aria-label="Thông tin hỗ trợ Action Desk"><div class="card">${head("bolt",`Signal mới (${freshSignals.length})`,canView("signals")?'<button class="link" data-go="signals">Xem tất cả</button>':"")}<ul class="side-list">${freshSignals.map(signal=>`<li><button class="link" style="margin:0;padding:0" data-open-signal="${signal.t}">${esc(signal.t)}</button>${statusTag(signal.recommendation)}<span class="muted">${esc(signal.evidence)}</span></li>`).join("")||'<li class="muted">Không có signal mới.</li>'}</ul></div>
-      <div class="card">${head("cal","Cần khai báo tiến độ")}<ul class="side-list">${incomplete.map(row=>`<li><div><b>${esc(row.t)}</b><div class="muted">${row.plannedQuantity==null?"Chưa có khối lượng":`${actionRemaining(row)} còn lại`}${row.deadline?` · ${fmtD(row.deadline)}`:""}</div></div>${writable?`<button class="link" data-edit-action="${row.id}">Cập nhật</button>`:""}</li>`).join("")||'<li class="muted">Không có action đang mở.</li>'}</ul></div></aside></div>`;
+  return `<h1>Khuyến nghị hành động</h1><p class="sub">Theo dõi hành động từ danh mục, khai báo khối lượng và cập nhật tiến độ theo quyền được cấp.</p>${sectionStamp("portfolio","Dữ liệu danh mục đến")}
+    <div class="card action-reminder"><div class="row"><div class="action-kpi"><span class="badge bg-warn">${svg("cal")}</span><div><b>Nhắc việc bàn tác nghiệp</b><div class="muted" style="font-size:12.5px">${esc(reminder)}</div></div></div>${writable&&incomplete.length?`<button class="btn ghost" data-setup-next-action="${incomplete[0].id}">Cập nhật</button>`:""}</div></div>
+    <div class="action-summary">${summary("Cần xử lý","alert","bg-down",count("pending"),"cần xử lý")}${summary("Chờ điều kiện giá","cal","bg-warn",count("waiting"),"chờ điều kiện giá")}${summary("","bolt","bg-brand",freshSignals.length,"tín hiệu mới cần xem","signals")}${summary("Hoàn thành","target","bg-up",count("completed"),"hoàn thành")}</div>
+    <div class="action-layout"><div><div class="card">${head("desk","Danh sách hành động",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tabs section-tabs" role="tablist" aria-label="Trạng thái hành động">${tabs.map(tab=>{const status=Object.entries(actionStatus).find(([,v])=>v.label===tab)?.[0];const n=status?count(status):all.length;return `<button role="tab" data-actiontab="${tab}" aria-selected="${STATE.actionTab===tab}">${tab} <span class="muted">(${n})</span></button>`;}).join("")}</div>${filters}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Ngữ cảnh</th><th>Hành động</th><th>Vùng giá</th><th class="num">KL hành động</th><th>Đã thực hiện</th><th class="num">Còn lại</th><th>Hạn xử lý</th><th>Trạng thái</th>${writable?'<th aria-label="Thao tác"></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:190px">${esc(row.context)}${row.note?`<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(row.note)}</div>`:""}<div class="muted" style="font-size:11.5px">${esc(row.source)}</div></td><td>${statusTag(row.action)}</td><td>${esc(row.zone)}</td><td class="num">${actionQty(row.plannedQuantity)}</td><td>${actionProgress(row)}</td><td class="num">${actionRemaining(row)}</td><td>${row.deadline?fmtD(row.deadline):'<span class="muted">—</span>'}</td><td>${stateTag(row.status)}</td>${writable?`<td><button class="action-more" data-edit-action="${row.id}" aria-label="Cập nhật hành động ${esc(row.t)}" title="Cập nhật hành động">•••</button></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?11:10}" class="work-empty">Không có hành động phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Hành động lấy từ “Hành động theo danh mục”. Khối lượng, hạn xử lý và tiến độ chỉ thay đổi khi người có quyền cập nhật.</p></div></div>
+      <aside class="action-side" aria-label="Thông tin hỗ trợ bàn tác nghiệp"><div class="card">${head("bolt",`Tín hiệu mới (${freshSignals.length})`,canView("signals")?'<button class="link" data-go="signals">Xem tất cả</button>':"")}<ul class="side-list">${freshSignals.map(signal=>`<li><button class="link" style="margin:0;padding:0" data-open-signal="${signal.t}">${esc(signal.t)}</button>${statusTag(signal.recommendation)}<span class="muted">${esc(signal.evidence)}</span></li>`).join("")||'<li class="muted">Không có tín hiệu mới.</li>'}</ul></div>
+      <div class="card">${head("cal","Cần khai báo tiến độ")}<ul class="side-list">${incomplete.map(row=>`<li><div><b>${esc(row.t)}</b><div class="muted">${row.plannedQuantity==null?"Chưa có khối lượng":`${actionRemaining(row)} còn lại`}${row.deadline?` · ${fmtD(row.deadline)}`:""}</div></div>${writable?`<button class="link" data-edit-action="${row.id}">Cập nhật</button>`:""}</li>`).join("")||'<li class="muted">Không có hành động đang mở.</li>'}</ul></div></aside></div>`;
 }
 function pgSignals(){
   const all=signalRows(), writable=canEdit("signals"), tabs=["Mới","Theo dõi","Đã bỏ qua"];
   const q=STATE.signalQuery.trim().toUpperCase();
   const rows=all.filter(row=>(STATE.signalTab==="Mới"?row.status==="new":signalStatus[row.status]?.label===STATE.signalTab)&&(!q||[row.t,row.sector,row.evidence,row.recommendation].join(" ").toUpperCase().includes(q)));
   const count=status=>all.filter(row=>row.status===status).length;
-  return `<h1>Signal Center</h1><p class="sub">Đồng thuận được tổng hợp từ danh mục Calida và báo cáo CTCK; signal không phải lệnh giao dịch.</p>${sectionStamp("reports","Báo cáo đến")}
-    <div class="status-flow"><span>Danh mục & báo cáo CTCK</span><b>›</b><span>Đồng thuận theo mã</span><b>›</b><span>Action Desk hoặc theo dõi</span></div>
-    <div class="tabs section-tabs" role="tablist" aria-label="Trạng thái signal">${tabs.map(tab=>{const status=Object.entries(signalStatus).find(([,v])=>v.label===tab)?.[0];return `<button role="tab" data-signaltab="${tab}" aria-selected="${STATE.signalTab===tab}">${tab} <span class="muted">(${count(status)})</span></button>`;}).join("")}</div>
-    <div class="work-filters"><input id="signalQ" value="${esc(STATE.signalQuery)}" placeholder="Tìm mã, ngành hoặc nhận định" aria-label="Tìm signal"></div>
-    <div class="grid cols-auto-220" style="margin-bottom:14px">${kpiCard("bolt","bg-brand",count("new"),"signal mới")}${kpiCard("target","bg-up",all.filter(row=>row.recommendation==="MUA").length,"tín hiệu mua")}${kpiCard("alert","bg-down",all.filter(row=>row.recommendation==="Cần xử lý").length,"cần xem ngay")}${kpiCard("brief","bg-neutral",all.filter(row=>row.hasAction).length,"đã có action liên quan")}</div>
-    <div class="card">${head("bolt","Danh sách signal",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Đồng thuận</th><th>Nguồn</th><th>Độ mạnh</th><th>Trạng thái</th>${writable?'<th></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:220px">${statusTag(row.recommendation)}<div class="muted" style="font-size:12px;margin-top:4px">${esc(row.evidence)}</div></td><td>${esc(row.source)}</td><td>${strength(row.strength)}</td><td>${stateTag(row.status,"signal")}</td>${writable?`<td><div class="work-actions">${row.status!=="watch"?`<button class="btn ghost" data-signal-status="watch" data-work-id="${row.id}">Theo dõi</button>`:""}${row.status!=="dismissed"?`<button class="link" data-signal-status="dismissed" data-work-id="${row.id}">Bỏ qua</button>`:""}${row.hasAction&&canView("actions")?`<button class="link" data-open-action="${row.t}">Mở action</button>`:""}</div></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?7:6}" class="work-empty">Không có signal phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Độ mạnh dựa trên tỷ lệ CTCK Mua/Khả quan hoặc cảnh báo danh mục; không dùng dữ liệu bot mô phỏng.</p></div>`;
+  return `<h1>Trung tâm tín hiệu</h1><p class="sub">Đồng thuận được tổng hợp từ danh mục Calida và báo cáo CTCK; tín hiệu không phải lệnh giao dịch.</p>${sectionStamp("reports","Báo cáo đến")}
+    <div class="status-flow"><span>Danh mục & báo cáo CTCK</span><b>›</b><span>Đồng thuận theo mã</span><b>›</b><span>Khuyến nghị hành động hoặc theo dõi</span></div>
+    <div class="tabs section-tabs" role="tablist" aria-label="Trạng thái tín hiệu">${tabs.map(tab=>{const status=Object.entries(signalStatus).find(([,v])=>v.label===tab)?.[0];return `<button role="tab" data-signaltab="${tab}" aria-selected="${STATE.signalTab===tab}">${tab} <span class="muted">(${count(status)})</span></button>`;}).join("")}</div>
+    <div class="work-filters"><input id="signalQ" value="${esc(STATE.signalQuery)}" placeholder="Tìm mã, ngành hoặc nhận định" aria-label="Tìm tín hiệu"></div>
+    <div class="grid cols-auto-220" style="margin-bottom:14px">${kpiCard("bolt","bg-brand",count("new"),"tín hiệu mới")}${kpiCard("target","bg-up",all.filter(row=>row.recommendation==="MUA").length,"tín hiệu mua")}${kpiCard("alert","bg-down",all.filter(row=>row.recommendation==="Cần xử lý").length,"cần xem ngay")}${kpiCard("brief","bg-neutral",all.filter(row=>row.hasAction).length,"đã có hành động liên quan")}</div>
+    <div class="card">${head("bolt","Danh sách tín hiệu",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Đồng thuận</th><th>Nguồn</th><th>Độ mạnh</th><th>Trạng thái</th>${writable?'<th></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:220px">${statusTag(row.recommendation)}<div class="muted" style="font-size:12px;margin-top:4px">${esc(row.evidence)}</div></td><td>${esc(row.source)}</td><td>${strength(row.strength)}</td><td>${stateTag(row.status,"signal")}</td>${writable?`<td><div class="work-actions">${row.status!=="watch"?`<button class="btn ghost" data-signal-status="watch" data-work-id="${row.id}">Theo dõi</button>`:""}${row.status!=="dismissed"?`<button class="link" data-signal-status="dismissed" data-work-id="${row.id}">Bỏ qua</button>`:""}${row.hasAction&&canView("actions")?`<button class="link" data-open-action="${row.t}">Mở hành động</button>`:""}</div></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?7:6}" class="work-empty">Không có tín hiệu phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Độ mạnh dựa trên tỷ lệ CTCK Mua/Khả quan hoặc cảnh báo danh mục; không dùng dữ liệu bot mô phỏng.</p></div>`;
 }
 
 /* ============ Administration ============ */
 const roleLabel={viewer:"Chỉ xem",analyst:"Phân tích",admin:"Quản trị viên"};
-const rolePermission={viewer:"Xem các module được cấp",analyst:"Xem dữ liệu, dùng AI, thêm báo cáo và cập nhật Action/Signal",admin:"Toàn quyền dữ liệu, pipeline và quản lý tài khoản"};
-const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",actions:"Action Desk",signals:"Signal Center",admin:"Quản trị"};
+const rolePermission={viewer:"Xem các phân hệ được cấp",analyst:"Xem dữ liệu, dùng AI, thêm báo cáo và cập nhật hành động/tín hiệu",admin:"Toàn quyền dữ liệu, quy trình dữ liệu và quản lý tài khoản"};
+const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",actions:"Khuyến nghị hành động",signals:"Trung tâm tín hiệu",admin:"Quản trị"};
 const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||(role==="analyst"&&["reports","actions","signals"].includes(module))} ]));
 function permissionSummary(permissions){
   const rights=Object.entries(permissions||{}).filter(([,p])=>p?.view).map(([module,p])=>{
@@ -942,7 +942,7 @@ function permissionSummary(permissions){
 }
 function permissionMatrix(permissions, role){
   const current=permissions||moduleDefaults(role);
-  return `<div class="tbl-wrap" style="margin-top:14px"><table class="permission-matrix"><thead><tr><th>Module</th><th class="num">Xem</th><th class="num">Chỉnh sửa</th></tr></thead><tbody>${Object.entries(moduleLabel).map(([module,label])=>{
+  return `<div class="tbl-wrap" style="margin-top:14px"><table class="permission-matrix"><thead><tr><th>Phân hệ</th><th class="num">Xem</th><th class="num">Chỉnh sửa</th></tr></thead><tbody>${Object.entries(moduleLabel).map(([module,label])=>{
     const p=current[module]||{view:false,edit:false}, restricted=module==="admin"&&role!=="admin", editable=["reports","actions","signals","admin"].includes(module);
     const note=module==="admin"?'Chỉ dành cho vai trò admin':!editable?'Chưa hỗ trợ chỉnh sửa.':"";
     return `<tr><td><b>${label}</b>${note?`<div class="muted" style="font-size:12px">${note}</div>`:""}</td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="view" ${p.view?"checked":""} ${restricted?"disabled":""} aria-label="Xem ${label}"></label></td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="edit" ${p.edit?"checked":""} ${restricted||!editable?"disabled":""} aria-label="Chỉnh sửa ${label}${!editable?" (chưa hỗ trợ)":""}"></label></td></tr>`;
@@ -961,13 +961,13 @@ function pgAdmin(){
     :!ops?'<div class="empty">Đang tải trạng thái vận hành…</div>'
     :(()=>{const p=ops.pipeline||{}, tag=p.status==="ok"?"bg-up":p.status==="error"?"bg-down":p.status==="running"?"bg-warn":"bg-neutral";
       const quality=ops.quality||{status:"unknown",issues:[]};
-      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","report.update":"Cập nhật báo cáo","report.delete":"Xóa báo cáo","pipeline.queue":"Yêu cầu chạy pipeline","pipeline.complete":"Pipeline hoàn tất"};
+      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","report.update":"Cập nhật báo cáo","report.delete":"Xóa báo cáo","pipeline.queue":"Yêu cầu chạy quy trình dữ liệu","pipeline.complete":"Quy trình dữ liệu hoàn tất"};
       const busy=p.status==="running"||p.queuedJobs>0;
       return `<div class="grid" style="gap:14px"><div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
         <p class="muted" style="margin:8px 0 0">${p.reason?`Lần gần nhất: ${esc(p.reason)}${p.finishedAt?` · ${new Date(p.finishedAt).toLocaleString("vi-VN")}`:""}`:"Chưa có lần chạy trong phiên này."}${p.error?`<br><span class="down">${esc(p.error)}</span>`:""}</p>
-        <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="runBuild" ${busy?"disabled":""}>Dựng lại dashboard</button><button class="btn ghost" id="runFull" ${busy?"disabled":""}>Đồng bộ toàn bộ nguồn</button><span class="muted" style="font-size:12px">Đồng bộ toàn bộ sẽ gọi Google Sheets và nguồn giá.</span></div></div>
+        <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="runBuild" ${busy?"disabled":""}>Dựng lại bảng điều hành</button><button class="btn ghost" id="runFull" ${busy?"disabled":""}>Đồng bộ toàn bộ nguồn</button><span class="muted" style="font-size:12px">Đồng bộ toàn bộ sẽ gọi Google Sheets và nguồn giá.</span></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
-        <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần dựng dashboard gần nhất.</p>'}</div>
+        <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần cập nhật gần nhất.</p>'}</div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
   const tabs=`<div class="tabs section-tabs" role="tablist" aria-label="Khu vực quản trị">${["Người dùng","Vận hành"].map(t=>`<button role="tab" data-admintab="${t}" aria-selected="${STATE.adminTab===t}">${t}</button>`).join("")}</div>`;
   const selected=STATE.adminTab==="Người dùng"?`<div class="card">${head("users","Người dùng",'<button class="btn" id="addUser">Thêm tài khoản</button>')}${content}
@@ -1001,13 +1001,13 @@ function scheduleAdminPoll(){
   }
 }
 async function runPipeline(buildOnly){
-  const message=buildOnly?"Dựng lại dashboard từ dữ liệu hiện có?":"Đồng bộ toàn bộ nguồn dữ liệu? Thao tác có thể mất vài phút.";
+  const message=buildOnly?"Dựng lại bảng điều hành từ dữ liệu hiện có?":"Đồng bộ toàn bộ nguồn dữ liệu? Thao tác có thể mất vài phút.";
   if(!confirm(message)) return;
   try{
     const result=await api("/api/pipeline/run",{buildOnly});
-    notify(result.queued?"Pipeline đang xếp hàng; trạng thái sẽ tự cập nhật.":"Đã gửi yêu cầu chạy pipeline; trạng thái sẽ tự cập nhật.");
+    notify(result.queued?"Quy trình dữ liệu đang xếp hàng; trạng thái sẽ tự cập nhật.":"Đã gửi yêu cầu chạy quy trình dữ liệu; trạng thái sẽ tự cập nhật.");
     STATE.adminOps=null; await loadAdminOperations();
-  }catch(e){notify("Không thể chạy pipeline: "+e.message,"err");}
+  }catch(e){notify("Không thể chạy quy trình dữ liệu: "+e.message,"err");}
 }
 function openUserDialog(username=""){
   const existing=(STATE.adminUsers||[]).find(u=>u.username===username);
@@ -1018,7 +1018,7 @@ function openUserDialog(username=""){
     <div class="fgrid"><label>Tên đăng nhập<input id="adminUsername" value="${esc(existing?.username||"")}" ${existing?"disabled":""} autocomplete="username"></label>
       <label>Vai trò<select id="adminRole" ${self?"disabled":""}>${Object.entries(roleLabel).map(([role,label])=>`<option value="${role}" ${role===selected?"selected":""}>${esc(label)}</option>`).join("")}</select></label>
       <label style="grid-column:1/-1">${existing?"Mật khẩu mới (tùy chọn)":"Mật khẩu"}<input id="adminPassword" type="password" autocomplete="new-password" ${existing?"":"required"}></label></div>
-    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo module</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Có thể cấp quyền chỉnh sửa Báo cáo CTCK, Action Desk, Signal Center và Quản trị theo từng tài khoản.</p>
+    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo phân hệ</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Có thể cấp quyền chỉnh sửa Báo cáo CTCK, Khuyến nghị hành động, Trung tâm tín hiệu và Quản trị theo từng tài khoản.</p>
     ${permissionMatrix(existing?.permissions||moduleDefaults(selected),selected)}
     ${self?'<p class="muted" style="font-size:12px">Bạn không thể tự hạ vai trò; hệ thống luôn phải có ít nhất một quản trị viên có quyền quản trị.</p>':""}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="adminSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveUser" data-user-id="${esc(existing?.username||"")}">${existing?"Lưu thay đổi":"Tạo tài khoản"}</button></div>`;
@@ -1074,7 +1074,7 @@ async function ask(text){
 function openAdd(existing=null){
   if(!canEdit("reports")) return;
   $("#addBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">${existing?"Chỉnh sửa báo cáo":"Thêm báo cáo"}</h2><button class="icon-btn" id="dlgClose" aria-label="Đóng">✕</button></div>
-    <p class="muted" style="margin:4px 0 12px">${existing?"Thay đổi sẽ được ghi vào Excel nguồn và dựng lại dashboard.":"Tải file PDF hoặc dán nội dung báo cáo. Hệ thống trích xuất các trường để bạn kiểm tra trước khi lưu."}</p>
+    <p class="muted" style="margin:4px 0 12px">${existing?"Thay đổi sẽ được ghi vào Excel nguồn và dựng lại bảng điều hành.":"Tải file PDF hoặc dán nội dung báo cáo. Hệ thống trích xuất các trường để bạn kiểm tra trước khi lưu."}</p>
     <label class="btn ghost" style="display:inline-block;margin-bottom:8px">Chọn file PDF<input type="file" id="pdfIn" accept="application/pdf" hidden></label> <span id="pdfName" class="muted"></span>
     <textarea id="rawTxt" placeholder="…hoặc dán nội dung báo cáo tại đây"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn" id="extractBtn" ${API_OK?"":"disabled"}>Trích xuất</button><span class="muted" id="exStatus" style="font-size:12.5px">${API_OK?"":"Cần chạy server để dùng tính năng này."}</span></div>
@@ -1103,9 +1103,9 @@ function renderExForm(r,reportId=""){
     ${f("broker","CTCK",r.broker)}${f("date","Ngày (YYYY-MM-DD)",r.date)}
     <label>Loại<select data-f="type">${["Chiến lược","Vĩ mô","Ngành","Doanh nghiệp"].map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></label>
     <label>Quan điểm<select data-f="stance">${["Tích cực","Trung lập","Thận trọng","Tiêu cực"].map(x=>`<option ${x===r.stance?"selected":""}>${x}</option>`).join("")}</select></label>
-    ${f("title","Tiêu đề",r.title)}${f("vnTarget","Target VN-Index",r.vnTarget)}
+    ${f("title","Tiêu đề",r.title)}${f("vnTarget","Mục tiêu VN-Index",r.vnTarget)}
     ${f("ow","Ngành tăng tỷ trọng (phẩy)",(r.ow||[]).join(", "))}${f("uw","Ngành giảm tỷ trọng (phẩy)",(r.uw||[]).join(", "))}
-    ${f("stocks","Cổ phiếu (MÃ:KN:target; …)",(r.stocks||[]).map(s=>`${s.t}:${s.rec}:${s.target??""}`).join("; "))}
+    ${f("stocks","Cổ phiếu (MÃ:KN:mục tiêu; …)",(r.stocks||[]).map(s=>`${s.t}:${s.rec}:${s.target??""}`).join("; "))}
     ${f("risks","Rủi ro (chủ đề:mức; …)",(r.risks||[]).map(k=>`${k.k}:${k.s}`).join("; "))}
     ${f("horizon","Tầm nhìn",r.horizon)}${f("source","Nguồn / tên file",r.source)}
     <label style="grid-column:1/-1">Tóm tắt<textarea data-f="summary" style="height:70px">${esc(r.summary)}</textarea></label></div>

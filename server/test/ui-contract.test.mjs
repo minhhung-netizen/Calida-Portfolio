@@ -136,12 +136,12 @@ test("report sections and administration panels preserve their controls", () => 
   assert.match(ui.run("pgAdmin()"), /id="addUser"/);
 });
 
-test("Action Desk keeps operational controls and does not invent quantities", () => {
+test("Khuyến nghị hành động giữ các điều khiển vận hành và không tự tạo khối lượng", () => {
   const ui = app();
   const result = ui.run("pgActions()");
-  assert.match(result, /KL action/);
+  assert.match(result, /KL hành động/);
   assert.match(result, /data-edit-action=/);
-  assert.match(result, /Signal mới/);
+  assert.match(result, /Tín hiệu mới/);
   assert.match(result, /Chưa khai báo/);
   assert.doesNotMatch(result, /20\.000|50\.000|100\.000/, "khối lượng mẫu không được đưa vào dữ liệu thật");
 });
@@ -152,7 +152,7 @@ test("existing data tabs keep rendering without changing the source data", () =>
   for (const [state, tabs, page] of [
     ["ovTab", ["Hôm nay", "Tuần này"], "Overview"],
     ["pfTab", ["Tổng quan", "Danh mục hiện tại", "Lịch sử giao dịch"], "Portfolio"],
-    ["pfDetailTab", ["Tổng quan", "Luận điểm", "View CTCK"], "Portfolio"],
+    ["pfDetailTab", ["Tổng quan", "Luận điểm", "Quan điểm CTCK"], "Portfolio"],
     ["invTab", ["Hôm nay", "MTD", "YTD"], "Flows"],
     ["repPeriod", ["7 ngày", "30 ngày", "Tất cả"], "Reports"],
   ]) {
