@@ -1147,12 +1147,26 @@ app.delete("/api/reports/:id", requireModule("reports", "edit"), requireCsrf, wr
   } catch (error) { return res.status(error.status || 500).json({ error: error.message }); }
 });
 
+const PIPELINE_RUN_MODES = Object.freeze({
+  build: { args: ["--build-only"], label: "dựng lại bảng điều hành" },
+  all: { args: [], label: "đồng bộ tất cả nguồn" },
+  portfolio: { args: ["--source", "portfolio", "--no-prices"], label: "đồng bộ Danh mục" },
+  operations: { args: ["--source", "operations", "--no-prices"], label: "đồng bộ Vận hành" },
+  funds: { args: ["--source", "funds", "--no-prices"], label: "đồng bộ Quỹ" },
+  reports: { args: ["--source", "reports", "--no-prices"], label: "đồng bộ Báo cáo CTCK" },
+});
+
 app.post("/api/pipeline/run", requireModule("admin", "edit"), requireCsrf, pipelineLimit, (req, res) => {
-  const args = req.body?.buildOnly === true ? ["--build-only"] : [];
+  const requestedMode = req.body?.mode ?? (req.body?.buildOnly === true ? "build" : "all");
+  if (typeof requestedMode !== "string" || !Object.hasOwn(PIPELINE_RUN_MODES, requestedMode)) {
+    return res.status(400).json({ error: "Chế độ đồng bộ không hợp lệ" });
+  }
+  const mode = PIPELINE_RUN_MODES[requestedMode];
+  const args = mode.args;
   const wasQueued = queuedJobs > 0 || Boolean(running);
-  audit(req, "pipeline.queue", { mode: args.length ? "build-only" : "full", wasQueued });
-  enqueuePipeline(args, "chạy tay qua API").catch((error) => console.error(error.message));
-  return res.status(202).json({ ok: true, queued: wasQueued });
+  audit(req, "pipeline.queue", { mode: requestedMode, label: mode.label, wasQueued });
+  enqueuePipeline(args, `chạy tay: ${mode.label}`).catch((error) => console.error(error.message));
+  return res.status(202).json({ ok: true, queued: wasQueued, mode: requestedMode });
 });
 
 // ---------- static site ----------

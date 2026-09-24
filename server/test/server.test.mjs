@@ -90,7 +90,9 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.match(csp, /https:\/\/fonts\.gstatic\.com/, "CSP phải cho phép file font đã dùng trong giao diện");
 
     const common = { headers: { cookie, "content-type": "application/json", "x-csrf-token": session.csrfToken } };
-    let response = await request("/api/admin/users", { method: "POST", ...common, body: JSON.stringify({ user: { username: "prototype", password: "prototype-password-123", role: "constructor" } }) });
+    let response = await request("/api/pipeline/run", { method: "POST", ...common, body: JSON.stringify({ mode: "khong-hop-le" }) });
+    assert.equal(response.status, 400, "chỉ chấp nhận các chế độ đồng bộ đã định nghĩa");
+    response = await request("/api/admin/users", { method: "POST", ...common, body: JSON.stringify({ user: { username: "prototype", password: "prototype-password-123", role: "constructor" } }) });
     assert.equal(response.status, 400, "role prototype không được chấp nhận");
 
     const viewerLogin = await request("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "viewer", password: users[1].password }) });

@@ -12,6 +12,34 @@ from number_normalizer import normalize_numeric_columns, parse_number_series
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+# Ba nguồn dưới đây là ảnh chụp hoàn chỉnh của dữ liệu nghiệp vụ. Mỗi lần đồng
+# bộ sẽ thay thế đúng các sheet mà nguồn đó quản lý, để một dòng đã bị xóa hoặc
+# sửa trên Google Sheets không tiếp tục nằm lại trong Railway Volume. Riêng báo
+# cáo CTCK được gộp theo khóa nhằm bảo toàn các báo cáo tạo trực tiếp trên web.
+SOURCE_DEFINITIONS = {
+    "portfolio": {
+        "label": "Danh mục", "sheet_id": PORTFOLIO_SHEET_ID,
+        "mapping": PORTFOLIO_MAP, "snapshot": True,
+    },
+    "operations": {
+        "label": "Vận hành", "sheet_id": OPERATIONS_SHEET_ID,
+        "mapping": OPERATIONS_MAP, "snapshot": True,
+    },
+    "funds": {
+        "label": "Quỹ", "sheet_id": FUNDS_SHEET_ID,
+        "mapping": FUNDS_MAP, "snapshot": True,
+    },
+    "reports": {
+        "label": "Báo cáo CTCK", "sheet_id": REPORTS_SHEET_ID,
+        "mapping": REPORTS_MAP, "snapshot": False,
+    },
+}
+
+
+def supported_sources():
+    """Danh sách nguồn hợp lệ dùng cho CLI và API quản trị."""
+    return tuple(SOURCE_DEFINITIONS)
+
 
 def download(sheet_id: str) -> dict:
     from google.oauth2 import service_account
@@ -83,6 +111,27 @@ def apply_map(book: dict, mapping: dict) -> dict:
     return {k: pd.concat(v, ignore_index=True) for k, v in out.items()}
 
 
+def write_snapshot(frames: dict):
+    """Thay thế các sheet được một nguồn Google Sheets quản lý.
+
+    ``write_sheets`` vẫn giữ nguyên sheet thuộc nguồn khác trong cùng workbook,
+    ví dụ SUMMARY của Operations khi chỉ đồng bộ Danh mục.
+    """
+    grouped = {}
+    for (file, sheet), frame in frames.items():
+        grouped.setdefault(file, {})[sheet] = frame.reindex(columns=SCHEMA[file][sheet]["cols"])
+    for file, sheets in grouped.items():
+        write_sheets(file, sheets)
+        for sheet, frame in sheets.items():
+            print(f"    {sheet}: {len(frame)} dòng (thay thế bản cũ)")
+
+
+def merge_by_key(frames: dict):
+    """Cập nhật theo khóa, dùng cho báo cáo tạo được cả trên web lẫn Sheets."""
+    for (file, sheet), frame in frames.items():
+        print(f"    {sheet}: {upsert(file, sheet, frame)} dòng (gộp theo khóa)")
+
+
 def _period(v):
     """Chuẩn hóa kỳ về MM/YYYY (nhận 2026-08, 08/2026, datetime…)."""
     if pd.isna(v):
@@ -99,35 +148,29 @@ def _period(v):
     return s
 
 
-def run():
-    if PORTFOLIO_SHEET_ID:
-        print("  Portfolio sheet…")
-        for (file, dst), df in apply_map(download(PORTFOLIO_SHEET_ID), PORTFOLIO_MAP).items():
-            if dst == "POSITIONS":  # danh mục hiện tại = ảnh chụp mới nhất → ghi đè
-                write_sheets(file, {dst: df.reindex(columns=SCHEMA[file][dst]["cols"])})
-                print(f"    {dst}: {len(df)} dòng")
-            else:
-                print(f"    {dst}: {upsert(file, dst, df)} dòng")
-    else:
-        print("  Bỏ qua Portfolio (chưa đặt PORTFOLIO_SHEET_ID)")
-    if FUNDS_SHEET_ID:
-        print("  Fmarket DB…")
-        for (file, dst), df in apply_map(download(FUNDS_SHEET_ID), FUNDS_MAP).items():
-            print(f"    {dst}: {upsert(file, dst, df)} dòng")
-    else:
-        print("  Bỏ qua Fmarket DB (chưa đặt FUNDS_SHEET_ID)")
-    if OPERATIONS_SHEET_ID:
-        print("  Operations Data…")
-        for (file, dst), df in apply_map(download(OPERATIONS_SHEET_ID), OPERATIONS_MAP).items():
-            print(f"    {dst}: {upsert(file, dst, df)} dòng")
-    else:
-        print("  Bỏ qua Operations Data (chưa đặt OPERATIONS_SHEET_ID)")
-    if REPORTS_SHEET_ID:
-        print("  Báo cáo CTCK…")
-        for (file, dst), df in apply_map(download(REPORTS_SHEET_ID), REPORTS_MAP).items():
-            print(f"    {dst}: {upsert(file, dst, df)} dòng")
-    else:
-        print("  Bỏ qua Báo cáo CTCK (chưa đặt REPORTS_SHEET_ID)")
+def run(sources=None):
+    """Đồng bộ toàn bộ hoặc một nguồn Google Sheets đã chọn.
+
+    ``sources`` nhận portfolio, operations, funds hoặc reports. Bỏ trống để
+    đồng bộ tất cả; tên nguồn sai phải dừng ngay thay vì vô tình chạy full sync.
+    """
+    selected = tuple(sources or supported_sources())
+    unknown = sorted(set(selected) - set(SOURCE_DEFINITIONS))
+    if unknown:
+        raise ValueError(f"Nguồn Google Sheets không hợp lệ: {', '.join(unknown)}")
+    for source in selected:
+        definition = SOURCE_DEFINITIONS[source]
+        sheet_id = definition["sheet_id"]
+        if not sheet_id:
+            print(f"  Bỏ qua {definition['label']} (chưa đặt biến ID tương ứng)")
+            continue
+        mode = "bản chụp" if definition["snapshot"] else "gộp theo khóa"
+        print(f"  {definition['label']} ({mode})…")
+        frames = apply_map(download(sheet_id), definition["mapping"])
+        if definition["snapshot"]:
+            write_snapshot(frames)
+        else:
+            merge_by_key(frames)
 
 
 if __name__ == "__main__":

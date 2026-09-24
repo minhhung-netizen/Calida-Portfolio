@@ -194,6 +194,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 @media (max-width:860px){.app{display:block}.menu-btn{display:inline-grid;place-items:center}aside{position:fixed;z-index:100;inset:0 auto 0 0;width:min(304px,86vw);height:100dvh;padding:20px 14px;transform:translateX(-105%);transition:transform 180ms ease;box-shadow:var(--shadow)}body.nav-open aside{transform:translateX(0)}.nav-scrim{position:fixed;z-index:90;inset:0;border:0;background:rgba(8,18,50,.42)}body.nav-open .nav-scrim{display:block}.logo{padding-bottom:20px}.brand-logo{width:calc(100% - 48px)}.drawer-close{display:inline-grid;position:absolute;top:4px;right:4px;background:var(--panel);border:1px solid var(--line)}nav{display:block}nav button{min-height:44px}.nav-foot{display:block}.topbar{gap:10px}.topbar .right{gap:10px}.topbar .right .date{display:none}}
 @media (max-width:860px){aside{visibility:hidden;pointer-events:none}body.nav-open aside{visibility:visible;pointer-events:auto}}
 @media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1,.action-summary{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.action-summary button{min-height:78px}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
+@media (max-width:600px){.btn{min-height:44px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -1016,7 +1017,8 @@ function pgAdmin(){
       const busy=p.status==="running"||p.queuedJobs>0;
       return `<div class="grid" style="gap:14px"><div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
         <p class="muted" style="margin:8px 0 0">${p.reason?`Lần gần nhất: ${esc(p.reason)}${p.finishedAt?` · ${new Date(p.finishedAt).toLocaleString("vi-VN")}`:""}`:"Chưa có lần chạy trong phiên này."}${p.error?`<br><span class="down">${esc(p.error)}</span>`:""}</p>
-        <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="runBuild" ${busy?"disabled":""}>Dựng lại bảng điều hành</button><button class="btn ghost" id="runFull" ${busy?"disabled":""}>Đồng bộ toàn bộ nguồn</button><span class="muted" style="font-size:12px">Đồng bộ toàn bộ sẽ gọi Google Sheets và nguồn giá.</span></div></div>
+        <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" id="runBuild" ${busy?"disabled":""}>Dựng lại bảng điều hành</button><button class="btn ghost" id="runFull" ${busy?"disabled":""}>Đồng bộ tất cả nguồn</button><span class="muted" style="font-size:12px">Đồng bộ tất cả sẽ gọi 4 Google Sheets và nguồn giá.</span></div>
+        <div class="box" style="margin-top:12px;padding:12px"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>Đồng bộ từng nguồn</b><p class="muted" style="font-size:12px;margin:4px 0 0">Danh mục, Vận hành và Quỹ dùng bản chụp mới để loại bỏ dòng cũ trên Railway. Báo cáo CTCK gộp theo mã để giữ các báo cáo được tạo trên web.</p></div><div class="row" style="gap:8px;flex-wrap:wrap">${[["portfolio","Danh mục"],["operations","Vận hành"],["funds","Quỹ"],["reports","Báo cáo CTCK"]].map(([source,label])=>`<button class="btn ghost" data-pipeline-mode="${source}" ${busy?"disabled":""} aria-label="Đồng bộ ${label}">${label}</button>`).join("")}</div></div></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần cập nhật gần nhất.</p>'}</div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
@@ -1051,11 +1053,20 @@ function scheduleAdminPoll(){
     adminPollTimer=setTimeout(()=>{STATE.adminOps=null;loadAdminOperations();},3000);
   }
 }
-async function runPipeline(buildOnly){
-  const message=buildOnly?"Dựng lại bảng điều hành từ dữ liệu hiện có?":"Đồng bộ toàn bộ nguồn dữ liệu? Thao tác có thể mất vài phút.";
+async function runPipeline(mode){
+  const details={
+    build:"Dựng lại bảng điều hành từ dữ liệu hiện có?",
+    all:"Đồng bộ tất cả nguồn dữ liệu? Dữ liệu cũ từ Danh mục, Vận hành và Quỹ sẽ được thay bằng bản mới từ Google Sheets. Thao tác có thể mất vài phút.",
+    portfolio:"Đồng bộ Danh mục? Dữ liệu danh mục lưu trước đó trên Railway sẽ được thay bằng bản hiện có trên Google Sheets.",
+    operations:"Đồng bộ Vận hành? Dữ liệu thị trường và dòng tiền lưu trước đó trên Railway sẽ được thay bằng bản hiện có trên Google Sheets.",
+    funds:"Đồng bộ Quỹ? Dữ liệu quỹ lưu trước đó trên Railway sẽ được thay bằng bản hiện có trên Google Sheets.",
+    reports:"Đồng bộ Báo cáo CTCK? Dữ liệu trùng mã được cập nhật từ Google Sheets; báo cáo tạo trên web vẫn được giữ.",
+  };
+  const message=details[mode];
+  if(!message) return;
   if(!confirm(message)) return;
   try{
-    const result=await api("/api/pipeline/run",{buildOnly});
+    const result=await api("/api/pipeline/run",{mode});
     notify(result.queued?"Quy trình dữ liệu đang xếp hàng; trạng thái sẽ tự cập nhật.":"Đã gửi yêu cầu chạy quy trình dữ liệu; trạng thái sẽ tự cập nhật.");
     STATE.adminOps=null; await loadAdminOperations();
   }catch(e){notify("Không thể chạy quy trình dữ liệu: "+e.message,"err");}
@@ -1222,8 +1233,9 @@ document.addEventListener("click",e=>{
   if(t.id==="addUser") openUserDialog();
   if(t.id==="reloadUsers"){STATE.adminUsers=null;STATE.adminError="";loadAdminUsers();}
   if(t.id==="reloadOps"){STATE.adminOps=null;STATE.adminOpsError="";loadAdminOperations();}
-  if(t.id==="runBuild") runPipeline(true);
-  if(t.id==="runFull") runPipeline(false);
+  if(t.id==="runBuild") runPipeline("build");
+  if(t.id==="runFull") runPipeline("all");
+  if(t.dataset.pipelineMode) runPipeline(t.dataset.pipelineMode);
   if(t.id==="notificationBtn") openNotificationDialog();
   if(t.id==="notificationClose") $("#notificationDlg").close();
   if(t.id==="enableNotifications") enableNotifications();

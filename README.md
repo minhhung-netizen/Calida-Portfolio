@@ -14,7 +14,7 @@ Hệ thống phân tích gồm 6 trang: Tổng quan · Bản tin · Danh mục �
                                                                              server/index.js ───────┘  (/api/chat, /api/extract, /api/reports)
 ```
 
-- **Excel là lớp dữ liệu gốc**: mở ra xem, sửa tay được. Pipeline chỉ **upsert theo khóa**, không xóa lịch sử; admin có thể cập nhật hoặc xóa báo cáo từ giao diện và thay đổi sẽ đi qua pipeline về `reports.xlsx`.
+- **Excel là lớp dữ liệu gốc**: mở ra xem, sửa tay được. Đồng bộ Danh mục, Vận hành và Quỹ dùng **bản chụp nguồn** để thay đúng các sheet do Google Sheets quản lý, nhờ đó dữ liệu cũ đã bị xóa sẽ không còn lưu lại trên Railway. Báo cáo CTCK vẫn gộp theo khóa để bảo toàn báo cáo tạo từ giao diện.
 - **SQLite (`data/calida.db`)** được dựng lại toàn bộ từ Excel mỗi lần chạy, có kiểm tra cột, ngày và dòng trùng khóa.
 - **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
 
@@ -38,6 +38,7 @@ python pipeline/run.py --build-only
 | `python pipeline/run.py` | Chạy đầy đủ: Google Sheets → vnstock → inbox → DB → JSON |
 | `python pipeline/run.py --build-only` | Chỉ dựng lại DB + JSON từ Excel hiện có |
 | `python pipeline/run.py --no-prices` | Bỏ bước vnstock |
+| `python pipeline/run.py --source funds --no-prices` | Đồng bộ riêng một nguồn: `portfolio`, `operations`, `funds` hoặc `reports` |
 | `python pipeline/make_templates.py` | Tạo template Excel trống. Mỗi file có sheet `_HUONG_DAN` mô tả cột |
 
 Mỗi bước lấy dữ liệu chạy độc lập: một nguồn lỗi thì các bước sau vẫn chạy trên dữ liệu cũ. Chỉ khi bước build/export lỗi, pipeline mới thoát với mã 1.

@@ -144,6 +144,8 @@ test("report sections and administration panels preserve their controls", () => 
   assert.match(ui.run("pgReports()"), /id="chatIn"/);
   ui.run('STATE.adminTab="Vận hành"');
   assert.match(ui.run("pgAdmin()"), /id="runBuild"/);
+  assert.match(ui.run("pgAdmin()"), /data-pipeline-mode="portfolio"/);
+  assert.match(ui.run("pgAdmin()"), /Đồng bộ từng nguồn/);
   ui.run('STATE.adminTab="Người dùng"');
   assert.match(ui.run("pgAdmin()"), /id="addUser"/);
 });

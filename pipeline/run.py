@@ -35,12 +35,17 @@ def main():
     ap.add_argument("--build-only", action="store_true")
     ap.add_argument("--no-prices", action="store_true")
     ap.add_argument("--no-gsheets", action="store_true")
+    ap.add_argument("--source", action="append", choices=("portfolio", "operations", "funds", "reports"),
+                    help="Chỉ đồng bộ nguồn Google Sheets được chỉ định; có thể lặp lại tham số.")
     a = ap.parse_args()
+    if a.build_only and a.source:
+        ap.error("--build-only không dùng cùng --source")
     source_failures = []
     if not a.build_only:
         if not a.no_gsheets:
             import fetch_gsheets
-            if not step("Google Sheets (Portfolio, Fmarket)", fetch_gsheets.run):
+            source_label = ", ".join(a.source) if a.source else "tất cả nguồn"
+            if not step(f"Google Sheets ({source_label})", lambda: fetch_gsheets.run(a.source)):
                 source_failures.append("Google Sheets")
         if not a.no_prices:
             import fetch_prices
