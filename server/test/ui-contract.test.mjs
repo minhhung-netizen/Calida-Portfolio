@@ -192,6 +192,16 @@ test("existing data tabs keep rendering without changing the source data", () =>
   assert.equal(ui.run("JSON.stringify(DATA)"), before);
 });
 
+test("luận điểm được tách thành các mục đánh số khi nhập trên cùng một dòng", () => {
+  const ui = app();
+  const result = ui.run('numberedProse("1. Luận điểm thứ nhất. 2. Luận điểm thứ hai. 3. Luận điểm thứ ba.")');
+  assert.match(result, /<ol class="prose numbered-prose">/);
+  assert.match(result, /<li>Luận điểm thứ nhất\.<\/li>/);
+  assert.match(result, /<li>Luận điểm thứ hai\.<\/li>/);
+  assert.match(result, /<li>Luận điểm thứ ba\.<\/li>/);
+  assert.doesNotMatch(result, /1\. Luận điểm thứ nhất/);
+});
+
 test("report titles and account names remain escaped", () => {
   const ui = app();
   ui.run('DATA.reports[0].title="<img src=x onerror=alert(1)>"; STATE.adminUsers=[{username:"<script>bad()</script>",role:"viewer",permissions}];');

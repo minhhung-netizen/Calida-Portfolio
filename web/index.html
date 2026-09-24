@@ -108,6 +108,9 @@ tr.sel td{background:var(--brand-soft)}
 .box .l{font-size:13px;color:var(--ink-2)}
 .box .v{font-size:20px;font-weight:700}
 .prose{color:var(--ink-2);line-height:1.65;margin:10px 0 0;max-width:72ch}
+.numbered-prose{padding-left:22px;margin:0;display:grid;gap:8px}
+.numbered-prose li{padding-left:4px}
+.numbered-prose li::marker{color:var(--brand);font-weight:700}
 .bar{height:10px;background:var(--panel-2);border-radius:99px;overflow:hidden;flex:1}
 .bar i{display:block;height:100%;background:var(--brand);border-radius:99px}
 .row{display:flex;align-items:center;gap:10px}
@@ -406,6 +409,24 @@ const svg = (k, sw=2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 const head = (icon, title, extra="") => `<div class="card-h"><div class="ic">${svg(icon)}</div><h2>${title}</h2>${extra}</div>`;
 const goLink = (page, txt="Xem chi tiết") => `<button class="link" data-go="${page}">${txt} ›</button>`;
 
+// Luận điểm thường được nhập từ Google Sheets trên một dòng. Tách các mục
+// "1.", "2.", "3." thành danh sách khi hiển thị, nhưng giữ nguyên dữ liệu gốc.
+function numberedProse(value){
+  const text=String(value??"").trim();
+  const marker=/(?:^|\s)(?:\[\d+\]\s*)?(\d+)[.)]\s+/g;
+  const matches=[...text.matchAll(marker)];
+  const plain=content=>`<p class="prose" style="margin:0">${esc(content||"Chưa có luận điểm.")}</p>`;
+  if(!matches.length) return plain(text);
+  const intro=text.slice(0,matches[0].index).trim();
+  const items=matches.map((match,index)=>{
+    const start=match.index+match[0].length;
+    const end=index+1<matches.length?matches[index+1].index:text.length;
+    return text.slice(start,end).trim();
+  }).filter(Boolean);
+  if(!items.length) return plain(text);
+  return `${intro?plain(intro):""}<ol class="prose numbered-prose">${items.map(item=>`<li>${esc(item)}</li>`).join("")}</ol>`;
+}
+
 function spark(vals, w=180, h=56){
   const mn=Math.min(...vals), mx=Math.max(...vals), sx=w/(vals.length-1);
   const pts=vals.map((v,i)=>[i*sx, h-4-(v-mn)/(mx-mn||1)*(h-10)]);
@@ -649,7 +670,7 @@ function pgPortfolio(){
     const sel={...selected,t:esc(selected.t)}, pf=perf(selected);
     const brokerCalls=repAgg(DATA.reports).stocks.find(s=>s.t===selected.t);
     const detailBody = STATE.pfDetailTab==="Tổng quan" ? `<dl><dt>Giá hiện tại</dt><dd>${nf(sel.price,1)} <span class="${cls(sel.chg)}">${sgn(sel.chg,1)}</span></dd><dt>Danh mục</dt><dd>${esc(sel.book||"—")}</dd><dt>Ngày khuyến nghị</dt><dd>${sel.recDate}</dd><dt>Giá vốn</dt><dd>${nf(sel.cost,2)}</dd><dt>Vùng mua</dt><dd>${range(sel.buy)}</dd><dt>Mục tiêu</dt><dd>${nf(sel.target,1)}</dd><dt>Vùng vi phạm</dt><dd>${nf(sel.stop,1)}</dd><dt>Hiệu suất</dt><dd class="${cls(pf)}">${pf==null?"Chưa mua":sgn(pf,1,"%")}</dd></dl>`
-      : STATE.pfDetailTab==="Luận điểm" ? `<p class="prose" style="margin:0">${esc(sel.thesis)}</p>`
+      : STATE.pfDetailTab==="Luận điểm" ? numberedProse(sel.thesis)
       : brokerCalls ? `<table><thead><tr><th>CTCK</th><th>KN</th><th class="num">Mục tiêu</th></tr></thead><tbody>${Object.entries(brokerCalls.calls).map(([b,c])=>`<tr><td>${esc(b)}</td><td>${statusTag(c.rec)}</td><td class="num">${nf(c.target,1)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Chưa có báo cáo CTCK nào nhắc tới ${sel.t}.</div>`;
     const detail=`<div class="card detail">${head("doc",`${sel.t} <span class="muted" style="font-weight:400;font-size:13px">${esc(sel.name)}</span>`)}
       <div class="seg">${["Tổng quan","Luận điểm","Quan điểm CTCK"].map(t=>`<button data-pfdt="${t}" aria-selected="${STATE.pfDetailTab===t}">${t}</button>`).join("")}</div>${detailBody}</div>`;
