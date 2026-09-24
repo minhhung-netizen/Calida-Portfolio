@@ -542,7 +542,14 @@ app.get("/sw.js", (req, res) => {
   res.set("Service-Worker-Allowed", "/");
   return res.type("application/javascript").sendFile(path.join(WEB_DIR, "sw.js"));
 });
-app.get("/icon.svg", (req, res) => res.type("image/svg+xml").sendFile(path.join(WEB_DIR, "icon.svg")));
+const publicIconOptions = {
+  index: false,
+  setHeaders: (response) => response.setHeader("Cache-Control", "public, max-age=300"),
+};
+app.use("/icons", express.static(path.join(WEB_DIR, "icons"), publicIconOptions));
+app.get("/favicon.ico", (req, res) => res.type("image/x-icon").sendFile(path.join(WEB_DIR, "favicon.ico")));
+app.get(["/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/apple-touch-icon-180x180.png"], (req, res) =>
+  res.type("image/png").sendFile(path.join(WEB_DIR, "icons", "apple-touch-icon.png")));
 
 function protectSite(req, res, next) {
   if (!authEnabled()) { req.user = readSession(req); return next(); }

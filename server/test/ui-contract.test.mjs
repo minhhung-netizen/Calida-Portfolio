@@ -51,7 +51,7 @@ test("SPA JavaScript parses", () => {
 });
 
 test("PWA and iOS home-screen icons use Calida brand assets", () => {
-  assert.match(html, /rel="apple-touch-icon" sizes="180x180" href="\/icons\/apple-touch-icon\.png"/);
+  assert.match(html, /rel="apple-touch-icon" sizes="180x180" href="\/icons\/apple-touch-icon\.png\?v=20260924-3"/);
   assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/icons\/favicon-32\.png"/);
   assert.match(html, /apple-mobile-web-app-title" content="Calida"/);
   for (const asset of [

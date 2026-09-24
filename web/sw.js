@@ -5,8 +5,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Calida Analyst";
   const options = {
     body: payload.body || "Có cập nhật mới cần xem.",
-    icon: "/icon.svg",
-    badge: "/icon.svg",
+    icon: "/icons/icon-192.png?v=20260924-3",
+    badge: "/icons/icon-192.png?v=20260924-3",
     tag: payload.tag || "calida",
     renotify: false,
     data: { url: payload.url || "/#overview" },

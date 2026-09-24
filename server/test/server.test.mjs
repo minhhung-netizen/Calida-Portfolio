@@ -60,6 +60,11 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     const manifest = await request("/manifest.webmanifest");
     assert.equal(manifest.status, 200, "PWA manifest phải truy cập được trước khi đăng nhập");
     assert.equal((await manifest.json()).display, "standalone");
+    for (const route of ["/icons/apple-touch-icon.png", "/apple-touch-icon.png", "/favicon.ico"]) {
+      const icon = await request(route, { redirect: "manual" });
+      assert.equal(icon.status, 200, `${route} phải truy cập được trước khi đăng nhập`);
+      assert.match(icon.headers.get("content-type") || "", /^image\//, `${route} phải trả về ảnh, không phải trang đăng nhập`);
+    }
     const worker = await request("/sw.js");
     assert.equal(worker.status, 200, "service worker phải truy cập được trước khi đăng nhập");
     assert.match(await worker.text(), /showNotification/);
