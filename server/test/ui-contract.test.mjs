@@ -160,12 +160,15 @@ test("report sections and administration panels preserve their controls", () => 
 
 test("Khuyến nghị hành động giữ các điều khiển vận hành và cho phép tạo chủ động theo quyền", () => {
   const ui = app();
-  ui.run('DATA.workspace={actions:{"manual:123e4567-e89b-12d3-a456-426614174000":{kind:"manual",ticker:"VNM",action:"MUA",sector:"Tiêu dùng",price:62.5,zone:"61 – 63",context:"Luận điểm thủ công",status:"pending",plannedQuantity:1000,completedQuantity:0,note:"Chờ xác nhận"}},signals:{}};');
+  ui.run('DATA.workspace={actions:{"manual:123e4567-e89b-12d3-a456-426614174000":{kind:"manual",ticker:"VNM",action:"MUA",sector:"Tiêu dùng",price:62.5,zone:"61 – 63",context:"1. Luận điểm thủ công. 2. Chờ xác nhận tín hiệu.",status:"pending",plannedQuantity:1000,completedQuantity:0,note:"Chờ xác nhận"}},signals:{}};');
   const result = ui.run("pgActions()");
   assert.match(result, /KL hành động/);
   assert.match(result, /data-edit-action=/);
   assert.match(result, /id="addAction"/);
-  assert.match(result, /Luận điểm thủ công/);
+  assert.match(result, /class="action-context"/);
+  assert.match(result, /<ol class="prose numbered-prose">/);
+  assert.match(result, /<li>Luận điểm thủ công\.<\/li>/);
+  assert.match(result, /<li>Chờ xác nhận tín hiệu\.<\/li>/);
   assert.match(result, /Chủ động/);
   assert.match(result, /Tín hiệu mới/);
   assert.match(result, /Chưa khai báo/);
