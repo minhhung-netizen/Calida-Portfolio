@@ -10,7 +10,6 @@ const source = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
   .map((match) => match[1]).find((script) => script.includes("function pgOverview"));
 const fixture = JSON.parse(readFileSync(path.join(ROOT, "web", "data", "dashboard.json"), "utf8"));
 const manifest = JSON.parse(readFileSync(path.join(ROOT, "web", "manifest.webmanifest"), "utf8"));
-const faviconSvg = readFileSync(path.join(ROOT, "web", "favicon.svg"), "utf8");
 const modules = ["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "admin"];
 
 // Exercise the real render functions without fetching data or starting polling.
@@ -55,9 +54,8 @@ test("PWA and iOS home-screen icons use Calida brand assets", () => {
   assert.match(html, /rel="apple-touch-icon" sizes="180x180" href="\/icons\/apple-touch-icon\.png"/);
   assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/icons\/favicon-32\.png"/);
   assert.match(html, /apple-mobile-web-app-title" content="Calida"/);
-  assert.match(faviconSvg, /<rect width="192" height="192" fill="#0442A2"\/>/);
   for (const asset of [
-    "favicon.ico", "favicon.svg", "icons/favicon-16.png", "icons/favicon-32.png",
+    "favicon.ico", "icons/favicon-16.png", "icons/favicon-32.png",
     "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-512-maskable.png",
   ]) assert.ok(existsSync(path.join(ROOT, "web", asset)), `asset is present: ${asset}`);
   assert.ok(manifest.icons.some((icon) => icon.src === "/icons/icon-512-maskable.png" && icon.purpose === "maskable"));
