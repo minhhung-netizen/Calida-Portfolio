@@ -1,5 +1,7 @@
 # Calida Analyst System
 
+Hướng dẫn vận hành hằng ngày: [HUONG_DAN_VAN_HANH.md](HUONG_DAN_VAN_HANH.md).
+
 Hệ thống phân tích gồm 6 trang: Tổng quan · Bản tin · Danh mục · Dòng tiền · Quỹ đầu tư · Báo cáo CTCK.
 
 ```
