@@ -17,7 +17,7 @@ Gắn một Railway Volume vào service với Mount Path:
 
 `/app/data`
 
-Volume này giữ `data/input/*.xlsx`, `data/calida.db`, `data/inbox/` và logs qua các lần redeploy.
+Volume này giữ `data/input/*.xlsx`, `data/calida.db`, `data/dashboard.json`, `data/inbox/` và logs qua các lần redeploy. Dashboard trên Volume luôn được ưu tiên hơn file mẫu nằm trong image, do đó dữ liệu vừa đồng bộ không quay về quá khứ sau deploy, restart hoặc làm mới trình duyệt.
 
 - Chỉ chạy **một replica** vì ứng dụng ghi vào Volume và SQLite cục bộ.
 - Bật backup theo lịch cho Volume trước khi chạy dữ liệu thật; nên dùng lịch hằng ngày và thêm lịch hằng tuần/tháng theo nhu cầu lưu giữ. Thử khôi phục một bản backup vào môi trường thử nghiệm trước khi đưa vào vận hành.
@@ -70,8 +70,9 @@ Script khởi động sẽ:
 
 1. Seed dữ liệu mẫu hiện có vào `/app/data` nếu volume còn trống.
 2. Tạo file service-account từ `GOOGLE_SA_JSON` nếu có.
-3. Chỉ chạy `python3 pipeline/run.py --build-only` khi `REBUILD_ON_BOOT=true`.
-4. Chạy `node server/index.js` với dashboard hợp lệ gần nhất.
+3. Nếu Volume chưa có `dashboard.json`, tự chạy `python3 pipeline/run.py --build-only` một lần để tạo dashboard bền vững từ dữ liệu Volume. Nếu dựng lỗi, hệ thống dùng bản dự phòng để web vẫn khởi động.
+4. Chỉ chạy `python3 pipeline/run.py --build-only` ở mọi lần boot khi `REBUILD_ON_BOOT=true`.
+5. Chạy `node server/index.js` với dashboard hợp lệ gần nhất.
 
 Sau đó mở domain Railway.
 

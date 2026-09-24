@@ -39,9 +39,10 @@ const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 20);
 const SESSION_TTL_HOURS = Math.min(24 * 7, Math.max(1, Number(process.env.SESSION_TTL_HOURS || 8)));
 const COOKIE_NAME = "calida_session";
 const WEB_DIR = path.join(ROOT, "web");
-const JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
 // Có thể tách state khi kiểm thử; trên Railway mặc định vẫn là /app/data.
 const STATE_DIR = path.resolve(process.env.CALIDA_DATA_DIR || path.join(ROOT, "data"));
+const JSON_PATH = path.join(STATE_DIR, "dashboard.json");
+const BUNDLED_JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
 const REPORT_JOBS = path.join(STATE_DIR, "inbox", "report_jobs.jsonl");
 const LOG_DIR = path.join(STATE_DIR, "logs");
 const AUDIT_LOG = path.join(LOG_DIR, "audit.jsonl");
@@ -98,10 +99,9 @@ function recentAudit(limit = 30) {
 // dùng nó trong lúc deploy; lỗi một lần đồng bộ không được làm tiến trình web chết.
 function dashboardReadiness() {
   try {
-    const stat = fs.statSync(JSON_PATH);
+    const { path: dashboardPath, data } = readDashboard();
+    const stat = fs.statSync(dashboardPath);
     if (!stat.isFile() || stat.size === 0) throw new Error("dashboard.json rỗng");
-    const data = JSON.parse(fs.readFileSync(JSON_PATH, "utf8"));
-    if (!data || !Array.isArray(data.reports)) throw new Error("dashboard.json không đúng định dạng");
     return {
       ready: true,
       asOf: data.asOf || null,
@@ -111,6 +111,22 @@ function dashboardReadiness() {
   } catch {
     return { ready: false };
   }
+}
+
+function readDashboard() {
+  // Ưu tiên Volume để dữ liệu vừa đồng bộ sống qua deploy. Bản kèm image chỉ
+  // là fallback cho cài đặt mới hoặc môi trường kiểm thử trước lần dựng đầu.
+  let lastError;
+  for (const dashboardPath of [JSON_PATH, BUNDLED_JSON_PATH]) {
+    try {
+      const stat = fs.statSync(dashboardPath);
+      if (!stat.isFile() || stat.size === 0) continue;
+      const data = JSON.parse(fs.readFileSync(dashboardPath, "utf8"));
+      if (!data || !Array.isArray(data.reports)) throw new Error("dashboard.json không đúng định dạng");
+      return { path: dashboardPath, data };
+    } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error("Không tìm thấy dashboard.json");
 }
 
 function sameSecret(left, right) {
@@ -833,7 +849,7 @@ async function gemini({ system, contents, json = false, temperature = 0.2 }) {
   throw new Error("Gemini không phản hồi");
 }
 
-const readData = () => JSON.parse(fs.readFileSync(JSON_PATH, "utf8"));
+const readData = () => readDashboard().data;
 const RISK_TOPICS = () => [...new Set(readData().reports.flatMap((report) => report.risks.map((risk) => risk.k)))];
 const asList = (value) => Array.isArray(value) ? value : [];
 
@@ -1176,7 +1192,8 @@ app.post("/api/pipeline/run", requireModule("admin", "edit"), requireCsrf, pipel
 app.get("/data/dashboard.json", (req, res) => {
   if (authEnabled()) return res.status(403).json({ error: "Dữ liệu dashboard được phân quyền qua /api/dashboard" });
   res.set("Cache-Control", "no-store");
-  return res.sendFile(JSON_PATH);
+  try { return res.sendFile(readDashboard().path); }
+  catch (error) { return res.status(503).json({ error: `Không tải được dashboard: ${error.message}` }); }
 });
 app.use("/data", express.static(path.join(WEB_DIR, "data"), { etag: false, cacheControl: false, setHeaders: (response) => response.setHeader("Cache-Control", "no-store") }));
 app.use(express.static(WEB_DIR));
@@ -1216,7 +1233,7 @@ const server = app.listen(PORT, () => {
   console.log(`Calida Analyst chạy tại cổng ${PORT}`);
   if (!authEnabled()) console.warn("⚠ Chưa có ACCESS_TOKEN hoặc CALIDA_USERS_JSON: web đang mở công khai.");
   if (!GEMINI_KEY) console.log("⚠ Chưa có GEMINI_API_KEY: hỏi đáp và trích xuất sẽ báo lỗi");
-  if (!fs.existsSync(JSON_PATH)) console.log("⚠ Chưa có web/data/dashboard.json — chạy: python pipeline/run.py");
+  if (!fs.existsSync(JSON_PATH)) console.log("⚠ Chưa có dashboard trên Volume; đang dùng bản dự phòng cho tới khi pipeline dựng dữ liệu.");
   scheduleDaily();
 });
 

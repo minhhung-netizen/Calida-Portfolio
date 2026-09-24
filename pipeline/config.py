@@ -20,7 +20,9 @@ DATA_DIR = Path(os.getenv("CALIDA_DATA_DIR", ROOT / "data")).resolve()
 INPUT_DIR = DATA_DIR / "input"
 INBOX_DIR = DATA_DIR / "inbox"
 DB_PATH = DATA_DIR / "calida.db"
-JSON_OUT = ROOT / "web" / "data" / "dashboard.json"
+# Dashboard là dữ liệu vận hành, phải nằm trên Railway Volume để không quay về
+# file mẫu trong image mỗi khi deploy/restart.
+JSON_OUT = DATA_DIR / "dashboard.json"
 
 # ---- Google Sheets (đọc bằng Drive API export) ----
 GOOGLE_SA_FILE = os.getenv("GOOGLE_SA_FILE", "")             # đường dẫn file service account JSON

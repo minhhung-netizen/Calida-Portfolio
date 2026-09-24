@@ -10,8 +10,8 @@ Google Sheets ──► Railway Volume (/app/data) ──► SQLite ──► Da
                          └── Báo cáo tạo trên web ──┘
 ```
 
-- Railway Volume tại `/app/data` là nơi lưu dữ liệu vận hành thực tế: Excel đầu vào, SQLite, inbox báo cáo, nhật ký và tài khoản.
-- GitHub chỉ lưu mã nguồn và dữ liệu mẫu. Đẩy Excel lên GitHub không tự ghi đè dữ liệu trên Volume.
+- Railway Volume tại `/app/data` là nơi lưu dữ liệu vận hành thực tế: Excel đầu vào, SQLite, `dashboard.json`, inbox báo cáo, nhật ký và tài khoản.
+- GitHub chỉ lưu mã nguồn và dữ liệu mẫu. Đẩy Excel lên GitHub không tự ghi đè dữ liệu trên Volume; dashboard vừa đồng bộ cũng được giữ trên Volume nên không quay về dữ liệu mẫu sau deploy hoặc `Ctrl + F5`.
 - Mỗi lượt chạy dựng lại SQLite và dashboard từ dữ liệu hiện có. Nếu lượt chạy lỗi, dashboard hợp lệ gần nhất vẫn được phục vụ.
 
 ## 2. Chuẩn bị một lần

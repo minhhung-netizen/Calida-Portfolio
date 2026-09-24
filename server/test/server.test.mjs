@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -43,6 +43,10 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     { username: "admin", password: "correct-horse-battery", role: "admin" },
     { username: "viewer", password: "viewer-password-123", role: "viewer" },
   ];
+  const persistedDashboard = JSON.parse(await readFile(path.join(ROOT, "web", "data", "dashboard.json"), "utf8"));
+  persistedDashboard.asOf = "2030-01-02";
+  persistedDashboard.meta.generatedAt = "2030-01-02T00:00:00";
+  await writeFile(path.join(stateDir, "dashboard.json"), JSON.stringify(persistedDashboard), "utf8");
   const child = spawn(process.execPath, ["index.js"], {
     cwd: path.join(ROOT, "server"),
     env: { ...process.env, PORT: String(port), PIPELINE_TIME: "", SESSION_COOKIE_SECURE: "false",
@@ -70,7 +74,9 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.match(await worker.text(), /showNotification/);
     const ready = await request("/api/ready");
     assert.equal(ready.status, 200);
-    assert.equal((await ready.json()).dashboard.ready, true);
+    const readiness = await ready.json();
+    assert.equal(readiness.dashboard.ready, true);
+    assert.equal(readiness.dashboard.asOf, "2030-01-02", "API phải ưu tiên dashboard trên Volume thay vì file đi kèm image");
     const login = await request("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: users[0].password }) });
     assert.equal(login.status, 200);
     const cookie = login.headers.get("set-cookie").split(";", 1)[0];
