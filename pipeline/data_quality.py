@@ -4,6 +4,7 @@ import re
 import pandas as pd
 
 from schema import ACTION_STATUSES, INVESTORS
+from number_normalizer import parse_number_series
 
 
 class DataQualityError(RuntimeError):
@@ -22,7 +23,7 @@ def _invalid_number(issues, df, columns, scope, required=True, nonnegative=False
     for column in columns:
         if column not in df.columns:
             continue
-        values = pd.to_numeric(df[column], errors="coerce")
+        values = parse_number_series(df[column])
         invalid = values.isna() if required else (df[column].notna() & values.isna())
         if invalid.any():
             _add(issues, "error", scope, f"{column} phải là số", invalid.sum())

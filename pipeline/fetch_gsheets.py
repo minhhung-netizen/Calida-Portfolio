@@ -8,6 +8,7 @@ from config import (GOOGLE_SA_FILE, PORTFOLIO_SHEET_ID, FUNDS_SHEET_ID, OPERATIO
                     WEIGHTS_AS_FRACTION, NAV_DIVISOR)
 from schema import SCHEMA
 from xlsx_io import write_sheets, upsert
+from number_normalizer import normalize_numeric_columns, parse_number_series
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -44,7 +45,7 @@ def _find_header(df: pd.DataFrame, wanted: set) -> pd.DataFrame:
 
 
 def _pct(series: pd.Series) -> pd.Series:
-    s = pd.to_numeric(series, errors="coerce")
+    s = parse_number_series(series)
     frac = WEIGHTS_AS_FRACTION.lower()
     if frac == "true" or (frac == "auto" and s.dropna().abs().max() <= 1.0 and len(s.dropna())):
         s = s * 100
@@ -66,11 +67,12 @@ def apply_map(book: dict, mapping: dict) -> dict:
             df[k] = v
         first = list(colmap.values())[0]
         df = df[df[first].notna() & (df[first].astype(str).str.strip() != "")]
+        df = normalize_numeric_columns(df)
         for c in df.columns:
             if c.endswith("_pct"):
                 df[c] = _pct(df[c])
         if "nav_bn" in df:
-            df["nav_bn"] = pd.to_numeric(df["nav_bn"], errors="coerce") / NAV_DIVISOR
+            df["nav_bn"] = parse_number_series(df["nav_bn"]) / NAV_DIVISOR
         if "ticker" in df:
             df["ticker"] = df["ticker"].astype(str).str.strip().str.upper()
         if "status" in df:

@@ -49,6 +49,13 @@ test("SPA JavaScript parses", () => {
   assert.doesNotThrow(() => new vm.Script(source));
 });
 
+test("dashboard numbers use the shared 1,234.56 convention", () => {
+  const ui = app();
+  assert.equal(ui.run("nf(1234.56, 2)"), "1,234.56");
+  assert.equal(ui.run("nf(-1234.5, 1)"), "-1,234.5");
+  assert.match(ui.run("pgOverview()"), /1,822\.77/);
+});
+
 test("theme text tokens meet normal-text contrast on their surfaces", () => {
   const luminance = (hex) => {
     const channels = hex.match(/../g).map((part) => parseInt(part, 16) / 255)

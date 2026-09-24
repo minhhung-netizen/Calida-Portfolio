@@ -30,7 +30,7 @@ def guide(file):
 def sample():
     rng = np.random.default_rng(7); random.seed(7)
     days = pd.bdate_range("2026-01-02", AS_OF)
-    # VN-Index: random walk kết thúc tại 1.830,44 (phiên trước 1.821,64)
+    # VN-Index: random walk kết thúc tại 1,830.44 (phiên trước 1,821.64)
     steps = rng.normal(0.6, 12, len(days)); closes = 1830.44 - np.cumsum(steps[::-1])[::-1] + steps[-1]
     closes[-1], closes[-2] = 1830.44, 1821.64
     vn = pd.DataFrame({"date": days, "open": closes - 3, "high": closes + 6, "low": closes - 8, "close": closes.round(2),
@@ -38,7 +38,7 @@ def sample():
     view = pd.DataFrame([{
         "date": AS_OF, "sentiment": "Tích cực thận trọng", "support_lo": 1800, "support_hi": 1810, "resist_lo": 1850, "resist_hi": 1870,
         "expected_lo": 1810, "expected_hi": 1870,
-        "today_text": "VN-Index hồi phục lên 1.830,44 điểm nhờ lực cầu ở nhóm ngân hàng và dầu khí, nhưng thanh khoản giảm so với phiên trước. Dòng tiền phân hóa; ưu tiên chờ nhịp điều chỉnh để tích lũy ở vùng hỗ trợ.",
+        "today_text": "VN-Index hồi phục lên 1,830.44 điểm nhờ lực cầu ở nhóm ngân hàng và dầu khí, nhưng thanh khoản giảm so với phiên trước. Dòng tiền phân hóa; ưu tiên chờ nhịp điều chỉnh để tích lũy ở vùng hỗ trợ.",
         "week_text": "Thị trường có thể tiếp tục dao động trong vùng 1.810 – 1.870 điểm. Xu hướng trung hạn vẫn tích cực, ưu tiên tích lũy ở các nhịp điều chỉnh. Cần theo dõi sát diễn biến từ Fed và hoạt động cơ cấu quỹ.",
         "focus_sectors": "Ngân hàng, Dầu khí, Xây dựng", "risks": "Fed, Đáo hạn phái sinh, Cơ cấu quỹ",
         "strategy_short": "Không mua đuổi; tận dụng các nhịp rung lắc để trading trên danh mục có sẵn. Ưu tiên cổ phiếu có nền tảng cơ bản tốt và thanh khoản cao.",
@@ -49,16 +49,16 @@ def sample():
     news = pd.DataFrame([
         [t - pd.Timedelta(hours=6), "Thế giới", "Fed phát tín hiệu có thể giữ lãi suất cao hơn lâu hơn", "Reuters", ""],
         [t - pd.Timedelta(hours=2), "Thế giới", "Giá dầu tiếp tục leo thang, vượt 99 USD/thùng", "Bloomberg", ""],
-        [t - pd.Timedelta(hours=4), "Thế giới", "Dow Jones giảm 1,2% sau số liệu việc làm kém tích cực", "CNBC", ""],
-        [t - pd.Timedelta(hours=8), "Trong nước", "Việt Nam thu hút thêm 1,2 tỷ USD vốn FDI trong tháng 8", "VnExpress", ""],
+        [t - pd.Timedelta(hours=4), "Thế giới", "Dow Jones giảm 1.2% sau số liệu việc làm kém tích cực", "CNBC", ""],
+        [t - pd.Timedelta(hours=8), "Trong nước", "Việt Nam thu hút thêm 1.2 tỷ USD vốn FDI trong tháng 8", "VnExpress", ""],
         [t - pd.Timedelta(hours=10), "Doanh nghiệp", "Nhiều doanh nghiệp lớn công bố kết quả kinh doanh tích cực", "CafeF", ""],
     ], columns=SCHEMA["market.xlsx"]["NEWS"]["cols"])
     events = pd.DataFrame([
-        [AS_OF, "19:30", "Chỉ số giá tiêu dùng (CPI) tháng 8", "Mỹ", "Cao", "2,6%", "2,9%"],
-        [AS_OF, "21:00", "Quyết định lãi suất của Fed", "Mỹ", "Cao", "4,50%", "4,50%"],
-        [AS_OF + pd.Timedelta(days=1), "08:00", "GDP quý II (sơ bộ)", "Khu vực Euro", "Cao", "0,2%", "0,1%"],
-        [AS_OF + pd.Timedelta(days=1), "13:00", "Sản xuất công nghiệp (IP) tháng 8", "Trung Quốc", "Trung bình", "5,8%", "5,7%"],
-        [AS_OF + pd.Timedelta(days=1), "14:00", "Cán cân thương mại tháng 8", "Việt Nam", "Trung bình", "2,5 tỷ USD", "2,2 tỷ USD"],
+        [AS_OF, "19:30", "Chỉ số giá tiêu dùng (CPI) tháng 8", "Mỹ", "Cao", "2.6%", "2.9%"],
+        [AS_OF, "21:00", "Quyết định lãi suất của Fed", "Mỹ", "Cao", "4.50%", "4.50%"],
+        [AS_OF + pd.Timedelta(days=1), "08:00", "GDP quý II (sơ bộ)", "Khu vực Euro", "Cao", "0.2%", "0.1%"],
+        [AS_OF + pd.Timedelta(days=1), "13:00", "Sản xuất công nghiệp (IP) tháng 8", "Trung Quốc", "Trung bình", "5.8%", "5.7%"],
+        [AS_OF + pd.Timedelta(days=1), "14:00", "Cán cân thương mại tháng 8", "Việt Nam", "Trung bình", "2.5 tỷ USD", "2.2 tỷ USD"],
     ], columns=SCHEMA["market.xlsx"]["EVENTS"]["cols"])
 
     # Dòng tiền: 4 nhóm cộng lại = 0 mỗi phiên
@@ -102,10 +102,10 @@ def sample():
         prices[-2].update(close=round(close - {"FPT": 1.2, "ACB": -0.2, "VCI": -0.4}.get(t, 0.3), 2))
     tx = pd.DataFrame([
         ["2026-09-05", "CTD", "Khuyến nghị mua", "64 – 68", "Mở vị thế mới"],
-        ["2026-09-02", "MBB", "Khuyến nghị mua", "25,0 – 26,2", "Mở vị thế mới"],
-        ["2026-08-28", "ACB", "Giảm tỷ trọng 50%", "25,10", "Lần 1 trong chu kỳ"],
-        ["2026-08-20", "HPG", "Gia tăng tỷ trọng", "27,60", "Giá vốn BQ về 27,25"],
-        ["2026-08-14", "PNJ", "Bán hết", "98,40", "Đóng vị thế +14,2%"]], columns=SCHEMA["portfolio.xlsx"]["TRANSACTIONS"]["cols"])
+        ["2026-09-02", "MBB", "Khuyến nghị mua", "25.0 – 26.2", "Mở vị thế mới"],
+        ["2026-08-28", "ACB", "Giảm tỷ trọng 50%", "25.10", "Lần 1 trong chu kỳ"],
+        ["2026-08-20", "HPG", "Gia tăng tỷ trọng", "27.60", "Giá vốn BQ về 27.25"],
+        ["2026-08-14", "PNJ", "Bán hết", "98.40", "Đóng vị thế +14.2%"]], columns=SCHEMA["portfolio.xlsx"]["TRANSACTIONS"]["cols"])
     summ = pd.DataFrame([{"date": AS_OF, "ytd_pct": 2.3, "stock_pct": 85, "cash_pct": 10, "other_pct": 5}])
 
     # Quỹ: 2 kỳ, 14 quỹ
@@ -133,9 +133,9 @@ def sample():
     # Báo cáo CTCK (mẫu minh họa)
     R = [
         ("R01", "SSI Research", "2026-09-08", "Chiến lược", "Chiến lược tháng 9: Tích lũy chọn lọc", "Tích cực", 1950, "Cuối 2026", ["Ngân hàng", "Chứng khoán", "Bán lẻ"], ["Bất động sản"], [("MBB", "MUA", 31), ("MWG", "MUA", 78)], [("Fed/lãi suất USD", 2), ("Tỷ giá", 2)], "Duy trì quan điểm tích cực nhờ lợi nhuận quý III dự báo tăng 16%; khuyến nghị giải ngân từng phần khi VN-Index về 1.800."),
-        ("R02", "Vietcap", "2026-09-07", "Chiến lược", "Triển vọng quý IV/2026", "Tích cực", 1980, "12 tháng", ["Ngân hàng", "Công nghệ thông tin", "Xây dựng"], ["Điện, nước & xăng dầu khí đốt"], [("FPT", "MUA", 142), ("CTD", "MUA", 82), ("ACB", "KHẢ QUAN", 28)], [("Nâng hạng FTSE", 1), ("Định giá", 2)], "P/E dự phóng 12,4x vẫn thấp hơn trung bình 5 năm; nâng hạng là chất xúc tác chính nửa sau năm."),
-        ("R03", "HSC", "2026-09-06", "Vĩ mô", "Vĩ mô tháng 8: Áp lực tỷ giá quay lại", "Trung lập", 1880, "Cuối 2026", ["Xuất khẩu", "Công nghệ thông tin"], ["Bất động sản", "Chứng khoán"], [], [("Tỷ giá", 3), ("Lạm phát/giá dầu", 2), ("Fed/lãi suất USD", 3)], "USD/VND tăng 3,1% YTD; NHNN có thể hút ròng qua tín phiếu, gây áp lực lên lãi suất liên ngân hàng."),
-        ("R04", "VNDirect", "2026-09-05", "Ngành", "Ngành ngân hàng: Chu kỳ tín dụng mới", "Tích cực", None, "12 tháng", ["Ngân hàng"], [], [("MBB", "MUA", 30.5), ("VCB", "KHẢ QUAN", 102), ("ACB", "TRUNG LẬP", 26.5)], [("Chất lượng tài sản", 2), ("Tăng trưởng tín dụng", 1)], "Tín dụng tăng 11,2% YTD; nợ xấu nhóm tư nhân đã qua đỉnh. Ưu tiên ngân hàng có CASA cao."),
+        ("R02", "Vietcap", "2026-09-07", "Chiến lược", "Triển vọng quý IV/2026", "Tích cực", 1980, "12 tháng", ["Ngân hàng", "Công nghệ thông tin", "Xây dựng"], ["Điện, nước & xăng dầu khí đốt"], [("FPT", "MUA", 142), ("CTD", "MUA", 82), ("ACB", "KHẢ QUAN", 28)], [("Nâng hạng FTSE", 1), ("Định giá", 2)], "P/E dự phóng 12.4x vẫn thấp hơn trung bình 5 năm; nâng hạng là chất xúc tác chính nửa sau năm."),
+        ("R03", "HSC", "2026-09-06", "Vĩ mô", "Vĩ mô tháng 8: Áp lực tỷ giá quay lại", "Trung lập", 1880, "Cuối 2026", ["Xuất khẩu", "Công nghệ thông tin"], ["Bất động sản", "Chứng khoán"], [], [("Tỷ giá", 3), ("Lạm phát/giá dầu", 2), ("Fed/lãi suất USD", 3)], "USD/VND tăng 3.1% YTD; NHNN có thể hút ròng qua tín phiếu, gây áp lực lên lãi suất liên ngân hàng."),
+        ("R04", "VNDirect", "2026-09-05", "Ngành", "Ngành ngân hàng: Chu kỳ tín dụng mới", "Tích cực", None, "12 tháng", ["Ngân hàng"], [], [("MBB", "MUA", 30.5), ("VCB", "KHẢ QUAN", 102), ("ACB", "TRUNG LẬP", 26.5)], [("Chất lượng tài sản", 2), ("Tăng trưởng tín dụng", 1)], "Tín dụng tăng 11.2% YTD; nợ xấu nhóm tư nhân đã qua đỉnh. Ưu tiên ngân hàng có CASA cao."),
         ("R05", "MBS Research", "2026-09-05", "Chiến lược", "Nhận định tuần 37", "Trung lập", 1900, "Cuối 2026", ["Ngân hàng", "Dầu khí", "Xây dựng"], ["Bất động sản"], [("HPG", "MUA", 33), ("DGC", "MUA", 112)], [("Đáo hạn phái sinh/cơ cấu quỹ", 2), ("Fed/lãi suất USD", 2), ("Khối ngoại bán ròng", 2)], "Thị trường tích lũy trong biên 1.810–1.870; cơ cấu danh mục ETF quý III có thể gây biến động ngắn hạn."),
         ("R06", "KBSV", "2026-09-04", "Chiến lược", "Góc nhìn thị trường tháng 9", "Thận trọng", 1760, "3 tháng", ["Tiện ích"], ["Chứng khoán", "Bất động sản", "Thép"], [("HPG", "TRUNG LẬP", 29)], [("Định giá", 3), ("Khối ngoại bán ròng", 3), ("Margin cao", 3)], "Dư nợ margin toàn thị trường lập đỉnh mới; rủi ro điều chỉnh về vùng 1.720–1.760 nếu thanh khoản suy yếu."),
         ("R07", "BSC", "2026-09-03", "Doanh nghiệp", "FPT – Cập nhật KQKD 7T2026", "Tích cực", None, "12 tháng", ["Công nghệ thông tin"], [], [("FPT", "MUA", 138)], [("Thuế quan/thương mại", 1)], "Doanh thu CNTT nước ngoài tăng 28%; backlog Nhật Bản hỗ trợ tăng trưởng 2027."),

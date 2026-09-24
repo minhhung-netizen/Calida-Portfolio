@@ -13,3 +13,9 @@ __pycache__/
 .playwright-cli/
 output/playwright/
 outputs/
+!outputs/
+outputs/*
+!outputs/gsheet-templates/
+outputs/gsheet-templates/*
+!outputs/gsheet-templates/*.xlsx
+!outputs/gsheet-templates/*.mjs

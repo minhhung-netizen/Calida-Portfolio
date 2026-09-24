@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 from config import DB_PATH, JSON_OUT, FUND_UNIVERSE_TOTAL
 from schema import INVESTORS, ACTION_STATUSES
+from number_normalizer import format_number, normalize_number_text
 
 
 def q(con, sql, *args):
@@ -129,11 +130,11 @@ def portfolio(con, as_of):
             "w": num(r.weight_pct, 1) or 0, "thesis": r.thesis if isinstance(r.thesis, str) else "",
         })
     today = [{"t": p["t"], "a": p["status"],
-              "z": f"{p['buy'][0]:g} – {p['buy'][1]:g}".replace(".", ",") if p["buy"] and p["status"] == "MUA" else "—"}
+              "z": f"{format_number(p['buy'][0])} – {format_number(p['buy'][1])}" if p["buy"] and p["status"] == "MUA" else "—"}
              for p in out if p["status"] in ACTION_STATUSES]
     tx = q(con, "SELECT * FROM transactions ORDER BY date DESC LIMIT 50")
     history = [{"d": ddmmyyyy(r.date), "t": r.ticker, "a": r.action,
-                "p": "" if pd.isna(r.price) else str(r.price), "note": "" if pd.isna(r.note) else r.note}
+                "p": normalize_number_text(r.price), "note": "" if pd.isna(r.note) else r.note}
                for r in tx.itertuples()]
     sm = q(con, "SELECT * FROM summary WHERE date <= ? ORDER BY date DESC LIMIT 1", as_of)
     stock_w = sum(p["w"] for p in out)

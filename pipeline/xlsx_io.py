@@ -9,6 +9,23 @@ from schema import SCHEMA
 from config import INPUT_DIR
 
 
+NUMBER_FORMATS = {
+    "open": "#,##0.00;[Red](#,##0.00);-", "high": "#,##0.00;[Red](#,##0.00);-",
+    "low": "#,##0.00;[Red](#,##0.00);-", "close": "#,##0.00;[Red](#,##0.00);-",
+    "support_lo": "#,##0.00;[Red](#,##0.00);-", "support_hi": "#,##0.00;[Red](#,##0.00);-",
+    "resist_lo": "#,##0.00;[Red](#,##0.00);-", "resist_hi": "#,##0.00;[Red](#,##0.00);-",
+    "expected_lo": "#,##0.00;[Red](#,##0.00);-", "expected_hi": "#,##0.00;[Red](#,##0.00);-",
+    "buy_lo": "#,##0.00;[Red](#,##0.00);-", "buy_hi": "#,##0.00;[Red](#,##0.00);-",
+    "target": "#,##0.00;[Red](#,##0.00);-", "stop": "#,##0.00;[Red](#,##0.00);-",
+    "cost": "#,##0.00;[Red](#,##0.00);-", "nav_bn": "#,##0.00;[Red](#,##0.00);-",
+    "vn_target": "#,##0;[Red](#,##0);-", "volume": "#,##0;[Red](#,##0);-",
+    "net_value": "#,##0.00;[Red](#,##0.00);-",
+    "chg_pct": "0.0;[Red](0.0);-", "weight_pct": "0.0;[Red](0.0);-",
+    "ytd_pct": "0.0;[Red](0.0);-", "stock_pct": "0.0;[Red](0.0);-",
+    "cash_pct": "0.0;[Red](0.0);-", "other_pct": "0.0;[Red](0.0);-",
+}
+
+
 def spec(file: str, sheet: str) -> dict:
     return SCHEMA[file][sheet]
 
@@ -77,6 +94,11 @@ def _style(path: Path):
             c.font = Font(bold=True, color="FFFFFF")
             c.fill = head
         ws.freeze_panes = "A2"
+        for column in ws[1]:
+            if column.value in NUMBER_FORMATS:
+                for cell in ws.iter_cols(min_col=column.column, max_col=column.column, min_row=2):
+                    for value in cell:
+                        value.number_format = NUMBER_FORMATS[column.value]
         for i, col in enumerate(ws.columns, 1):
             width = max((len(str(c.value)) if c.value is not None else 0) for c in list(col)[:200])
             ws.column_dimensions[get_column_letter(i)].width = min(max(10, width + 2), 60)

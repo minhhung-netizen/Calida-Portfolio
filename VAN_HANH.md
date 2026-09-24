@@ -16,6 +16,7 @@ Action Desk và Signal Center không có Google Sheet riêng. Action được su
 
 1. Tải bốn file mẫu trong `outputs/gsheet-templates/` lên Google Drive, gồm cả `Calida_Bao_Cao_CTCK_Mau.xlsx`.
 2. Mở từng file bằng Google Sheets và không đổi tên sheet hoặc hàng tiêu đề.
+   - Vào **File → Settings → Locale**, chọn **United States** để hiển thị số theo chuẩn `1,234.56` (`,` hàng nghìn, `.` thập phân).
 3. Tạo một Google service account, bật Google Drive API, rồi tải file JSON khóa về máy.
 4. Chia sẻ cả bốn Sheet cho email service account với quyền **Viewer**.
 5. Lấy ID mỗi Sheet trong URL: phần giữa `/d/` và `/edit`.
@@ -65,7 +66,7 @@ Pipeline upsert dữ liệu theo khóa nên lịch sử dòng tiền, tin tức,
 
 - Ngày dùng định dạng ngày hợp lệ; `period` của quỹ dùng `MM/YYYY`.
 - Mã cổ phiếu viết hoa.
-- Giá, tỷ trọng, NAV, dòng tiền là số; tỷ trọng nhập theo phần trăm, ví dụ `12.5` thay vì `0.125` khi `WEIGHTS_AS_FRACTION=auto`.
+- Giá, tỷ trọng, NAV, dòng tiền là ô số, không phải văn bản. Chuẩn nhập là `1,234.56` (dấu `,` hàng nghìn, dấu `.` thập phân). Tỷ trọng nhập theo điểm phần trăm, ví dụ `12.5` thay vì `0.125` khi `WEIGHTS_AS_FRACTION=auto`; không thêm ký tự `%` vào ô số.
 - `NEWS.tab`: `Thế giới`, `Trong nước` hoặc `Doanh nghiệp`.
 - `EVENTS.impact`: `Cao`, `Trung bình` hoặc `Thấp`.
 - `POSITIONS.status`: `MUA`, `NẮM GIỮ`, `TĂNG TỶ TRỌNG`, `GIẢM TỶ TRỌNG` hoặc `THEO DÕI`.

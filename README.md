@@ -62,7 +62,7 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
 
 **2. Service account** – tạo trong Google Cloud, bật Drive API, tải JSON về `secrets/service-account.json`. Sau đó share các sheet đang dùng (bao gồm Báo cáo CTCK) cho email của service account với quyền Viewer.
 
-**3. Đơn vị** – `WEIGHTS_AS_FRACTION` (tỷ trọng lưu dạng 0,12 hay 12) và `NAV_DIVISOR` (NAV tính theo đồng hay tỷ).
+**3. Đơn vị và định dạng số** – `WEIGHTS_AS_FRACTION` (tỷ trọng lưu dạng 0.12 hay 12) và `NAV_DIVISOR` (NAV tính theo đồng hay tỷ). Toàn hệ thống dùng dấu phẩy phân tách hàng nghìn và dấu chấm thập phân: `1,234.56`.
 
 **4. Gemini** – `GEMINI_API_KEY`, dùng cho hỏi đáp và trích xuất báo cáo (text hoặc PDF). Server tự thử lại khi gặp lỗi 429/5xx.
 

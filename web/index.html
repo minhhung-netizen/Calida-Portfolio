@@ -271,7 +271,8 @@ const ago = iso => { if(!iso) return ""; const h = (Date.now() - new Date(iso.re
 /* ============ helpers ============ */
 const $ = (s, r=document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const nf = (n, d=0) => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("vi-VN",{minimumFractionDigits:d,maximumFractionDigits:d});
+// Chuẩn thống nhất với Google Sheets: 1,234.56 (`,` hàng nghìn, `.` thập phân).
+const nf = (n, d=0) => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 const sgn = (n, d=0, suf="") => n==null ? "—" : (n>0?"+":"") + nf(n,d) + suf;
 const cls = n => n>0 ? "up" : n<0 ? "down" : "muted";
 const range = r => r ? `${nf(r[0], r[0]%1?1:0)} – ${nf(r[1], r[1]%1?1:0)}` : "—";
