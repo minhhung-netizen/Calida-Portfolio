@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Calida Asset Management">
-  <rect width="192" height="192" fill="#FFFFFF"/>
-  <g fill="#0442A2" transform="translate(96 96)">
+  <rect width="192" height="192" fill="#0442A2"/>
+  <g fill="#FFFFFF" transform="translate(96 96)">
     <path d="M-17-80c0-16 12-29 27-29s27 13 27 29v35H10L-17-80Z" transform="rotate(0)"/>
     <path d="M-17-80c0-16 12-29 27-29s27 13 27 29v35H10L-17-80Z" transform="rotate(45)"/>
     <path d="M-17-80c0-16 12-29 27-29s27 13 27 29v35H10L-17-80Z" transform="rotate(90)"/>
