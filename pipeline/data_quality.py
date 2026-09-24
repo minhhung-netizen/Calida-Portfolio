@@ -26,7 +26,10 @@ def _invalid_number(issues, df, columns, scope, required=True, nonnegative=False
         values = parse_number_series(df[column])
         invalid = values.isna() if required else (df[column].notna() & values.isna())
         if invalid.any():
-            _add(issues, "error", scope, f"{column} phải là số", invalid.sum())
+            positions = [str(index + 2) for index, value in enumerate(invalid.tolist()) if value][:5]
+            suffix = ", …" if invalid.sum() > len(positions) else ""
+            hint = f" (dòng nguồn {', '.join(positions)}{suffix})" if positions else ""
+            _add(issues, "error", scope, f"{column} phải là số{hint}", invalid.sum())
         if nonnegative:
             negative = values.notna() & (values < 0)
             if negative.any():

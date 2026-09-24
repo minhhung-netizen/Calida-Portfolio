@@ -1,13 +1,15 @@
 """Chuẩn hóa số từ Excel/Google Sheets theo quy ước Calida: 1,234.56.
 
 File Google Sheet thường chứa ô số thực; các giá trị này đi qua không thay đổi.
-Phần xử lý chuỗi giữ tương thích dữ liệu cũ dùng ``1.234,56`` để việc chuyển đổi
-không làm hỏng lịch sử, nhưng mọi file mẫu và hướng dẫn mới đều dùng ``1,234.56``.
+Phần xử lý chuỗi giữ tương thích dữ liệu cũ dùng ``1.234,56`` và các cách hiển thị
+Google Sheets Việt Nam như ``1.234.567`` hoặc ``1.234 tỷ``. Mọi file mẫu và hướng
+dẫn mới vẫn dùng ``1,234.56``.
 """
 from __future__ import annotations
 
 import math
 import numbers
+import re
 
 import pandas as pd
 
@@ -23,6 +25,9 @@ NUMERIC_COLUMNS = frozenset({
 })
 
 
+_DISPLAY_UNIT_SUFFIX = re.compile(r"(?i)(?:vnd|vnđ|đồng|đ|tỷ|ty|triệu|tr|bn|billion)$")
+
+
 def parse_number(value):
     """Trả về số hoặc NaN, ưu tiên dạng chuẩn 1,234.56.
 
@@ -36,14 +41,21 @@ def parse_number(value):
     if isinstance(value, numbers.Number):
         return float(value)
 
-    text = str(value).strip().replace("\u00a0", "").replace(" ", "")
+    text = str(value).strip().replace("\u00a0", "").replace("\u202f", "").replace(" ", "")
     if not text:
         return math.nan
     text = text.replace("−", "-").replace("–", "-")
     negative = text.startswith("(") and text.endswith(")")
     if negative:
         text = text[1:-1]
-    text = text.replace("%", "")
+    text = text.replace("%", "").replace("'", "")
+    # Người dùng hay thêm đơn vị ngay trong ô, ví dụ ``1.234 tỷ``. Đơn vị này
+    # không làm thay đổi cơ sở đo vì từng cột schema đã quy định đơn vị riêng.
+    without_unit = _DISPLAY_UNIT_SUFFIX.sub("", text)
+    has_display_unit = without_unit != text
+    text = without_unit.rstrip(".")
+    if not text:
+        return math.nan
 
     # Hai dấu: dấu xuất hiện sau cùng là dấu thập phân.
     if "." in text and "," in text:
@@ -59,6 +71,16 @@ def parse_number(value):
             text = "".join(parts)                       # 1,234 hoặc 1,234,567
         elif len(parts) == 2 and len(tail) in (1, 2):
             text = ".".join(parts)                       # 12,5 / 12,50 dữ liệu cũ
+        else:
+            return math.nan
+    elif text.count(".") > 1 or (has_display_unit and text.count(".") == 1):
+        # Google Sheets ở locale Việt Nam có thể xuất số nguyên nhóm nghìn là
+        # 1.234.567 (không có dấu phẩy thập phân). Dạng này không được pandas
+        # hiểu trực tiếp, nên chỉ bỏ dấu chấm khi tất cả nhóm sau có 3 chữ số.
+        sign, grouped_text = (text[0], text[1:]) if text[:1] in {"+", "-"} else ("", text)
+        parts = grouped_text.split(".")
+        if all(part.isdigit() for part in parts) and all(len(part) == 3 for part in parts[1:]):
+            text = sign + "".join(parts)
         else:
             return math.nan
 

@@ -22,6 +22,10 @@ class NumberNormalizerTest(unittest.TestCase):
     def test_keeps_legacy_vietnamese_values_readable_during_migration(self):
         self.assertEqual(parse_number("1.234,56"), 1234.56)
         self.assertEqual(parse_number("12,5"), 12.5)
+        self.assertEqual(parse_number("1.234.567"), 1234567)
+        self.assertEqual(parse_number("-1.234.567"), -1234567)
+        self.assertEqual(parse_number("1.234 tỷ"), 1234)
+        self.assertEqual(parse_number("+12,5%"), 12.5)
 
     def test_formats_ranges_for_api_consumers(self):
         self.assertEqual(format_number(1234.5), "1,234.5")
