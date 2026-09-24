@@ -31,6 +31,7 @@
     --warn:#FFC15A; --warn-soft:#3D2C10; --neutral-soft:#262626;
     --shadow:none;
   }
+  html:not([data-theme="light"]) .brand-logo{filter:brightness(1.7) saturate(1.05)}
 }
 :root[data-theme="dark"]{
   --bg:#090909; --panel:#121212; --panel-2:#1C1C1C; --line:#343434;
@@ -40,6 +41,7 @@
   --warn:#FFC15A; --warn-soft:#3D2C10; --neutral-soft:#262626;
   --shadow:none;
 }
+html[data-theme="dark"] .brand-logo{filter:brightness(1.7) saturate(1.05)}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.5}
@@ -48,7 +50,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
 aside{background:var(--panel);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .logo{position:relative;padding:0 10px 26px}
-.brand-logo{display:block;width:100%;height:86px;object-fit:cover;object-position:center;border-radius:4px}
+.brand-logo{display:block;width:100%;height:86px;object-fit:contain;object-position:center}
 nav button{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-radius:10px;padding:11px 14px;margin-bottom:4px;font-size:15px;color:var(--ink-2);text-align:left}
 nav button:hover{background:var(--panel-2)}
 nav button[aria-current="page"]{background:var(--brand-soft);color:var(--brand);font-weight:600}
@@ -195,7 +197,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 <div class="app">
   <aside id="appNav">
     <div class="logo">
-      <img class="brand-logo" src="/assets/calida-logo.jpg" alt="Calida Asset Management" fetchpriority="high">
+      <img class="brand-logo" src="/assets/calida-logo-transparent.png" alt="Calida Asset Management" fetchpriority="high">
       <button class="icon-btn drawer-close" id="navClose" aria-label="Đóng menu điều hướng"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
     <nav id="nav" aria-label="Điều hướng chính"></nav>
