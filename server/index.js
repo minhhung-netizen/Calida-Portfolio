@@ -39,7 +39,7 @@ const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 20);
 const SESSION_TTL_HOURS = Math.min(24 * 7, Math.max(1, Number(process.env.SESSION_TTL_HOURS || 8)));
 const COOKIE_NAME = "calida_session";
 const WEB_DIR = path.join(ROOT, "web");
-// Có thể tách state khi kiểm thử; trên Railway mặc định vẫn là /app/data.
+// Có thể tách state khi kiểm thử; trên môi trường triển khai mặc định vẫn là /app/data.
 const STATE_DIR = path.resolve(process.env.CALIDA_DATA_DIR || path.join(ROOT, "data"));
 const JSON_PATH = path.join(STATE_DIR, "dashboard.json");
 const BUNDLED_JSON_PATH = path.join(WEB_DIR, "data", "dashboard.json");
@@ -95,8 +95,8 @@ function recentAudit(limit = 30) {
   }
 }
 
-// Endpoint readiness phải nhẹ, không phụ thuộc vào Google Sheets/vnstock. Railway
-// dùng nó trong lúc deploy; lỗi một lần đồng bộ không được làm tiến trình web chết.
+// Endpoint readiness phải nhẹ, không phụ thuộc vào Google Sheets/vnstock. Nền tảng
+// triển khai dùng nó khi phát hành; lỗi một lần đồng bộ không được làm tiến trình web chết.
 function dashboardReadiness() {
   try {
     const { path: dashboardPath, data } = readDashboard();
@@ -347,7 +347,7 @@ function validateStoredUsers(users) {
   for (const user of users) {
     const [scheme, salt, hash, ...rest] = String(user?.passwordHash || "").split("$");
     if (!USERNAME_RE.test(user?.username || "") || !isRole(user?.role) || scheme !== "scrypt" || !salt || !hash || rest.length || !user?.sessionVersion || seen.has(user.username)) {
-      throw new Error("Kho người dùng không hợp lệ; hãy khôi phục users.json từ bản backup Railway Volume");
+      throw new Error("Kho người dùng không hợp lệ; hãy khôi phục users.json từ bản sao lưu vùng dữ liệu");
     }
     normalizePermissionOverrides(user.permissions, user.role);
     seen.add(user.username);
@@ -397,7 +397,7 @@ const authEnabled = () => USERS.length > 0;
 const SESSION_SECRET = process.env.SESSION_SECRET || (ACCESS_TOKEN
   ? crypto.createHash("sha256").update(`calida-session:${ACCESS_TOKEN}`).digest("hex")
   : authEnabled() ? crypto.randomBytes(32).toString("base64url") : "");
-if (authEnabled() && !process.env.SESSION_SECRET) console.warn("SESSION_SECRET chưa được đặt; phiên sẽ bị đăng xuất khi service khởi động lại. Hãy đặt SESSION_SECRET riêng trên Railway.");
+if (authEnabled() && !process.env.SESSION_SECRET) console.warn("SESSION_SECRET chưa được đặt; phiên sẽ bị đăng xuất khi dịch vụ khởi động lại. Hãy đặt SESSION_SECRET riêng trong biến môi trường máy chủ.");
 
 function parseCookies(header = "") {
   return header.split(";").reduce((all, pair) => {
@@ -462,10 +462,9 @@ function requestIsSameOrigin(req) {
   if (!origin) return true;
   try {
     const url = new URL(origin);
-    // Railway terminates TLS before forwarding traffic to Node. Comparing
-    // req.protocol here can therefore reject a legitimate HTTPS browser
-    // request that reaches this process as HTTP. The Origin host still gives
-    // us the cross-site request protection needed by the CSRF guard.
+    // Nền tảng hosting kết thúc TLS trước khi chuyển tiếp lưu lượng đến Node.
+    // Vì vậy không so sánh req.protocol: yêu cầu HTTPS hợp lệ có thể đến tiến trình
+    // dưới dạng HTTP. Origin host vẫn cung cấp lớp bảo vệ liên trang cho CSRF guard.
     return url.host.toLowerCase() === String(req.get("host") || "").toLowerCase();
   } catch { return false; }
 }
@@ -528,7 +527,7 @@ const writeLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 const pipelineLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 4 });
 
 const app = express();
-app.set("trust proxy", 1); // Railway terminates HTTPS before the app.
+app.set("trust proxy", 1); // Nền tảng hosting kết thúc HTTPS trước ứng dụng.
 app.disable("x-powered-by");
 app.use(helmet({
   contentSecurityPolicy: {
@@ -602,7 +601,7 @@ app.get("/api/health", (req, res) => {
   return res.json({ ok: true, service: "calida-analyst", startedAt: STARTED_AT, uptimeSeconds: Math.floor(process.uptime()) });
 });
 
-// Readiness: Railway dùng endpoint này trước khi chuyển traffic sang deploy mới.
+// Readiness: nền tảng triển khai dùng endpoint này trước khi chuyển lưu lượng sang bản mới.
 app.get("/api/ready", (req, res) => {
   const dashboard = dashboardReadiness();
   res.set("Cache-Control", "no-store");
@@ -631,7 +630,7 @@ app.get("/api/notifications/config", (req, res) => {
 });
 
 app.post("/api/notifications/subscriptions", requireCsrf, writeLimit, (req, res) => {
-  if (!PUSH_ENABLED) return res.status(503).json({ error: "Web Push chưa được cấu hình trên máy chủ. Hãy đặt VAPID keys trên Railway." });
+  if (!PUSH_ENABLED) return res.status(503).json({ error: "Web Push chưa được cấu hình trên máy chủ. Hãy đặt VAPID keys trong biến môi trường." });
   try {
     const saved = savePushSubscription(req.user.u, req.body?.subscription, req.body?.preferences);
     audit(req, "push.subscribe", { endpoint: new URL(saved.subscription.endpoint).host, preferences: saved.preferences });
@@ -647,7 +646,7 @@ app.delete("/api/notifications/subscriptions", requireCsrf, writeLimit, (req, re
 });
 
 app.post("/api/notifications/test", requireCsrf, writeLimit, async (req, res) => {
-  if (!PUSH_ENABLED) return res.status(503).json({ error: "Web Push chưa được cấu hình trên máy chủ. Hãy đặt VAPID keys trên Railway." });
+  if (!PUSH_ENABLED) return res.status(503).json({ error: "Web Push chưa được cấu hình trên máy chủ. Hãy đặt VAPID keys trong biến môi trường." });
   const ownSubscriptions = readPushStore().filter((entry) => entry.username === req.user.u);
   if (!ownSubscriptions.length) return res.status(404).json({ error: "Thiết bị này chưa đăng ký nhận thông báo" });
   const expired = new Set();
@@ -1258,7 +1257,7 @@ app.post("/api/pipeline/run", requireModule("admin", "edit"), requireCsrf, pipel
 
 // ---------- static site ----------
 // Giao diện PWA thay đổi thường xuyên; Safari/iOS không được giữ lại index.html
-// cũ sau khi Railway deploy, nếu không các CSS responsive mới sẽ không áp dụng.
+// cũ sau khi máy chủ phát hành bản mới, nếu không các CSS responsive mới sẽ không áp dụng.
 app.get(["/", "/index.html"], (req, res) => {
   res.set("Cache-Control", "no-store");
   return res.sendFile(path.join(WEB_DIR, "index.html"));

@@ -6,6 +6,7 @@ import test from "node:test";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const html = readFileSync(path.join(ROOT, "web", "index.html"), "utf8");
+const serverSource = readFileSync(path.join(ROOT, "server", "index.js"), "utf8");
 const source = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
   .map((match) => match[1]).find((script) => script.includes("function pgOverview"));
 const fixture = JSON.parse(readFileSync(path.join(ROOT, "web", "data", "dashboard.json"), "utf8"));
@@ -48,6 +49,11 @@ function app(allowed = modules, editable = modules) {
 
 test("SPA JavaScript parses", () => {
   assert.doesNotThrow(() => new vm.Script(source));
+});
+
+test("giao diện và thông báo API không hiển thị tên nhà cung cấp hạ tầng", () => {
+  assert.doesNotMatch(html, /railway/i);
+  assert.doesNotMatch(serverSource, /railway/i);
 });
 
 test("PWA and iOS home-screen icons use Calida brand assets", () => {
