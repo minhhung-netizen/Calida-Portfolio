@@ -20,6 +20,7 @@ Hệ thống gồm 10 phân hệ: Tổng quan · Bản tin · Danh mục · Dòn
 - **SQLite (`data/calida.db`)** được dựng lại toàn bộ từ Excel mỗi lần chạy, có kiểm tra cột, ngày và dòng trùng khóa.
 - **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
 - **Vnstock là nguồn giá tùy chọn**: Railway vẫn deploy và dựng dashboard từ dữ liệu đã có nếu kho cài đặt tạm thời không cung cấp được Vnstock. Khi đó chỉ bước làm mới giá bị bỏ qua; các đồng bộ Google Sheets vẫn dùng bình thường.
+- **Giá có quy trình độc lập**: mặc định máy chủ cập nhật giá mỗi 10 phút trong các khung `09:00–11:30` và `13:00–15:10` từ thứ Hai đến thứ Sáu. Các mã được gọi tuần tự tối đa 50 request/phút, thấp hơn giới hạn 60 request/phút; lượt mới không chạy chồng hoặc tích hàng đợi khi quy trình khác đang bận.
 - **Quản trị database theo module/ngày**: admin có thể xem trước số dòng và xoá dữ liệu Bản tin, Danh mục, Dòng tiền, Quỹ hoặc Báo cáo CTCK trong một khoảng ngày. Dấu xoá theo khóa được giữ trên Volume để dữ liệu cũ không quay lại sau lần đồng bộ Google Sheets tiếp theo.
 - **Cảnh báo giá cá nhân**: mỗi người dùng tự tạo ngưỡng tăng đến, giảm đến hoặc một vùng giá và chỉ thấy dữ liệu của chính mình. Vùng mua chỉ nhận chiều giá đi xuống; vùng bán chỉ nhận chiều giá đi lên. Có thể chọn gửi một lần, mỗi ngày có giá mới hoặc mỗi lần giá quay lại ngưỡng; chọn giờ gửi sớm nhất và hạn tự hết hiệu lực. Mã ngoài danh mục được bổ sung vào nguồn lấy giá ở lần đồng bộ tiếp theo.
 
@@ -42,6 +43,7 @@ python pipeline/run.py --build-only
 |---|---|
 | `python pipeline/run.py` | Chạy đầy đủ: Google Sheets → vnstock → inbox → DB → JSON |
 | `python pipeline/run.py --build-only` | Chỉ dựng lại DB + JSON từ Excel hiện có |
+| `python pipeline/run.py --prices-only` | Chỉ lấy giá → cập nhật bảng giá trong DB → xuất lại JSON; không gọi Google Sheets |
 | `python pipeline/run.py --no-prices` | Bỏ bước vnstock |
 | `python pipeline/run.py --source funds --no-prices` | Đồng bộ riêng một nguồn: `portfolio`, `operations`, `funds` hoặc `reports` |
 | `python pipeline/make_templates.py` | Tạo template Excel trống. Mỗi file có sheet `_HUONG_DAN` mô tả cột |
@@ -81,6 +83,7 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
 **A. Một máy chủ (khuyến nghị)** – VPS hoặc máy Windows nội bộ chạy `node server/index.js`:
 - Server phục vụ giao diện và API.
 - Tự chạy pipeline lúc `PIPELINE_TIME` (T2–T6). Log nằm ở `data/logs/`.
+- Tự cập nhật giá theo `PRICE_REFRESH_MINUTES` và `PRICE_REFRESH_WINDOWS`; mặc định 10 phút/lần trong giờ theo dõi.
 - Khi lưu báo cáo, server ghi vào `data/inbox/`, rồi dựng lại DB ngay.
 - Admin có thể sửa/xóa báo cáo trong thư viện; mỗi thay đổi được đưa vào inbox, áp dụng atomic vào `reports.xlsx` rồi mới dựng lại dashboard.
 - Đặt `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` khi mở ra internet; phiên đăng nhập dùng cookie `HttpOnly`. Admin có thể cấp riêng quyền **xem/chỉnh sửa** cho từng module của từng user; dashboard qua server chỉ trả dữ liệu của các module đã được cấp.

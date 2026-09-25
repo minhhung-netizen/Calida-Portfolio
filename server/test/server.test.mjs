@@ -50,7 +50,7 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
   await writeFile(path.join(stateDir, "dashboard.json"), JSON.stringify(persistedDashboard), "utf8");
   const child = spawn(process.execPath, ["index.js"], {
     cwd: path.join(ROOT, "server"),
-    env: { ...process.env, PORT: String(port), PIPELINE_TIME: "", SESSION_COOKIE_SECURE: "false",
+    env: { ...process.env, PORT: String(port), PIPELINE_TIME: "", PRICE_REFRESH_MINUTES: "0", SESSION_COOKIE_SECURE: "false",
       CALIDA_DATA_DIR: stateDir, CALIDA_USERS_JSON: JSON.stringify(users), PYTHON_BIN: "calida-test-python-not-found" },
     stdio: "ignore",
   });

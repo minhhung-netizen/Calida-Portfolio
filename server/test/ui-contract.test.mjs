@@ -7,6 +7,8 @@ import test from "node:test";
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const html = readFileSync(path.join(ROOT, "web", "index.html"), "utf8");
 const serverSource = readFileSync(path.join(ROOT, "server", "index.js"), "utf8");
+const priceSource = readFileSync(path.join(ROOT, "pipeline", "fetch_prices.py"), "utf8");
+const pipelineSource = readFileSync(path.join(ROOT, "pipeline", "run.py"), "utf8");
 const source = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
   .map((match) => match[1]).find((script) => script.includes("function pgOverview"));
 const fixture = JSON.parse(readFileSync(path.join(ROOT, "web", "data", "dashboard.json"), "utf8"));
@@ -50,6 +52,14 @@ function app(allowed = modules, editable = modules) {
 
 test("SPA JavaScript parses", () => {
   assert.doesNotThrow(() => new vm.Script(source));
+});
+
+test("giá có quy trình 10 phút độc lập, tuần tự và không chạy chồng", () => {
+  assert.match(serverSource, /PRICE_REFRESH_MINUTES[^\n]+10/);
+  assert.match(serverSource, /enqueuePipeline\(\["--prices-only"\]/);
+  assert.match(serverSource, /if \(running \|\| queuedJobs > 0\)/);
+  assert.match(priceSource, /min\(55, max\(1, int\(requests_per_minute\)\)\)/);
+  assert.match(pipelineSource, /build_db\.refresh_prices/);
 });
 
 test("giao diện và thông báo API không hiển thị tên nhà cung cấp hạ tầng", () => {

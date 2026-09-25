@@ -32,6 +32,8 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || "";
 const PYTHON = process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
 const PIPELINE_TIME = process.env.PIPELINE_TIME ?? "16:30";
+const PRICE_REFRESH_MINUTES = Number(process.env.PRICE_REFRESH_MINUTES ?? 10);
+const PRICE_REFRESH_WINDOWS = process.env.PRICE_REFRESH_WINDOWS || "09:00-11:30,13:00-15:10";
 const FLOWS_MODULE_ENABLED = String(process.env.FLOWS_MODULE_ENABLED || "false").trim().toLowerCase() === "true";
 const PIPELINE_TIMEOUT_MS = Number(process.env.PIPELINE_TIMEOUT_MS || 20 * 60 * 1000);
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 60 * 1000);
@@ -396,6 +398,7 @@ async function evaluatePriceAlerts(targetUsername = null) {
     const quote = prices.get(alert.ticker);
     if (!quote || !Number.isFinite(quote.price)) continue;
     const quoteDate = String(quote.date || now.slice(0, 10));
+    const lastObservedPrice = Number.isFinite(alert.lastPrice) ? alert.lastPrice : null;
     if (alert.lastPrice !== quote.price || alert.lastPriceDate !== quoteDate) {
       alert.lastPrice = quote.price;
       alert.lastPriceDate = quoteDate;
@@ -407,7 +410,9 @@ async function evaluatePriceAlerts(targetUsername = null) {
       : alert.condition === "range"
         ? quote.price >= alert.targetPrice && quote.price <= alert.targetPriceHigh
         : quote.price <= alert.targetPrice;
-    const previousPrice = Number.isFinite(quote.previousPrice) ? quote.previousPrice : null;
+    // Ưu tiên lần quan sát 10 phút trước để xác định đúng chiều đi vào vùng.
+    // Cảnh báo mới chưa có quan sát thì dùng giá đóng cửa phiên trước làm mốc.
+    const previousPrice = lastObservedPrice ?? (Number.isFinite(quote.previousPrice) ? quote.previousPrice : null);
     const directionMatched = alert.condition !== "range" || (previousPrice != null && (
       alert.rangeAction === "buy"
         ? previousPrice > alert.targetPriceHigh
@@ -967,10 +972,11 @@ let activeProcess = null;
 let pipelineQueue = Promise.resolve();
 let queuedJobs = 0;
 let scheduleTimer = null;
+let priceRefreshTimer = null;
 let priceAlertTimer = null;
 let pipelineState = { status: "idle", startedAt: null, finishedAt: null, reason: null, error: null };
 
-function startPipeline(args, reason) {
+function startPipeline(args, reason, options = {}) {
   if (running) return running;
   const logFile = path.join(LOG_DIR, `pipeline-${new Date().toISOString().slice(0, 10)}.log`);
   const log = fs.createWriteStream(logFile, { flags: "a" });
@@ -1016,24 +1022,26 @@ function startPipeline(args, reason) {
   running = job.then(
     async (result) => {
       pipelineState = { ...pipelineState, status: "ok", finishedAt: new Date().toISOString() };
-      audit(null, "pipeline.complete", { reason, status: "ok" });
+      if (!options.quiet) audit(null, "pipeline.complete", { reason, status: "ok" });
       try { await evaluatePriceAlerts(); }
       catch (error) { console.error(`Không kiểm tra được cảnh báo giá: ${error.message}`); }
       return result;
     },
     (error) => {
       pipelineState = { ...pipelineState, status: "error", finishedAt: new Date().toISOString(), error: error.message };
-      audit(null, "pipeline.complete", { reason, status: "error", error: error.message.slice(0, 300) });
-      queuePush({ preference: "pipeline", module: "admin", title: "Calida · Quy trình dữ liệu lỗi", body: `Không hoàn tất: ${reason}. Mở Quản trị để xem nhật ký.`, url: "/#admin", tag: "calida-pipeline-error" });
+      if (!options.quiet) {
+        audit(null, "pipeline.complete", { reason, status: "error", error: error.message.slice(0, 300) });
+        queuePush({ preference: "pipeline", module: "admin", title: "Calida · Quy trình dữ liệu lỗi", body: `Không hoàn tất: ${reason}. Mở Quản trị để xem nhật ký.`, url: "/#admin", tag: "calida-pipeline-error" });
+      }
       throw error;
     },
   ).finally(() => { running = null; });
   return running;
 }
 
-function enqueuePipeline(args, reason) {
+function enqueuePipeline(args, reason, options = {}) {
   queuedJobs += 1;
-  const job = pipelineQueue.catch(() => {}).then(() => startPipeline(args, reason));
+  const job = pipelineQueue.catch(() => {}).then(() => startPipeline(args, reason, options));
   // Queue phải luôn trở về trạng thái resolved: request gọi job vẫn nhận lỗi,
   // còn hàng đợi tiếp tục chạy tác vụ sau và Node không có rejection bị bỏ quên.
   pipelineQueue = job.then(
@@ -1529,6 +1537,63 @@ function scheduleDaily() {
   console.log(`Pipeline kế tiếp: ${next.toLocaleString("vi-VN")}`);
 }
 
+function parsedPriceRefreshWindows() {
+  if (!Number.isInteger(PRICE_REFRESH_MINUTES) || PRICE_REFRESH_MINUTES <= 0) return [];
+  return PRICE_REFRESH_WINDOWS.split(",").map((part) => {
+    const match = /^\s*([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)\s*$/.exec(part);
+    if (!match) return null;
+    const start = Number(match[1]) * 60 + Number(match[2]);
+    const end = Number(match[3]) * 60 + Number(match[4]);
+    return start <= end ? { start, end } : null;
+  }).filter(Boolean).sort((left, right) => left.start - right.start);
+}
+
+function nextPriceRefreshTime(now = new Date()) {
+  const windows = parsedPriceRefreshWindows();
+  if (!windows.length) return null;
+  const intervalMs = PRICE_REFRESH_MINUTES * 60_000;
+  const afterNow = now.getTime() + 1000;
+  let next = null;
+  for (let offset = 0; offset < 8; offset += 1) {
+    const day = new Date(now);
+    day.setDate(now.getDate() + offset);
+    day.setHours(0, 0, 0, 0);
+    if ([0, 6].includes(day.getDay())) continue;
+    for (const window of windows) {
+      const start = day.getTime() + window.start * 60_000;
+      const end = day.getTime() + window.end * 60_000;
+      const steps = Math.max(0, Math.ceil((afterNow - start) / intervalMs));
+      const candidate = start + steps * intervalMs;
+      if (candidate < afterNow || candidate > end) continue;
+      if (!next || candidate < next.getTime()) next = new Date(candidate);
+    }
+    if (next) break;
+  }
+  return next;
+}
+
+function schedulePriceRefresh() {
+  if (priceRefreshTimer) clearTimeout(priceRefreshTimer);
+  const now = new Date();
+  const next = nextPriceRefreshTime(now);
+  if (!next) {
+    if (PRICE_REFRESH_MINUTES > 0) console.error("PRICE_REFRESH_WINDOWS không hợp lệ; lịch cập nhật giá đã tắt.");
+    return;
+  }
+  priceRefreshTimer = setTimeout(() => {
+    priceRefreshTimer = null;
+    if (running || queuedJobs > 0) {
+      console.log("Bỏ qua lượt cập nhật giá định kỳ vì quy trình dữ liệu khác đang chạy hoặc chờ.");
+    } else {
+      enqueuePipeline(["--prices-only"], `cập nhật giá định kỳ ${PRICE_REFRESH_MINUTES} phút`, { quiet: true })
+        .catch((error) => console.error(`Cập nhật giá định kỳ lỗi: ${error.message}`));
+    }
+    schedulePriceRefresh();
+  }, Math.max(1000, next - now));
+  priceRefreshTimer.unref?.();
+  console.log(`Cập nhật giá kế tiếp: ${next.toLocaleString("vi-VN")}`);
+}
+
 function schedulePriceAlertChecks() {
   if (priceAlertTimer) clearInterval(priceAlertTimer);
   priceAlertTimer = setInterval(() => {
@@ -1543,12 +1608,14 @@ const server = app.listen(PORT, () => {
   if (!GEMINI_KEY) console.log("⚠ Chưa có GEMINI_API_KEY: hỏi đáp và trích xuất sẽ báo lỗi");
   if (!fs.existsSync(JSON_PATH)) console.log("⚠ Chưa có dashboard trên Volume; đang dùng bản dự phòng cho tới khi pipeline dựng dữ liệu.");
   scheduleDaily();
+  schedulePriceRefresh();
   schedulePriceAlertChecks();
 });
 
 function shutdown(signal) {
   console.log(`Nhận ${signal}; đang đóng server an toàn...`);
   if (scheduleTimer) clearTimeout(scheduleTimer);
+  if (priceRefreshTimer) clearTimeout(priceRefreshTimer);
   if (priceAlertTimer) clearInterval(priceAlertTimer);
   if (activeProcess) activeProcess.kill("SIGTERM");
   server.close(() => process.exit(0));

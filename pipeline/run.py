@@ -33,6 +33,8 @@ def step(name, fn, required=False):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build-only", action="store_true")
+    ap.add_argument("--prices-only", action="store_true",
+                    help="Chỉ lấy giá, cập nhật hai bảng giá trong DB và xuất lại dashboard.")
     ap.add_argument("--no-prices", action="store_true")
     ap.add_argument("--no-gsheets", action="store_true")
     ap.add_argument("--source", action="append", choices=("portfolio", "operations", "funds", "reports"),
@@ -45,7 +47,9 @@ def main():
     a = ap.parse_args()
     if a.build_only and a.source:
         ap.error("--build-only không dùng cùng --source")
-    if a.purge_module and (a.build_only or a.source or not a.from_date or not a.to_date):
+    if a.prices_only and (a.build_only or a.no_prices or a.no_gsheets or a.source or a.purge_module):
+        ap.error("--prices-only phải chạy độc lập")
+    if a.purge_module and (a.build_only or a.prices_only or a.source or not a.from_date or not a.to_date):
         ap.error("--purge-module cần --from-date và --to-date, không dùng cùng --build-only/--source")
     if a.purge_module:
         import data_admin
@@ -57,6 +61,23 @@ def main():
         step("Xoá dữ liệu theo module và ngày", purge_data, required=True)
         step("Build database", build_db.run, required=True)
         step("Xuất dashboard.json", export_json.run, required=True)
+        return
+    if a.prices_only:
+        from config import PRICE_REFRESH_LOOKBACK_DAYS
+        import fetch_prices
+        failures = []
+        def fetch_prices_strict():
+            failed = fetch_prices.run(lookback_days=PRICE_REFRESH_LOOKBACK_DAYS)
+            if failed:
+                failures.extend(failed)
+                raise RuntimeError("Không lấy được giá: " + ", ".join(failed))
+        price_step_ok = step("Cập nhật giá độc lập", fetch_prices_strict)
+        step("Cập nhật bảng giá trong database", build_db.refresh_prices, required=True)
+        step("Xuất dashboard.json", export_json.run, required=True)
+        if not price_step_ok:
+            detail = ", ".join(failures) if failures else "nguồn giá"
+            print("✖ Dashboard đã cập nhật các mã thành công; mã lỗi: " + detail)
+            sys.exit(2)
         return
     source_failures = []
     if not a.build_only:

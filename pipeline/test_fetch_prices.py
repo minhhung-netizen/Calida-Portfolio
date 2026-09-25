@@ -13,6 +13,23 @@ import fetch_prices  # noqa: E402
 
 
 class FetchPricesTest(unittest.TestCase):
+    def test_request_pacer_is_sequential_and_clamped_below_provider_limit(self):
+        state = {"now": 0.0}
+        sleeps = []
+
+        def sleep(seconds):
+            sleeps.append(seconds)
+            state["now"] += seconds
+
+        pacer = fetch_prices._RequestPacer(60, clock=lambda: state["now"], sleeper=sleep)
+        self.assertEqual(pacer.requests_per_minute, 55)
+        pacer.wait()
+        pacer.wait()
+        pacer.wait()
+        self.assertEqual(len(sleeps), 2)
+        self.assertAlmostEqual(sleeps[0], 60 / 55)
+        self.assertAlmostEqual(sleeps[1], 60 / 55)
+
     def test_missing_vnstock_skips_price_refresh_without_retries(self):
         with patch("fetch_prices.find_spec", return_value=None):
             self.assertEqual(fetch_prices.run(), ["vnstock"])

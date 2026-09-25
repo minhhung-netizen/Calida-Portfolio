@@ -1,5 +1,6 @@
 """Gộp toàn bộ Excel đầu vào → SQLite (data/calida.db). Kiểm tra cột theo SCHEMA."""
 import sqlite3
+import shutil
 from datetime import datetime
 import pandas as pd
 from config import DB_PATH, INPUT_DIR, FLOWS_MODULE_ENABLED
@@ -81,6 +82,59 @@ def run() -> list:
     for w in warnings:
         print(f"  ⚠ {w}")
     return warnings + [f"{item['scope']}: {item['message']}" for item in quality if item["level"] == "warning"]
+
+
+def refresh_prices() -> list:
+    """Chỉ thay bảng VN-Index/giá trong DB, không kiểm tra lại các module khác."""
+    if not DB_PATH.exists():
+        return run()
+    frames, stats = {}, []
+    for file, sheet in (("market.xlsx", "VNINDEX"), ("portfolio.xlsx", "PRICES")):
+        spec = SCHEMA[file][sheet]
+        path = INPUT_DIR / file
+        if not path.exists():
+            raise FileNotFoundError(f"Thiếu file {file}")
+        df = pd.read_excel(path, sheet_name=sheet)
+        df.columns = [str(c).strip() for c in df.columns]
+        missing = [column for column in spec["cols"] if column not in df.columns]
+        if missing:
+            raise ValueError(f"{file}/{sheet} thiếu cột {missing}")
+        df = df.reindex(columns=spec["cols"]).dropna(how="all")
+        for column in spec.get("dates", []):
+            parsed = to_date(df[column])
+            if parsed.isna().any():
+                raise ValueError(f"{file}/{sheet}: {int(parsed.isna().sum())} dòng sai định dạng ngày ở cột {column}")
+            df[column] = parsed.dt.strftime("%Y-%m-%d")
+        df = df.drop_duplicates(subset=spec["key"], keep="last")
+        frames[(file, sheet)] = df
+
+    quality = validate(frames)
+    for issue in quality:
+        icon = "✖" if issue["level"] == "error" else "⚠"
+        print(f"  {icon} {issue['scope']}: {issue['message']} ({issue['count']} dòng)")
+    raise_for_errors(quality)
+
+    tmp = DB_PATH.with_suffix(".prices.tmp.db")
+    if tmp.exists():
+        tmp.unlink()
+    shutil.copy2(DB_PATH, tmp)
+    try:
+        con = sqlite3.connect(tmp)
+        try:
+            for (file, sheet), df in frames.items():
+                table = table_name(sheet)
+                df.to_sql(table, con, index=False, if_exists="replace")
+                stats.append((table, len(df)))
+            con.commit()
+        finally:
+            con.close()
+        tmp.replace(DB_PATH)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+    for table, rows in stats:
+        print(f"  {table:<18} {rows:>7} dòng")
+    return [f"{item['scope']}: {item['message']}" for item in quality if item["level"] == "warning"]
 
 
 if __name__ == "__main__":

@@ -36,6 +36,10 @@ FLOWS_MODULE_ENABLED = os.getenv("FLOWS_MODULE_ENABLED", "false").strip().lower(
 
 # ---- Giá ----
 PRICE_LOOKBACK_DAYS = int(os.getenv("PRICE_LOOKBACK_DAYS", "400"))
+PRICE_REFRESH_LOOKBACK_DAYS = max(3, int(os.getenv("PRICE_REFRESH_LOOKBACK_DAYS", "10")))
+# Giữ thấp hơn giới hạn 60 request/phút của nguồn. fetch_prices còn chặn cứng
+# tối đa 55 để một cấu hình sai không vô tình gây burst request.
+PRICE_REQUESTS_PER_MINUTE = int(os.getenv("PRICE_REQUESTS_PER_MINUTE", "50"))
 VNSTOCK_SOURCE = os.getenv("VNSTOCK_SOURCE", "VCI")
 
 # ---- Tổng số quỹ trong vũ trụ theo dõi (để hiển thị x/y quỹ đã cập nhật). 0 = tự đếm ----
