@@ -37,13 +37,14 @@ Google Sheets ──► Railway Volume (/app/data) ──► SQLite ──► Da
 | `FUNDS_SHEET_ID` | Google Sheet Quỹ |
 | `REPORTS_SHEET_ID` | Google Sheet Báo cáo CTCK |
 | `PIPELINE_TIME=16:30` | Lịch chạy ngày làm việc, giờ Việt Nam |
-| `PRICE_REFRESH_MINUTES=10` | Chu kỳ cập nhật riêng VN-Index và giá cổ phiếu; đặt `0` để tắt |
+| `PRICE_REFRESH_MINUTES=1` | Chu kỳ cập nhật riêng giá cổ phiếu trong giờ giao dịch; đặt `0` để tắt |
 | `PRICE_REFRESH_WINDOWS=09:00-11:30,13:00-15:10` | Khung chạy giá từ thứ Hai đến thứ Sáu, theo `TZ` |
 | `PRICE_PRIMARY_PROVIDER=dnse` | Ưu tiên DNSE; nếu lỗi sẽ tự chuyển sang Vnstock |
 | `DNSE_API_KEY` | API Key tạo trong DNSE OpenAPI; chỉ lưu trong biến môi trường |
 | `DNSE_API_SECRET` | API Secret DNSE; secret chỉ hiển thị một lần, không đưa vào Git hoặc log |
 | `DNSE_API_VERSION=2026-07-23` | Phiên bản REST API khớp SDK chính thức hiện tại |
 | `DNSE_BOARD_ID=G1` | Bảng giao dịch liên tục của cổ phiếu cơ sở |
+| `DNSE_REQUESTS_PER_MINUTE=120` | Gọi DNSE tuần tự, chặn cứng 150 để thấp hơn giới hạn 10.000 lượt/giờ |
 | `VNSTOCK_API_KEY` | API key cộng đồng lấy tại `https://vnstocks.com/account#api-key`; không đưa khóa vào Git |
 | `PRICE_REQUESTS_PER_MINUTE=50` | Gọi tuần tự; hệ thống luôn chặn tối đa 55 để thấp hơn giới hạn 60/phút |
 | `PRICE_REFRESH_LOOKBACK_DAYS=10` | Số ngày tải trong lượt giá định kỳ; đủ giữ giá hiện tại và giá phiên trước |
@@ -104,7 +105,7 @@ Mỗi cảnh báo có thể đặt:
 - **Thời điểm gửi:** ngay khi đủ điều kiện hoặc từ một giờ cụ thể trong ngày. Giờ được chọn là giờ gửi sớm nhất; nếu dữ liệu giá cập nhật sau giờ đó, hệ thống gửi khi lần kiểm tra kế tiếp xác nhận đủ điều kiện.
 - **Hạn cảnh báo:** không bắt buộc. Quá thời điểm này cảnh báo tự chuyển sang hết hạn và không gửi thêm.
 
-Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật và theo lịch kiểm tra mỗi phút. Giá có quy trình độc lập mặc định chạy 10 phút/lần trong các khung `09:00–11:30` và `13:00–15:10`, từ thứ Hai đến thứ Sáu. Mỗi mã được gọi tuần tự với tốc độ mặc định 50 request/phút; nếu một quy trình dữ liệu khác đang chạy hoặc chờ, lượt giá đó được bỏ qua để không chạy chồng hay dồn hàng đợi. Tần suất theo ngày chỉ gửi lại khi có ngày dữ liệu giá mới, tránh lặp lại từ dữ liệu cũ. Với chế độ một lần, sau khi kích hoạt người dùng chọn **Bật lại** để theo dõi tiếp. Nếu mã chưa tồn tại trong danh mục, hệ thống sẽ bổ sung mã đó vào lượt lấy giá tiếp theo; trước khi có dữ liệu, thẻ cảnh báo hiển thị trạng thái chờ. File `price-alerts.json` nằm trong vùng dữ liệu vận hành và cần được đưa vào kế hoạch sao lưu.
+Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật và theo lịch kiểm tra mỗi phút. Giá có quy trình độc lập mặc định chạy 1 phút/lần trong các khung `09:00–11:30` và `13:00–15:10`, từ thứ Hai đến thứ Sáu. DNSE gọi tuần tự tối đa 120 request/phút; Vnstock dùng bộ giới hạn riêng khi dự phòng. Nếu một quy trình dữ liệu khác đang chạy hoặc chờ, lượt giá đó được bỏ qua để không chạy chồng hay dồn hàng đợi. Tần suất theo ngày chỉ gửi lại khi có ngày dữ liệu giá mới, tránh lặp lại từ dữ liệu cũ. Với chế độ một lần, sau khi kích hoạt người dùng chọn **Bật lại** để theo dõi tiếp. Nếu mã chưa tồn tại trong danh mục, hệ thống sẽ bổ sung mã đó vào lượt lấy giá tiếp theo; trước khi có dữ liệu, thẻ cảnh báo hiển thị trạng thái chờ. File `price-alerts.json` nằm trong vùng dữ liệu vận hành và cần được đưa vào kế hoạch sao lưu.
 
 ### Xoá dữ liệu cũ theo module và ngày
 
@@ -168,6 +169,7 @@ Ví dụ lỗi `flows.xlsx/SECTOR_FLOW: weight_pct phải là số` nghĩa là p
 - Chờ hết khoảng thời gian giới hạn rồi chạy lại.
 - Giữ `PRICE_REQUESTS_PER_MINUTE=50`; không tăng lên 60. Hệ thống vẫn chặn tối đa 55 ngay cả khi cấu hình cao hơn.
 - Khai báo `PRICE_PRIMARY_PROVIDER=dnse`, `DNSE_API_KEY` và `DNSE_API_SECRET` để dùng DNSE làm nguồn chính. Không dán hai khóa vào mã nguồn, file hướng dẫn, ảnh chụp hoặc Google Sheets.
+- DNSE vẫn có rate limit theo API key và endpoint. Endpoint giá khớp gần nhất hiện cho phép 10.000 lượt/giờ và 100.000 lượt/ngày; cấu hình 120 lượt/phút giữ biên an toàn so với hạn mức giờ.
 - Nếu DNSE trả lỗi kết nối, xác thực, giới hạn hoặc thiếu giá của một mã, cùng lượt đó sẽ tự thử Vnstock. Khai báo thêm `VNSTOCK_API_KEY` để nguồn dự phòng có hạn mức ổn định; nếu bỏ trống, hệ thống tự hạ xuống tối đa 18 lượt/phút.
 - Quy trình giá định kỳ gọi từng mã lần lượt và không chạy chồng với pipeline khác. DNSE trả giá theo nghìn đồng (`DNSE_PRICE_DIVISOR=1`); KBS trả theo đồng và được đổi bằng `VNSTOCK_QUOTE_PRICE_DIVISOR=1000`.
 - Kiểm tra tại **Quản trị → Vận hành dữ liệu** hoặc **Cảnh báo giá**: giao diện hiển thị nguồn ưu tiên, nguồn dự phòng, lần thành công gần nhất và lịch chạy kế tiếp. Có thể bấm **Cập nhật giá ngay** để kiểm thử sau khi thêm khóa.
@@ -200,7 +202,7 @@ Khi cần khôi phục:
 ### Hằng ngày
 
 1. Cập nhật Google Sheets.
-2. Giá tự cập nhật mỗi 10 phút trong khung cấu hình; Google Sheets vẫn dùng đồng bộ riêng nguồn hoặc lịch đầy đủ `PIPELINE_TIME`.
+2. Giá tự cập nhật mỗi 1 phút trong khung cấu hình; Google Sheets vẫn dùng đồng bộ riêng nguồn hoặc lịch đầy đủ `PIPELINE_TIME`.
 3. Kiểm tra trạng thái và chất lượng dữ liệu.
 4. Xem thông báo lỗi pipeline trên PWA nếu đã bật thông báo.
 

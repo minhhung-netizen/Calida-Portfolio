@@ -20,7 +20,7 @@ Hệ thống gồm 10 phân hệ: Tổng quan · Bản tin · Danh mục · Dòn
 - **SQLite (`data/calida.db`)** được dựng lại toàn bộ từ Excel mỗi lần chạy, có kiểm tra cột, ngày và dòng trùng khóa.
 - **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
 - **Vnstock là nguồn giá tùy chọn**: Railway vẫn deploy và dựng dashboard từ dữ liệu đã có nếu kho cài đặt tạm thời không cung cấp được Vnstock. Khi đó chỉ bước làm mới giá bị bỏ qua; các đồng bộ Google Sheets vẫn dùng bình thường.
-- **Giá có quy trình độc lập**: mặc định máy chủ cập nhật giá mỗi 10 phút trong các khung `09:00–11:30` và `13:00–15:10` từ thứ Hai đến thứ Sáu. Các mã được gọi tuần tự tối đa 50 request/phút, thấp hơn giới hạn 60 request/phút; lượt mới không chạy chồng hoặc tích hàng đợi khi quy trình khác đang bận.
+- **Giá có quy trình độc lập**: mặc định máy chủ cập nhật giá mỗi 1 phút trong các khung `09:00–11:30` và `13:00–15:10` từ thứ Hai đến thứ Sáu. DNSE được gọi tuần tự tối đa 120 request/phút; Vnstock có bộ giới hạn dự phòng riêng. Lượt mới không chạy chồng hoặc tích hàng đợi khi quy trình khác đang bận.
 - **Quản trị database theo module/ngày**: admin có thể xem trước số dòng và xoá dữ liệu Bản tin, Danh mục, Dòng tiền, Quỹ hoặc Báo cáo CTCK trong một khoảng ngày. Dấu xoá theo khóa được giữ trên Volume để dữ liệu cũ không quay lại sau lần đồng bộ Google Sheets tiếp theo.
 - **Cảnh báo giá**: người dùng có thể tự tạo cảnh báo cá nhân hoặc liên kết cảnh báo với một mục trong Khuyến nghị hành động. Vùng mua chỉ nhận chiều giá đi xuống; vùng bán chỉ nhận chiều giá đi lên. Có thể chọn gửi một lần, mỗi ngày có giá mới hoặc mỗi lần giá quay lại ngưỡng; chọn giờ gửi sớm nhất và hạn tự hết hiệu lực. Quản trị viên xem được toàn bộ cảnh báo, chọn một hoặc nhiều tài khoản nhận khi tạo mới và có quyền chỉnh sửa, tạm dừng hoặc xoá cảnh báo đã giao. Người dùng thường chỉ xem và quản lý cảnh báo của chính mình. Mã ngoài danh mục được bổ sung vào nguồn lấy giá ở lần đồng bộ tiếp theo.
 
@@ -83,7 +83,7 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
 **A. Một máy chủ (khuyến nghị)** – VPS hoặc máy Windows nội bộ chạy `node server/index.js`:
 - Server phục vụ giao diện và API.
 - Tự chạy pipeline lúc `PIPELINE_TIME` (T2–T6). Log nằm ở `data/logs/`.
-- Tự cập nhật giá theo `PRICE_REFRESH_MINUTES` và `PRICE_REFRESH_WINDOWS`; mặc định 10 phút/lần trong giờ theo dõi.
+- Tự cập nhật giá theo `PRICE_REFRESH_MINUTES` và `PRICE_REFRESH_WINDOWS`; mặc định 1 phút/lần trong giờ giao dịch.
 - Nếu có `DNSE_API_KEY` và `DNSE_API_SECRET`, DNSE là nguồn giá ưu tiên; Vnstock tự làm dự phòng. Nếu DNSE chưa được cấu hình, hệ thống tiếp tục dùng Vnstock.
 - Các mã luôn được gọi tuần tự. Khi chỉ dùng Vnstock mà chưa khai báo API key, tiến trình tự hạ còn 18 lượt/phút để tránh giới hạn tài khoản khách.
 - Khi lưu báo cáo, server ghi vào `data/inbox/`, rồi dựng lại DB ngay.

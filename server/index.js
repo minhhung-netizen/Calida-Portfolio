@@ -32,7 +32,7 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || "";
 const PYTHON = process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
 const PIPELINE_TIME = process.env.PIPELINE_TIME ?? "16:30";
-const PRICE_REFRESH_MINUTES = Number(process.env.PRICE_REFRESH_MINUTES ?? 10);
+const PRICE_REFRESH_MINUTES = Number(process.env.PRICE_REFRESH_MINUTES ?? 1);
 const PRICE_REFRESH_WINDOWS = process.env.PRICE_REFRESH_WINDOWS || "09:00-11:30,13:00-15:10";
 const PRICE_PRIMARY_PROVIDER = String(process.env.PRICE_PRIMARY_PROVIDER || "auto").trim().toLowerCase();
 const DNSE_CONFIGURED = Boolean(String(process.env.DNSE_API_KEY || "").trim() && String(process.env.DNSE_API_SECRET || "").trim());
@@ -451,7 +451,7 @@ async function evaluatePriceAlerts(targetUsername = null) {
       : alert.condition === "range"
         ? quote.price >= alert.targetPrice && quote.price <= alert.targetPriceHigh
         : quote.price <= alert.targetPrice;
-    // Ưu tiên lần quan sát 10 phút trước để xác định đúng chiều đi vào vùng.
+    // Ưu tiên lần quan sát một phút trước để xác định đúng chiều đi vào vùng.
     // Cảnh báo mới chưa có quan sát thì dùng giá đóng cửa phiên trước làm mốc.
     const previousPrice = lastObservedPrice ?? (Number.isFinite(quote.previousPrice) ? quote.previousPrice : null);
     const directionMatched = alert.condition !== "range" || (previousPrice != null && (

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from datetime import date, datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -49,7 +49,9 @@ class FetchPricesTest(unittest.TestCase):
                 patch("fetch_prices.time.sleep"):
             pacer.return_value.requests_per_minute = 18
             fetch_prices.run(retries=1)
-            pacer.assert_called_once_with(18)
+            self.assertEqual(pacer.call_args_list, [
+                call(18), call(fetch_prices.DNSE_REQUESTS_PER_MINUTE, maximum_requests_per_minute=150),
+            ])
 
     def test_active_personal_alerts_add_tickers_to_price_source(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(fetch_prices, "DATA_DIR", Path(directory)):
@@ -99,13 +101,18 @@ class FetchPricesTest(unittest.TestCase):
     def test_dnse_latest_trade_uses_thousand_vnd_without_extra_division(self):
         payload = {"trades": [{
             "symbol": "FPT", "matchPrice": 65.2, "matchQtty": 500,
-            "time": int(datetime(2026, 9, 25, 10, 15, tzinfo=ZoneInfo("Asia/Ho_Chi_Minh")).timestamp()),
+            "openPrice": 65.5, "highestPrice": 66.1, "lowestPrice": 64.8,
+            "totalVolumeTraded": 1_500_000,
+            "time": {"Seconds": int(datetime(2026, 9, 25, 10, 15, tzinfo=ZoneInfo("Asia/Ho_Chi_Minh")).timestamp()), "Nanos": 0},
         }]}
         with patch.object(fetch_prices, "DNSE_PRICE_DIVISOR", 1):
             result = fetch_prices._normalize_dnse_trade("FPT", payload, today=date(2026, 9, 25))
         row = result.iloc[0]
         self.assertEqual(row.close, 65.2)
-        self.assertEqual(row.volume, 500)
+        self.assertEqual(row.open, 65.5)
+        self.assertEqual(row.high, 66.1)
+        self.assertEqual(row.low, 64.8)
+        self.assertEqual(row.volume, 1_500_000)
         self.assertEqual(row.date.date(), date(2026, 9, 25))
 
     def test_dnse_is_primary_and_vnstock_is_fallback(self):

@@ -37,8 +37,8 @@ FLOWS_MODULE_ENABLED = os.getenv("FLOWS_MODULE_ENABLED", "false").strip().lower(
 # ---- Giá ----
 PRICE_LOOKBACK_DAYS = int(os.getenv("PRICE_LOOKBACK_DAYS", "400"))
 PRICE_REFRESH_LOOKBACK_DAYS = max(3, int(os.getenv("PRICE_REFRESH_LOOKBACK_DAYS", "10")))
-# Giữ thấp hơn giới hạn 60 request/phút của nguồn. fetch_prices còn chặn cứng
-# tối đa 55 để một cấu hình sai không vô tình gây burst request.
+# Giới hạn riêng cho Vnstock. fetch_prices chặn cứng tối đa 55 để một cấu hình
+# sai không vô tình tạo burst vượt mức 60 request/phút.
 PRICE_REQUESTS_PER_MINUTE = int(os.getenv("PRICE_REQUESTS_PER_MINUTE", "50"))
 VNSTOCK_SOURCE = os.getenv("VNSTOCK_SOURCE", "VCI")
 VNSTOCK_QUOTE_SOURCE = os.getenv("VNSTOCK_QUOTE_SOURCE", "KBS").strip().lower()
@@ -50,6 +50,7 @@ DNSE_BASE_URL = os.getenv("DNSE_BASE_URL", "https://openapi.dnse.com.vn").strip(
 DNSE_API_VERSION = os.getenv("DNSE_API_VERSION", "2026-07-23").strip()
 DNSE_BOARD_ID = os.getenv("DNSE_BOARD_ID", "G1").strip()
 DNSE_PRICE_DIVISOR = float(os.getenv("DNSE_PRICE_DIVISOR", "1"))
+DNSE_REQUESTS_PER_MINUTE = int(os.getenv("DNSE_REQUESTS_PER_MINUTE", "120"))
 
 # ---- Tổng số quỹ trong vũ trụ theo dõi (để hiển thị x/y quỹ đã cập nhật). 0 = tự đếm ----
 FUND_UNIVERSE_TOTAL = int(os.getenv("FUND_UNIVERSE_TOTAL", "0"))

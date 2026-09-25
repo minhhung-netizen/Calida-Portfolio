@@ -54,14 +54,16 @@ test("SPA JavaScript parses", () => {
   assert.doesNotThrow(() => new vm.Script(source));
 });
 
-test("giá có quy trình 10 phút độc lập, tuần tự và không chạy chồng", () => {
-  assert.match(serverSource, /PRICE_REFRESH_MINUTES[^\n]+10/);
+test("giá có quy trình 1 phút độc lập, tuần tự và không chạy chồng", () => {
+  assert.match(serverSource, /PRICE_REFRESH_MINUTES[^\n]+1/);
   assert.match(serverSource, /enqueuePipeline\(\["--prices-only"\]/);
   assert.match(serverSource, /prices:\s*\{\s*args:\s*\["--prices-only"\]/);
   assert.match(serverSource, /if \(running \|\| queuedJobs > 0\)/);
-  assert.match(priceSource, /min\(55, max\(1, int\(requests_per_minute\)\)\)/);
+  assert.match(priceSource, /min\(maximum_requests_per_minute, max\(1, int\(requests_per_minute\)\)\)/);
+  assert.match(priceSource, /maximum_requests_per_minute=150/);
   assert.match(priceSource, /Market\(\)\.equity\(symbol\)\.quote/);
   assert.match(priceSource, /VNSTOCK_QUOTE_PRICE_DIVISOR/);
+  assert.match(priceSource, /DNSE_REQUESTS_PER_MINUTE/);
   assert.match(pipelineSource, /build_db\.refresh_prices/);
   assert.match(pipelineSource, /intraday=True/);
 });
