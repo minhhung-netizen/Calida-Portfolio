@@ -1189,6 +1189,12 @@ app.post("/api/pipeline/run", requireModule("admin", "edit"), requireCsrf, pipel
 });
 
 // ---------- static site ----------
+// Giao diện PWA thay đổi thường xuyên; Safari/iOS không được giữ lại index.html
+// cũ sau khi Railway deploy, nếu không các CSS responsive mới sẽ không áp dụng.
+app.get(["/", "/index.html"], (req, res) => {
+  res.set("Cache-Control", "no-store");
+  return res.sendFile(path.join(WEB_DIR, "index.html"));
+});
 app.get("/data/dashboard.json", (req, res) => {
   if (authEnabled()) return res.status(403).json({ error: "Dữ liệu dashboard được phân quyền qua /api/dashboard" });
   res.set("Cache-Control", "no-store");

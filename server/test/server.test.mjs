@@ -91,6 +91,7 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(pushSubscribe.status, 503, "chưa cấu hình VAPID phải trả hướng dẫn thay vì lưu subscription vô hiệu");
     const appPage = await request("/", { headers: { cookie } });
     assert.equal(appPage.status, 200);
+    assert.equal(appPage.headers.get("cache-control"), "no-store", "iOS PWA phải luôn lấy index.html mới sau deploy");
     const csp = appPage.headers.get("content-security-policy") || "";
     assert.match(csp, /https:\/\/fonts\.googleapis\.com/, "CSP phải cho phép stylesheet font đã dùng trong giao diện");
     assert.match(csp, /https:\/\/fonts\.gstatic\.com/, "CSP phải cho phép file font đã dùng trong giao diện");
