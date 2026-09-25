@@ -282,6 +282,24 @@ function queuePush(payload) {
 const PRICE_ALERT_ID = /^price:[a-f0-9-]{36}$/;
 const PRICE_ALERT_TICKER = /^[A-Z0-9._-]{1,12}$/;
 const PRICE_ALERT_CONDITIONS = new Set(["above", "below"]);
+const PRICE_ALERT_FREQUENCIES = new Set(["once", "daily", "crossing"]);
+const PRICE_ALERT_SCHEDULES = new Set(["immediate", "at_time"]);
+const PRICE_ALERT_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function normalizePriceAlert(alert) {
+  const notifyTime = PRICE_ALERT_TIME.test(alert?.notifyTime || "") ? alert.notifyTime : null;
+  const scheduleMode = PRICE_ALERT_SCHEDULES.has(alert?.scheduleMode) ? alert.scheduleMode : "immediate";
+  return {
+    ...alert,
+    frequency: PRICE_ALERT_FREQUENCIES.has(alert?.frequency) ? alert.frequency : "once",
+    scheduleMode: scheduleMode === "at_time" && !notifyTime ? "immediate" : scheduleMode,
+    notifyTime,
+    expiresAt: alert?.expiresAt || null,
+    expiredAt: alert?.expiredAt || null,
+    triggerCount: Number.isInteger(alert?.triggerCount) && alert.triggerCount >= 0 ? alert.triggerCount : (alert?.triggeredAt ? 1 : 0),
+    lastTriggeredPriceDate: alert?.lastTriggeredPriceDate || null,
+  };
+}
 
 function cleanPriceAlertInput(value, previous = {}) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Cảnh báo giá không hợp lệ");
@@ -289,18 +307,32 @@ function cleanPriceAlertInput(value, previous = {}) {
   const condition = String(value.condition ?? previous.condition ?? "");
   const targetPrice = Number(value.targetPrice ?? previous.targetPrice);
   const note = String(value.note ?? previous.note ?? "").trim();
+  const frequency = String(value.frequency ?? previous.frequency ?? "once");
+  const scheduleMode = String(value.scheduleMode ?? previous.scheduleMode ?? "immediate");
+  const notifyTimeValue = value.notifyTime !== undefined ? value.notifyTime : previous.notifyTime;
+  const notifyTime = scheduleMode === "at_time" ? String(notifyTimeValue || "").trim() : null;
+  const expiresValue = value.expiresAt !== undefined ? value.expiresAt : previous.expiresAt;
+  let expiresAt = null;
   if (!PRICE_ALERT_TICKER.test(ticker)) throw new Error("Mã chứng khoán gồm 1–12 ký tự chữ, số, dấu chấm, gạch dưới hoặc gạch ngang");
   if (!PRICE_ALERT_CONDITIONS.has(condition)) throw new Error("Điều kiện cảnh báo không hợp lệ");
   if (!Number.isFinite(targetPrice) || targetPrice <= 0 || targetPrice > 1_000_000_000) throw new Error("Giá cảnh báo phải là số lớn hơn 0");
   if (note.length > 300) throw new Error("Ghi chú không được quá 300 ký tự");
-  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, note };
+  if (!PRICE_ALERT_FREQUENCIES.has(frequency)) throw new Error("Tần suất cảnh báo không hợp lệ");
+  if (!PRICE_ALERT_SCHEDULES.has(scheduleMode)) throw new Error("Thời điểm cảnh báo không hợp lệ");
+  if (scheduleMode === "at_time" && !PRICE_ALERT_TIME.test(notifyTime)) throw new Error("Giờ cảnh báo phải theo định dạng HH:MM");
+  if (expiresValue) {
+    const deadline = new Date(expiresValue);
+    if (!Number.isFinite(deadline.getTime())) throw new Error("Hạn cảnh báo không hợp lệ");
+    expiresAt = deadline.toISOString();
+  }
+  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, note, frequency, scheduleMode, notifyTime, expiresAt };
 }
 
 function readPriceAlertStore() {
   try {
     const parsed = JSON.parse(fs.readFileSync(PRICE_ALERT_STORE, "utf8"));
     if (!parsed || !Array.isArray(parsed.alerts)) throw new Error("invalid price alert store");
-    return parsed.alerts.filter((item) => PRICE_ALERT_ID.test(item?.id || "") && USERNAME_RE.test(item?.username || "") && PRICE_ALERT_CONDITIONS.has(item?.condition) && PRICE_ALERT_TICKER.test(item?.ticker || "") && Number.isFinite(item?.targetPrice));
+    return parsed.alerts.filter((item) => PRICE_ALERT_ID.test(item?.id || "") && USERNAME_RE.test(item?.username || "") && PRICE_ALERT_CONDITIONS.has(item?.condition) && PRICE_ALERT_TICKER.test(item?.ticker || "") && Number.isFinite(item?.targetPrice)).map(normalizePriceAlert);
   } catch (error) {
     if (error.code === "ENOENT") return [];
     console.error(`Không đọc được kho cảnh báo giá: ${error.message}`);
@@ -322,7 +354,14 @@ function currentPriceMap() {
 
 function publicPriceAlert(alert, prices) {
   const quote = prices.get(alert.ticker) || {};
-  return { ...alert, currentPrice: Number.isFinite(quote.price) ? quote.price : null, priceChange: Number.isFinite(quote.chg) ? quote.chg : null, priceDate: quote.date || null };
+  return { ...normalizePriceAlert(alert), expired: Boolean(alert.expiresAt && new Date(alert.expiresAt) <= new Date()), currentPrice: Number.isFinite(quote.price) ? quote.price : null, priceChange: Number.isFinite(quote.chg) ? quote.chg : null, priceDate: quote.date || null };
+}
+
+function priceAlertScheduleDue(alert, nowDate) {
+  if (alert.scheduleMode !== "at_time") return true;
+  const currentMinutes = nowDate.getHours() * 60 + nowDate.getMinutes();
+  const [hour, minute] = alert.notifyTime.split(":").map(Number);
+  return currentMinutes >= hour * 60 + minute;
 }
 
 async function evaluatePriceAlerts(targetUsername = null) {
@@ -330,26 +369,47 @@ async function evaluatePriceAlerts(targetUsername = null) {
   let prices;
   try { prices = currentPriceMap(); }
   catch { prices = new Map(); }
-  const now = new Date().toISOString();
+  const nowDate = new Date();
+  const now = nowDate.toISOString();
   const triggered = [];
   let changed = false;
   for (const alert of alerts) {
     if (targetUsername && alert.username !== targetUsername) continue;
+    if (alert.enabled && alert.expiresAt && new Date(alert.expiresAt) <= nowDate) {
+      alert.enabled = false;
+      alert.expiredAt = alert.expiredAt || now;
+      alert.updatedAt = now;
+      changed = true;
+      continue;
+    }
     const quote = prices.get(alert.ticker);
     if (!quote || !Number.isFinite(quote.price)) continue;
-    if (alert.lastPrice !== quote.price || alert.lastCheckedAt !== now) {
+    const quoteDate = String(quote.date || now.slice(0, 10));
+    if (alert.lastPrice !== quote.price || alert.lastPriceDate !== quoteDate) {
       alert.lastPrice = quote.price;
+      alert.lastPriceDate = quoteDate;
       alert.lastCheckedAt = now;
       changed = true;
     }
     const conditionMatched = alert.condition === "above" ? quote.price >= alert.targetPrice : quote.price <= alert.targetPrice;
-    const crossedThreshold = conditionMatched && alert.wasMatched !== true;
-    if (alert.wasMatched !== conditionMatched) { alert.wasMatched = conditionMatched; changed = true; }
-    if (!alert.enabled || !crossedThreshold) continue;
-    alert.enabled = false;
+    if (!conditionMatched) {
+      if (alert.wasMatched !== false) { alert.wasMatched = false; changed = true; }
+      continue;
+    }
+    if (!alert.enabled || !priceAlertScheduleDue(alert, nowDate)) continue;
+    const shouldTrigger = alert.frequency === "daily"
+      ? alert.lastTriggeredPriceDate !== quoteDate
+      : alert.wasMatched !== true;
+    if (alert.wasMatched !== true) { alert.wasMatched = true; changed = true; }
+    if (!shouldTrigger) continue;
+    if (alert.frequency === "once") alert.enabled = false;
     alert.triggeredAt = now;
     alert.triggeredPrice = quote.price;
+    alert.lastTriggeredPriceDate = quoteDate;
+    alert.triggerCount = (alert.triggerCount || 0) + 1;
+    alert.expiredAt = null;
     alert.updatedAt = now;
+    changed = true;
     triggered.push(alert);
   }
   if (changed) writePriceAlertStore(alerts);
@@ -759,7 +819,9 @@ app.post("/api/price-alerts", requireModule("alerts", "edit"), requireCsrf, writ
   try {
     const details = cleanPriceAlertInput(req.body?.alert);
     const now = new Date().toISOString();
-    const alert = { id: `price:${crypto.randomUUID()}`, username: req.user.u, ...details, enabled: true, wasMatched: false, triggeredAt: null, triggeredPrice: null, lastPrice: null, lastCheckedAt: null, createdAt: now, updatedAt: now };
+    const enabled = typeof req.body?.alert?.enabled === "boolean" ? req.body.alert.enabled : true;
+    if (enabled && details.expiresAt && new Date(details.expiresAt) <= new Date()) throw new Error("Hạn cảnh báo phải nằm trong tương lai");
+    const alert = { id: `price:${crypto.randomUUID()}`, username: req.user.u, ...details, enabled, wasMatched: false, triggeredAt: null, triggeredPrice: null, triggerCount: 0, lastTriggeredPriceDate: null, expiredAt: null, lastPrice: null, lastPriceDate: null, lastCheckedAt: null, createdAt: now, updatedAt: now };
     writePriceAlertStore([...readPriceAlertStore(), alert]);
     audit(req, "price-alert.create", { id: alert.id, ticker: alert.ticker, condition: alert.condition, targetPrice: alert.targetPrice });
     const result = await evaluatePriceAlerts(req.user.u);
@@ -778,9 +840,10 @@ app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf,
     const previous = alerts[index];
     const details = cleanPriceAlertInput(req.body?.alert || {}, previous);
     const enabled = typeof req.body?.alert?.enabled === "boolean" ? req.body.alert.enabled : previous.enabled;
-    const thresholdChanged = details.ticker !== previous.ticker || details.condition !== previous.condition || details.targetPrice !== previous.targetPrice;
-    const reset = enabled && (!previous.enabled || thresholdChanged);
-    alerts[index] = { ...previous, ...details, enabled, wasMatched: thresholdChanged ? false : previous.wasMatched, triggeredAt: reset ? null : previous.triggeredAt, triggeredPrice: reset ? null : previous.triggeredPrice, updatedAt: new Date().toISOString() };
+    if (enabled && details.expiresAt && new Date(details.expiresAt) <= new Date()) throw new Error("Hạn cảnh báo phải nằm trong tương lai");
+    const triggerRuleChanged = details.ticker !== previous.ticker || details.condition !== previous.condition || details.targetPrice !== previous.targetPrice || details.frequency !== previous.frequency || details.scheduleMode !== previous.scheduleMode || details.notifyTime !== previous.notifyTime;
+    const reset = enabled && (!previous.enabled || triggerRuleChanged);
+    alerts[index] = { ...previous, ...details, enabled, wasMatched: triggerRuleChanged ? false : previous.wasMatched, triggeredAt: reset ? null : previous.triggeredAt, triggeredPrice: reset ? null : previous.triggeredPrice, expiredAt: enabled ? null : previous.expiredAt, updatedAt: new Date().toISOString() };
     writePriceAlertStore(alerts);
     audit(req, "price-alert.update", { id, ticker: details.ticker, condition: details.condition, targetPrice: details.targetPrice, enabled });
     const result = await evaluatePriceAlerts(req.user.u);
@@ -881,6 +944,7 @@ let activeProcess = null;
 let pipelineQueue = Promise.resolve();
 let queuedJobs = 0;
 let scheduleTimer = null;
+let priceAlertTimer = null;
 let pipelineState = { status: "idle", startedAt: null, finishedAt: null, reason: null, error: null };
 
 function startPipeline(args, reason) {
@@ -1442,17 +1506,27 @@ function scheduleDaily() {
   console.log(`Pipeline kế tiếp: ${next.toLocaleString("vi-VN")}`);
 }
 
+function schedulePriceAlertChecks() {
+  if (priceAlertTimer) clearInterval(priceAlertTimer);
+  priceAlertTimer = setInterval(() => {
+    void evaluatePriceAlerts().catch((error) => console.error(`Không kiểm tra được lịch cảnh báo giá: ${error.message}`));
+  }, 60_000);
+  priceAlertTimer.unref?.();
+}
+
 const server = app.listen(PORT, () => {
   console.log(`Calida Analyst chạy tại cổng ${PORT}`);
   if (!authEnabled()) console.warn("⚠ Chưa có ACCESS_TOKEN hoặc CALIDA_USERS_JSON: web đang mở công khai.");
   if (!GEMINI_KEY) console.log("⚠ Chưa có GEMINI_API_KEY: hỏi đáp và trích xuất sẽ báo lỗi");
   if (!fs.existsSync(JSON_PATH)) console.log("⚠ Chưa có dashboard trên Volume; đang dùng bản dự phòng cho tới khi pipeline dựng dữ liệu.");
   scheduleDaily();
+  schedulePriceAlertChecks();
 });
 
 function shutdown(signal) {
   console.log(`Nhận ${signal}; đang đóng server an toàn...`);
   if (scheduleTimer) clearTimeout(scheduleTimer);
+  if (priceAlertTimer) clearInterval(priceAlertTimer);
   if (activeProcess) activeProcess.kill("SIGTERM");
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 30_000).unref();

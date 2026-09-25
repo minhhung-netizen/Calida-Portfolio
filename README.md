@@ -21,7 +21,7 @@ Hệ thống gồm 10 phân hệ: Tổng quan · Bản tin · Danh mục · Dòn
 - **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
 - **Vnstock là nguồn giá tùy chọn**: Railway vẫn deploy và dựng dashboard từ dữ liệu đã có nếu kho cài đặt tạm thời không cung cấp được Vnstock. Khi đó chỉ bước làm mới giá bị bỏ qua; các đồng bộ Google Sheets vẫn dùng bình thường.
 - **Quản trị database theo module/ngày**: admin có thể xem trước số dòng và xoá dữ liệu Bản tin, Danh mục, Dòng tiền, Quỹ hoặc Báo cáo CTCK trong một khoảng ngày. Dấu xoá theo khóa được giữ trên Volume để dữ liệu cũ không quay lại sau lần đồng bộ Google Sheets tiếp theo.
-- **Cảnh báo giá cá nhân**: mỗi người dùng tự tạo ngưỡng tăng đến/giảm đến và chỉ thấy dữ liệu của chính mình. Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật, gửi Web Push một lần rồi chuyển sang trạng thái đã kích hoạt. Mã ngoài danh mục được bổ sung vào nguồn lấy giá ở lần đồng bộ tiếp theo.
+- **Cảnh báo giá cá nhân**: mỗi người dùng tự tạo ngưỡng tăng đến/giảm đến và chỉ thấy dữ liệu của chính mình. Có thể chọn gửi một lần, mỗi ngày có giá mới hoặc mỗi lần giá quay lại ngưỡng; chọn giờ gửi sớm nhất và hạn tự hết hiệu lực. Mã ngoài danh mục được bổ sung vào nguồn lấy giá ở lần đồng bộ tiếp theo.
 
 ## Cài đặt (Windows)
 

@@ -79,7 +79,13 @@ Báo cáo CTCK dùng **gộp theo mã** để không làm mất báo cáo đư�
 
 Người dùng mở **Cảnh báo giá → Thêm cảnh báo**, tự nhập mã chứng khoán, chọn điều kiện **Giá tăng đến hoặc vượt** hoặc **Giá giảm đến hoặc thấp hơn**, sau đó nhập mức giá và ghi chú. Cảnh báo này độc lập với Danh mục, Khuyến nghị hành động và Trung tâm tín hiệu; mỗi tài khoản chỉ thấy dữ liệu của chính mình.
 
-Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật và chỉ gửi một lần. Sau khi kích hoạt, người dùng chọn **Bật lại** để theo dõi tiếp. Nếu mã chưa tồn tại trong danh mục, hệ thống sẽ bổ sung mã đó vào lượt lấy giá tiếp theo; trước khi có dữ liệu, thẻ cảnh báo hiển thị trạng thái chờ. File `price-alerts.json` nằm trong vùng dữ liệu vận hành và cần được đưa vào kế hoạch sao lưu.
+Mỗi cảnh báo có thể đặt:
+
+- **Tần suất:** một lần rồi tự tắt; mỗi ngày có dữ liệu giá mới; hoặc mỗi lần giá rời rồi quay lại ngưỡng.
+- **Thời điểm gửi:** ngay khi đủ điều kiện hoặc từ một giờ cụ thể trong ngày. Giờ được chọn là giờ gửi sớm nhất; nếu dữ liệu giá cập nhật sau giờ đó, hệ thống gửi khi lần kiểm tra kế tiếp xác nhận đủ điều kiện.
+- **Hạn cảnh báo:** không bắt buộc. Quá thời điểm này cảnh báo tự chuyển sang hết hạn và không gửi thêm.
+
+Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật và theo lịch kiểm tra mỗi phút. Tần suất theo ngày chỉ gửi lại khi có ngày dữ liệu giá mới, tránh lặp lại từ dữ liệu cũ. Với chế độ một lần, sau khi kích hoạt người dùng chọn **Bật lại** để theo dõi tiếp. Nếu mã chưa tồn tại trong danh mục, hệ thống sẽ bổ sung mã đó vào lượt lấy giá tiếp theo; trước khi có dữ liệu, thẻ cảnh báo hiển thị trạng thái chờ. File `price-alerts.json` nằm trong vùng dữ liệu vận hành và cần được đưa vào kế hoạch sao lưu.
 
 ### Xoá dữ liệu cũ theo module và ngày
 

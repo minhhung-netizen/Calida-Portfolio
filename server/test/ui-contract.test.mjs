@@ -118,6 +118,9 @@ test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡn
   ui.run('openPriceAlertDialog("price:123e4567-e89b-12d3-a456-426614174000")');
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTicker"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTarget"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertFrequency"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertExpires"/);
 });
 
 test("trang quỹ có bố cục riêng cho bảng Top quỹ trên điện thoại", () => {
