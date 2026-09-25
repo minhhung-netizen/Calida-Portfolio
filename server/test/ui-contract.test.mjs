@@ -104,9 +104,13 @@ test("all nine modules render the existing dashboard fixture", () => {
 test("trang quỹ có bố cục riêng cho bảng Top quỹ trên điện thoại", () => {
   const ui = app();
   const result = ui.run("pgFunds()");
+  assert.match(result, /class="funds-header"/);
+  assert.match(result, /class="funds-title"/);
+  assert.match(result, /class="funds-period"/);
   assert.match(result, /class="tbl-wrap fund-top-desktop"/);
   assert.match(result, /class="fund-top-mobile"/);
   assert.match(result, /Hiệu suất YTD/);
+  assert.match(html, /@media \(max-width:600px\).*\.funds-header\{display:block\}.*\.funds-title\{width:100%\}/s);
   assert.match(html, /@media \(max-width:600px\).*\.fund-top-desktop\{display:none\}.*\.fund-top-mobile\{display:grid\}/s);
 });
 
