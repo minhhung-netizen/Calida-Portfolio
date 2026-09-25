@@ -224,4 +224,5 @@ Khi cần khôi phục:
 
 - [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md): chi tiết hạ tầng Railway, thông báo PWA và khôi phục.
 - [README.md](README.md): kiến trúc dự án, schema và lệnh chạy cục bộ.
+- [HUONG_DAN_ANH_XA_DU_LIEU.md](HUONG_DAN_ANH_XA_DU_LIEU.md): tra cứu module giao diện, trường Google Sheets, file Excel, bảng database và khóa JSON/API.
 - Mỗi file Excel mẫu có sheet `_HUONG_DAN` mô tả trường dữ liệu cần nhập.

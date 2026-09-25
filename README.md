@@ -1,6 +1,9 @@
 # Calida Analyst System
 
-Hướng dẫn vận hành hằng ngày: [HUONG_DAN_VAN_HANH.md](HUONG_DAN_VAN_HANH.md).
+Tài liệu chính:
+
+- [Hướng dẫn vận hành hằng ngày](HUONG_DAN_VAN_HANH.md)
+- [Ánh xạ trường dữ liệu theo từng module](HUONG_DAN_ANH_XA_DU_LIEU.md)
 
 Hệ thống gồm 10 phân hệ: Tổng quan · Bản tin · Danh mục · Dòng tiền · Quỹ đầu tư · Báo cáo CTCK · Khuyến nghị hành động · Trung tâm tín hiệu · Cảnh báo giá · Quản trị.
 
