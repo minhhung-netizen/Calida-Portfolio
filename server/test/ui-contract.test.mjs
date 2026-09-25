@@ -124,6 +124,10 @@ test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡn
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertFrequency"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertExpires"/);
+  ui.run("openPriceAlertDialog()");
+  assert.equal(ui.element("#priceAlertCondition").value, "range");
+  assert.equal(ui.element("#priceAlertHighWrap").hidden, false);
+  assert.equal(ui.element("#priceAlertRangeActionWrap").hidden, false);
 });
 
 test("trang quỹ có bố cục riêng cho bảng Top quỹ trên điện thoại", () => {
