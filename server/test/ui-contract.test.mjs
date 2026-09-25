@@ -120,6 +120,25 @@ test("trang quỹ có bố cục riêng cho bảng Top quỹ trên điện tho�
   assert.match(html, /@media \(max-width:600px\).*\.fund-top-desktop\{display:none\}.*\.fund-top-mobile\{display:grid\}/s);
 });
 
+test("người dùng có thể chọn kỳ dữ liệu trong module Quỹ đầu tư", () => {
+  const ui = app();
+  ui.run(`
+    const current=JSON.parse(JSON.stringify(DATA.funds));
+    const previous={...JSON.parse(JSON.stringify(DATA.funds)),period:"07/2026",prevPeriod:null,nav:42000,updated:10};
+    current.period="08/2026";
+    DATA.funds={...current,periods:[current,previous]};
+  `);
+  const latest = ui.run("pgFunds()");
+  assert.match(latest, /id="fundPeriod"/);
+  assert.match(latest, /value="08\/2026" selected/);
+  assert.match(latest, /value="07\/2026"/);
+  ui.run('STATE.fundPeriod="07/2026"');
+  const historical = ui.run("pgFunds()");
+  assert.match(historical, /Dữ liệu quỹ kỳ: 07\/2026/);
+  assert.match(historical, /42,000 tỷ/);
+  assert.match(historical, /value="07\/2026" selected/);
+});
+
 test("restricted navigation and write actions remain permission-gated", () => {
   const ui = app(["reports"], []);
   ui.run("renderNav()");

@@ -105,7 +105,8 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
   - Đạt target: giá ≥ target.
 - **Hành động trong ngày**: các mã có trạng thái MUA / TĂNG TỶ TRỌNG / GIẢM TỶ TRỌNG.
 - **Quỹ**:
-  - Tỷ trọng ngành và cổ phiếu là bình quân gia quyền theo NAV, chỉ tính các quỹ có dữ liệu kỳ mới nhất.
+  - Mặc định hiển thị kỳ mới nhất; người dùng có quyền xem module có thể chọn lại các kỳ `MM/YYYY` còn được lưu trong nguồn Quỹ.
+  - Tỷ trọng ngành và cổ phiếu là bình quân gia quyền theo NAV, chỉ tính các quỹ có dữ liệu trong kỳ đang chọn.
   - Mọi chỉ số Δ chỉ so sánh những quỹ có đủ cả 2 kỳ.
   - Top cổ phiếu dựa trên top holdings công bố, nên tỷ trọng thực tế có thể cao hơn.
 - **Dòng tiền**:

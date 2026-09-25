@@ -160,7 +160,6 @@ def funds(con):
         return None
     fs["nav_bn"] = pd.to_numeric(fs.nav_bn, errors="coerce")
     periods = sorted(fs.period.unique(), key=_pkey)
-    P, P0 = periods[-1], (periods[-2] if len(periods) > 1 else None)
     aa = q(con, "SELECT * FROM asset_allocation")
     ind = q(con, "SELECT * FROM industry")
     th = q(con, "SELECT * FROM top_holdings")
@@ -185,35 +184,45 @@ def funds(con):
         d = df[df.period == p].merge(nav.rename("n"), left_on="fund_code", right_index=True)
         return (d.weight_pct * d.n).groupby(d[col]).sum() / tot
 
-    nav, nav0 = nav_of(P), (nav_of(P0) if P0 else pd.Series(dtype=float))
-    common = nav.index.intersection(nav0.index)
-    sw, sw0 = stock_w(P), (stock_w(P0) if P0 else pd.Series(dtype=float))
-    stockW = wavg(sw, nav)
-    dStockW = (wavg(sw.reindex(common), nav.reindex(common)) - wavg(sw0.reindex(common), nav0.reindex(common))) if len(common) else None
-    stock_val = lambda s, n: (s.reindex(n.index) * n / 100).sum()
-    dStockVal = (stock_val(sw, nav.reindex(common)) - stock_val(sw0, nav0.reindex(common))) if len(common) else None
+    def snapshot(P, P0):
+        nav, nav0 = nav_of(P), (nav_of(P0) if P0 else pd.Series(dtype=float))
+        common = nav.index.intersection(nav0.index)
+        sw, sw0 = stock_w(P), (stock_w(P0) if P0 else pd.Series(dtype=float))
+        stockW = wavg(sw, nav)
+        current_common_w = wavg(sw.reindex(common), nav.reindex(common)) if len(common) else None
+        previous_common_w = wavg(sw0.reindex(common), nav0.reindex(common)) if len(common) else None
+        dStockW = (current_common_w - previous_common_w) if current_common_w is not None and previous_common_w is not None else None
+        stock_val = lambda s, n: (s.reindex(n.index) * n / 100).sum()
+        dStockVal = (stock_val(sw, nav.reindex(common)) - stock_val(sw0, nav0.reindex(common))) if len(common) else None
 
-    sec = by_group(ind, P, "industry")
-    sec0 = by_group(ind, P0, "industry") if P0 else pd.Series(dtype=float)
-    sectors = [{"s": k, "w": num(v), "d": num(v - sec0.get(k, 0)) if P0 else None} for k, v in sec.sort_values(ascending=False).items()]
-    hold = by_group(th, P, "ticker").sort_values(ascending=False).head(10)
+        sec = by_group(ind, P, "industry")
+        sec0 = by_group(ind, P0, "industry") if P0 else pd.Series(dtype=float)
+        sectors = [{"s": k, "w": num(v), "d": num(v - sec0.get(k, 0)) if P0 else None} for k, v in sec.sort_values(ascending=False).items()]
+        hold = by_group(th, P, "ticker").sort_values(ascending=False).head(10)
+        dfund = (sw.reindex(common) - sw0.reindex(common)).dropna().sort_values()
+        top = fs[fs.period == P].sort_values("nav_bn", ascending=False).head(10)
+        previous_nav = nav0.reindex(common).sum() if len(common) else None
+        return {
+            "period": P, "prevPeriod": P0,
+            "updated": int(nav.notna().sum()),
+            "total": FUND_UNIVERSE_TOTAL or int(fs.fund_code.nunique()),
+            "nav": num(nav.sum(), 0),
+            "navPrevChg": num(nav.reindex(common).sum() - previous_nav, 0) if len(common) else None,
+            "navPrevChgPct": num((nav.reindex(common).sum() / previous_nav - 1) * 100) if previous_nav else None,
+            "stockW": num(stockW), "cashW": num(wavg(cash_w(P), nav)),
+            "dStockW": num(dStockW), "dStockVal": num(dStockVal, 0),
+            "sectors": sectors,
+            "stocks": [{"t": k, "w": num(v)} for k, v in hold.items()],
+            "fundUp": [{"f": k, "d": num(v)} for k, v in dfund[dfund > 0].sort_values(ascending=False).head(5).items()],
+            "fundDown": [{"f": k, "d": num(v)} for k, v in dfund[dfund < 0].head(5).items()],
+            "top": [{"f": r.fund_code, "nav": num(r.nav_bn, 0), "ytd": num(r.ytd_pct, 1), "cp": num(sw.get(r.fund_code), 1)} for r in top.itertuples()],
+        }
 
-    dfund = (sw.reindex(common) - sw0.reindex(common)).dropna().sort_values()
-    top = fs[fs.period == P].sort_values("nav_bn", ascending=False).head(10)
-    return {
-        "period": P, "prevPeriod": P0,
-        "updated": int(nav.notna().sum()),
-        "total": FUND_UNIVERSE_TOTAL or int(fs.fund_code.nunique()),
-        "nav": num(nav.sum(), 0), "navPrevChg": num(nav.reindex(common).sum() - nav0.reindex(common).sum(), 0) if len(common) else None,
-        "navPrevChgPct": num((nav.reindex(common).sum() / nav0.reindex(common).sum() - 1) * 100) if len(common) else None,
-        "stockW": num(stockW), "cashW": num(wavg(cash_w(P), nav)),
-        "dStockW": num(dStockW), "dStockVal": num(dStockVal, 0),
-        "sectors": sectors,
-        "stocks": [{"t": k, "w": num(v)} for k, v in hold.items()],
-        "fundUp": [{"f": k, "d": num(v)} for k, v in dfund[dfund > 0].sort_values(ascending=False).head(5).items()],
-        "fundDown": [{"f": k, "d": num(v)} for k, v in dfund[dfund < 0].head(5).items()],
-        "top": [{"f": r.fund_code, "nav": num(r.nav_bn, 0), "ytd": num(r.ytd_pct, 1), "cp": num(sw.get(r.fund_code), 1)} for r in top.itertuples()],
-    }
+    snapshots = [snapshot(period, periods[index - 1] if index else None) for index, period in enumerate(periods)]
+    latest = snapshots[-1]
+    # Giữ các trường kỳ mới nhất ở cấp gốc để tương thích với dashboard cũ;
+    # periods cung cấp toàn bộ lịch sử, mới nhất trước, cho bộ chọn kỳ trên web.
+    return {**latest, "periods": list(reversed(snapshots))}
 
 
 # ------------------------------------------------------------------ reports

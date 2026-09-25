@@ -71,6 +71,8 @@ Không nhập số dạng `2/5`, `26/3` vì Google Sheets có thể hiểu là n
 
 Danh mục, Vận hành và Quỹ dùng **bản chụp nguồn**. Nghĩa là dòng cũ không còn trong Google Sheets sẽ bị loại khỏi phần dữ liệu tương ứng trên Railway. Cơ chế này xử lý dứt điểm lỗi do dòng dữ liệu cũ còn sót trên Volume.
 
+Riêng dữ liệu Quỹ, cần giữ các dòng của mọi kỳ `MM/YYYY` trong cả 4 sheet `FUND SUMMARY`, `ASSET ALLOCATION`, `INDUSTRY` và `TOP HOLDINGS`. Khi có tháng mới, thêm dữ liệu kỳ mới thay vì xoá kỳ cũ. Sau khi đồng bộ, module Quỹ mặc định mở kỳ mới nhất và người dùng có quyền xem module có thể chọn lại bất kỳ kỳ nào còn trong Google Sheets. Nếu xoá một kỳ khỏi Google Sheets, kỳ đó cũng sẽ biến mất khỏi bộ chọn sau lần đồng bộ Quỹ tiếp theo.
+
 Báo cáo CTCK dùng **gộp theo mã** để không làm mất báo cáo được tạo trực tiếp trên web. Không nên sửa cùng một mã báo cáo trên Google Sheets và web trong cùng một lượt đồng bộ; thay đổi được nhập sau sẽ có hiệu lực.
 
 ### Xoá dữ liệu cũ theo module và ngày

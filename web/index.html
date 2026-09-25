@@ -204,12 +204,12 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .progress-line{display:block;width:70px;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-top:5px}.progress-line i{display:block;height:100%;background:var(--brand);border-radius:inherit}
 .signal-strength{display:inline-flex;align-items:flex-end;gap:2px;height:14px;vertical-align:middle}.signal-strength i{width:5px;height:5px;border-radius:2px;background:var(--line)}.signal-strength i:nth-child(2){height:9px}.signal-strength i:nth-child(3){height:13px}.signal-strength i.on{background:var(--brand)}
 .fund-top-mobile{display:none}
-.funds-header{display:flex;align-items:flex-end;gap:16px;margin-bottom:0}.funds-title{flex:1 1 460px;min-width:0}.funds-period{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.funds-header{display:flex;align-items:flex-end;gap:16px;margin-bottom:0}.funds-title{flex:1 1 460px;min-width:0}.funds-period{display:flex;align-items:flex-end;gap:10px;margin-bottom:16px;flex-wrap:wrap}.funds-period-control{display:grid;gap:5px}.funds-period-select{min-width:142px;min-height:44px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 34px 8px 12px;font:inherit;font-size:14px;font-weight:600;line-height:1.3;cursor:pointer}.funds-period-select:disabled{cursor:default;opacity:.8}
 .work-actions{display:flex;gap:6px;flex-wrap:wrap}.work-actions .btn{padding:7px 10px;font-size:12.5px}.work-empty{padding:22px 8px;text-align:center;color:var(--muted)}
 @media (max-width:1100px){main{padding:18px 20px 32px}.cols-2-1,.action-layout{grid-template-columns:1fr}.reports-chat,.action-side{position:static}.span-2{grid-column:auto}.action-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:860px){.app{display:block}.menu-btn{display:inline-grid;place-items:center}aside{position:fixed;z-index:100;inset:0 auto 0 0;width:min(304px,86vw);height:100dvh;padding:20px 14px;transform:translateX(-105%);transition:transform 180ms ease;box-shadow:var(--shadow)}body.nav-open aside{transform:translateX(0)}.nav-scrim{position:fixed;z-index:90;inset:0;border:0;background:rgba(8,18,50,.42)}body.nav-open .nav-scrim{display:block}.logo{padding-bottom:20px}.brand-logo{width:calc(100% - 48px)}.drawer-close{display:inline-grid;position:absolute;top:4px;right:4px;background:var(--panel);border:1px solid var(--line)}nav{display:block}nav button{min-height:44px}.nav-foot{display:block}.topbar{gap:10px}.topbar .right{gap:10px}.topbar .right .date{display:none}}
 @media (max-width:860px){aside{visibility:hidden;pointer-events:none}body.nav-open aside{visibility:visible;pointer-events:auto}}
-@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1,.action-summary{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.action-summary button{min-height:78px}.funds-header{display:block}.funds-title{width:100%}.funds-period{margin:0 0 14px;gap:8px}.funds-period-label{flex-basis:100%}.fund-top-desktop{display:none}.fund-top-mobile{display:grid}.fund-top-row{padding:10px 0;border-bottom:1px solid var(--line)}.fund-top-row:last-child{border-bottom:0}.fund-top-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:7px}.fund-top-metrics span{display:grid;gap:2px;min-width:0;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}.fund-top-metrics small{font-size:10.5px;font-weight:500;color:var(--muted);line-height:1.2}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
+@media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1,.action-summary{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.action-summary button{min-height:78px}.funds-header{display:block}.funds-title{width:100%}.funds-period{margin:0 0 14px;gap:8px}.funds-period-control{flex:1 1 150px}.funds-period-select{width:100%;font-size:16px}.fund-top-desktop{display:none}.fund-top-mobile{display:grid}.fund-top-row{padding:10px 0;border-bottom:1px solid var(--line)}.fund-top-row:last-child{border-bottom:0}.fund-top-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:7px}.fund-top-metrics span{display:grid;gap:2px;min-width:0;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}.fund-top-metrics small{font-size:10.5px;font-weight:500;color:var(--muted);line-height:1.2}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
 @media (max-width:600px){.btn{min-height:44px}.database-form{grid-template-columns:1fr}.database-form select{font-size:16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -527,7 +527,7 @@ const PAGES=[
   {id:"signals",label:"Trung tâm tín hiệu",icon:"bolt"},
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
-const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
+const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",fundPeriod:"",
   repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,
   actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:"",adminDatabase:null,adminDatabaseError:"",adminDbModule:"brief",adminDbTable:"news",adminDbFrom:"",adminDbTo:"",adminDbBusy:false};
 
@@ -751,15 +751,19 @@ function pgFlows(){
 
 /* ============ PAGE: Quỹ đầu tư ============ */
 function pgFunds(){
-  const f=DATA.funds;
-  if(!f) return `<h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><div class="card empty">Chưa có dữ liệu quỹ. Kiểm tra sheet FUND_SUMMARY trong data/input/funds.xlsx.</div>`;
+  const root=DATA.funds;
+  if(!root) return `<h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><div class="card empty">Chưa có dữ liệu quỹ. Kiểm tra sheet FUND_SUMMARY trong data/input/funds.xlsx.</div>`;
+  const periodKey=value=>{const [month,year]=String(value||"").split("/").map(Number);return (year||0)*100+(month||0)};
+  const periods=(Array.isArray(root.periods)&&root.periods.length?[...root.periods]:[root]).sort((a,b)=>periodKey(b.period)-periodKey(a.period));
+  const f=periods.find(item=>item.period===STATE.fundPeriod)||periods[0];
+  STATE.fundPeriod=f.period;
   const kp=(v,l,c="")=>`<div class="box" style="text-align:center"><div class="v ${c}" style="font-size:24px">${v}</div><div class="l">${l}</div></div>`;
   const secDelta=f.sectors.filter(s=>s.d!=null).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,5);
   const topS=f.sectors.slice(0,5);
   const topFunds=f.top.slice(0,5);
   const hasPrev=!!f.prevPeriod;
-  return `<div class="funds-header"><div class="funds-title"><h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><p class="sub">Theo dõi dòng tiền và danh mục của các quỹ mở</p>${sectionStamp("funds", "Dữ liệu quỹ kỳ")}</div>
-    <div class="funds-period"><span class="muted funds-period-label">Kỳ báo cáo</span><b class="box" style="padding:6px 14px">${esc(f.period)}</b><span class="tag ${f.updated<f.total?"bg-warn":"bg-up"}">${f.updated}/${f.total} quỹ đã cập nhật</span></div></div>
+  return `<div class="funds-header"><div class="funds-title"><h1>Quỹ đầu tư cổ phiếu Việt Nam</h1><p class="sub">Theo dõi dòng tiền và danh mục của các quỹ mở</p><div class="asof">Dữ liệu quỹ kỳ: ${esc(f.period)}</div></div>
+    <div class="funds-period"><label class="funds-period-control"><span class="muted funds-period-label">Kỳ báo cáo</span><select id="fundPeriod" class="funds-period-select" aria-label="Chọn kỳ dữ liệu quỹ" ${periods.length<2?"disabled":""}>${periods.map(item=>`<option value="${esc(item.period)}" ${item.period===f.period?"selected":""}>${esc(item.period)}</option>`).join("")}</select></label><span class="tag ${f.updated<f.total?"bg-warn":"bg-up"}">${f.updated}/${f.total} quỹ đã cập nhật</span></div></div>
   <div class="card"><div class="grid cols-auto-150">
     ${kp(f.updated,"quỹ có dữ liệu kỳ này")}${kp(nf(f.nav)+" tỷ","Tổng NAV")}${kp(nf(f.stockW,1)+"%","Tỷ trọng cổ phiếu")}${kp(nf(f.cashW,2)+"%","Tiền mặt")}
     ${kp(hasPrev?sgn(f.dStockW,2," đ.%"):"—","Δ tỷ trọng CP",cls(f.dStockW))}${kp(hasPrev?sgn(f.dStockVal)+" tỷ":"—","Δ giá trị CP",cls(f.dStockVal))}</div>
@@ -1364,6 +1368,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||"";
+  if(e.target.id==="fundPeriod"){STATE.fundPeriod=e.target.value;render();return;}
   if(e.target.id==="dbModule"){STATE.adminDbModule=e.target.value;STATE.adminDbTable="";STATE.adminDbFrom="";STATE.adminDbTo="";render();return;}
   if(e.target.id==="dbTable"){STATE.adminDbTable=e.target.value;STATE.adminDbFrom="";STATE.adminDbTo="";render();return;}
   if(e.target.id==="dbFrom"){STATE.adminDbFrom=e.target.value;if(!STATE.adminDbTo||STATE.adminDbTo<STATE.adminDbFrom)STATE.adminDbTo=STATE.adminDbFrom;render();return;}
