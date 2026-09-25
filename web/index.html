@@ -137,6 +137,7 @@ tr.sel td{background:var(--brand-soft)}
 .composer textarea{flex:1;min-width:0;resize:none;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit;height:44px}
 .btn{border:0;border-radius:10px;padding:9px 16px;background:var(--brand);color:var(--on-brand);font-weight:600}
 .btn.ghost{background:var(--brand-soft);color:var(--brand)}
+.btn.danger{background:var(--down);color:#fff}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .suggest button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:12.5px;margin:0 6px 6px 0;color:var(--ink-2)}
 dialog{border:0;border-radius:16px;padding:0;max-width:720px;max-height:90vh;overflow:auto;width:92vw;background:var(--panel);color:var(--ink)}
@@ -177,6 +178,14 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .permission-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;cursor:pointer}
 .permission-toggle input{padding:0;margin:0}
 .actions-danger{color:var(--down)!important}
+.data-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:10px;margin-bottom:14px}
+.data-module-card{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:13px;text-align:left;min-height:82px}
+.data-module-card[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft)}
+.data-module-card b,.data-module-card span{display:block}.data-module-card span{color:var(--muted);font-size:12px;margin-top:4px}
+.database-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:10px;align-items:end}
+.database-form label{display:grid;gap:5px;color:var(--ink-2);font-size:12.5px}
+.database-form select{width:100%;min-height:44px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:9px 11px;font:inherit}
+.database-warning{border-left:4px solid var(--down);background:var(--down-soft);color:var(--ink);border-radius:10px;padding:12px 14px;margin:14px 0}
 .work-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
 .work-filters input,.work-filters select{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;min-height:40px}
 .work-filters input{min-width:min(220px,100%)}
@@ -201,7 +210,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 @media (max-width:860px){.app{display:block}.menu-btn{display:inline-grid;place-items:center}aside{position:fixed;z-index:100;inset:0 auto 0 0;width:min(304px,86vw);height:100dvh;padding:20px 14px;transform:translateX(-105%);transition:transform 180ms ease;box-shadow:var(--shadow)}body.nav-open aside{transform:translateX(0)}.nav-scrim{position:fixed;z-index:90;inset:0;border:0;background:rgba(8,18,50,.42)}body.nav-open .nav-scrim{display:block}.logo{padding-bottom:20px}.brand-logo{width:calc(100% - 48px)}.drawer-close{display:inline-grid;position:absolute;top:4px;right:4px;background:var(--panel);border:1px solid var(--line)}nav{display:block}nav button{min-height:44px}.nav-foot{display:block}.topbar{gap:10px}.topbar .right{gap:10px}.topbar .right .date{display:none}}
 @media (max-width:860px){aside{visibility:hidden;pointer-events:none}body.nav-open aside{visibility:visible;pointer-events:auto}}
 @media (max-width:600px){body{font-size:14px}main{padding:12px 12px 28px}.topbar{align-items:stretch;flex-wrap:wrap;margin-bottom:16px}.search{order:2;flex:1 0 100%;min-width:0;padding:10px 14px}.topbar .right{margin-left:auto}.topbar .right #logoutBtn{font-size:12px;padding:0}.avatar{width:36px;height:36px}.data-state{display:none}h1{font-size:24px}.sub{font-size:14px;margin-bottom:14px}.card{padding:14px}.card-h{align-items:flex-start}.card-h h2{font-size:16px}.kpi .v{font-size:23px}.cols-1-1,.action-summary{grid-template-columns:1fr}.cols-auto-340,.cols-auto-380{grid-template-columns:1fr}.tabs{display:flex;width:100%;overflow-x:auto;flex-wrap:nowrap}.tabs button{white-space:nowrap;flex:0 0 auto;min-height:40px}.seg button{min-height:40px}.row{min-width:0;flex-wrap:wrap}.row>*{min-width:0}.chat{height:62vh;min-height:380px}.composer{align-items:stretch;flex-wrap:nowrap}.composer .btn{min-width:56px;padding-inline:12px}.fgrid{grid-template-columns:1fr}.dlg input,.dlg select,.dlg textarea,.composer textarea{font-size:16px}.work-filters input,.work-filters select{flex:1 1 100%;width:100%}.action-summary button{min-height:78px}.funds-header{display:block}.funds-title{width:100%}.funds-period{margin:0 0 14px;gap:8px}.funds-period-label{flex-basis:100%}.fund-top-desktop{display:none}.fund-top-mobile{display:grid}.fund-top-row{padding:10px 0;border-bottom:1px solid var(--line)}.fund-top-row:last-child{border-bottom:0}.fund-top-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:7px}.fund-top-metrics span{display:grid;gap:2px;min-width:0;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}.fund-top-metrics small{font-size:10.5px;font-weight:500;color:var(--muted);line-height:1.2}.toast{right:12px;bottom:12px;max-width:calc(100vw - 24px)}}
-@media (max-width:600px){.btn{min-height:44px}}
+@media (max-width:600px){.btn{min-height:44px}.database-form{grid-template-columns:1fr}.database-form select{font-size:16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -520,7 +529,7 @@ const PAGES=[
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",
   repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,
-  actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:""};
+  actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:"",adminDatabase:null,adminDatabaseError:"",adminDbModule:"brief",adminDbTable:"news",adminDbFrom:"",adminDbTo:"",adminDbBusy:false};
 
 const flowsEnabled=()=>DATA?.features?.flowsEnabled!==false;
 const availablePages=()=>PAGES.filter(p=>canView(p.id)&&(p.id!=="flows"||flowsEnabled()));
@@ -558,6 +567,7 @@ function render(){
   if(STATE.page==="reports") paintChat();
   if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
   if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminOps&&!STATE.adminOpsError) loadAdminOperations();
+  if(STATE.page==="admin"&&STATE.adminTab==="Dữ liệu"&&canEdit("admin")&&!STATE.adminDatabase&&!STATE.adminDatabaseError) loadAdminDatabase();
 }
 
 function latestFlowValues(flows){
@@ -1029,6 +1039,43 @@ function permissionMatrix(permissions, role){
     return `<tr><td><b>${label}</b>${note?`<div class="muted" style="font-size:12px">${note}</div>`:""}</td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="view" ${p.view?"checked":""} ${restricted?"disabled":""} aria-label="Xem ${label}"></label></td><td class="num check-cell"><label class="permission-toggle"><input type="checkbox" data-permission="${module}" data-action="edit" ${p.edit?"checked":""} ${restricted||!editable?"disabled":""} aria-label="Chỉnh sửa ${label}${!editable?" (chưa hỗ trợ)":""}"></label></td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
+function databasePanel(){
+  if(STATE.adminDatabaseError) return `<div class="empty">${esc(STATE.adminDatabaseError)} <button class="link" id="reloadDatabase">Thử lại</button></div>`;
+  const data=STATE.adminDatabase;
+  if(!data) return '<div class="empty">Đang đọc thống kê dữ liệu nguồn…</div>';
+  const modules=data.modules||[];
+  let selected=modules.find(module=>module.id===STATE.adminDbModule)||modules[0];
+  if(!selected) return '<div class="empty">Chưa có module dữ liệu để quản trị.</div>';
+  STATE.adminDbModule=selected.id;
+  const defaults={brief:"news",portfolio:"transactions",flows:"investor_flow",funds:"fund_summary",reports:"reports"};
+  const tables=selected.tables||[];
+  let selectedTable=tables.find(table=>table.id===STATE.adminDbTable);
+  if(!selectedTable){STATE.adminDbTable=defaults[selected.id]||tables[0]?.id||"all";selectedTable=tables.find(table=>table.id===STATE.adminDbTable)||tables[0];}
+  const allTable={id:"all",label:"Tất cả nhóm dữ liệu",rows:selected.rows,from:selected.from,to:selected.to,dates:selected.dates||[]};
+  const scope=STATE.adminDbTable==="all"?allTable:selectedTable;
+  const dates=scope?.dates||[];
+  const validDates=new Set(dates.map(item=>item.date));
+  if(!validDates.has(STATE.adminDbFrom)) STATE.adminDbFrom=selected.from||"";
+  if(!validDates.has(STATE.adminDbTo)) STATE.adminDbTo=STATE.adminDbFrom||selected.to||"";
+  if(STATE.adminDbFrom&&STATE.adminDbTo&&STATE.adminDbFrom>STATE.adminDbTo) STATE.adminDbTo=STATE.adminDbFrom;
+  const matched=dates.filter(item=>item.date>=STATE.adminDbFrom&&item.date<=STATE.adminDbTo).reduce((sum,item)=>sum+item.rows,0);
+  const optionList=value=>dates.map(item=>`<option value="${item.date}" ${item.date===value?"selected":""}>${fmtD(item.date)} · ${nf(item.rows)} dòng</option>`).join("");
+  const busy=STATE.adminDbBusy||STATE.adminOps?.pipeline?.status==="running"||STATE.adminOps?.pipeline?.queuedJobs>0;
+  return `<div class="grid" style="gap:14px">
+    <div class="box"><b>Quản trị dữ liệu theo module và ngày</b><p class="muted" style="font-size:12px;margin:5px 0 0">Chọn module, nhóm dữ liệu rồi chọn ngày bắt đầu và kết thúc từ các mốc đang có. Tổng quan, Khuyến nghị hành động và Trung tâm tín hiệu là dữ liệu tổng hợp nên sẽ tự cập nhật theo các nguồn bên dưới.</p></div>
+    <div class="data-module-grid">${modules.map(module=>`<button class="data-module-card" data-db-module="${module.id}" aria-pressed="${module.id===selected.id}"><b>${esc(module.label)}</b><span>${nf(module.rows)} dòng · ${module.from?`${fmtD(module.from)} – ${fmtD(module.to)}`:"chưa có dữ liệu"}</span></button>`).join("")}</div>
+    <div class="database-form">
+      <label>Module<select id="dbModule">${modules.map(module=>`<option value="${module.id}" ${module.id===selected.id?"selected":""}>${esc(module.label)}</option>`).join("")}</select></label>
+      <label>Nhóm dữ liệu<select id="dbTable"><option value="all" ${STATE.adminDbTable==="all"?"selected":""}>Tất cả nhóm dữ liệu</option>${tables.map(table=>`<option value="${table.id}" ${STATE.adminDbTable===table.id?"selected":""}>${esc(table.label)} · ${nf(table.rows)} dòng</option>`).join("")}</select></label>
+      <label>Từ ngày<select id="dbFrom" ${dates.length?"":"disabled"}>${optionList(STATE.adminDbFrom)}</select></label>
+      <label>Đến ngày<select id="dbTo" ${dates.length?"":"disabled"}>${optionList(STATE.adminDbTo)}</select></label>
+    </div>
+    <div class="box"><div class="row"><div style="flex:1"><b>${esc(selected.label)} · ${esc(scope?.label||"Chưa có dữ liệu")}</b><p class="muted" style="font-size:12px;margin:4px 0 0">${tables.map(table=>`${esc(table.label)}: ${nf(table.rows)}`).join(" · ")}</p></div><span class="tag ${matched?"bg-warn":"bg-neutral"}">${nf(matched)} dòng đã chọn</span></div></div>
+    <div class="database-warning"><b>Thao tác không thể hoàn tác trên web</b><p style="font-size:12px;margin:4px 0 0">Các dòng đã chọn sẽ bị loại khỏi dữ liệu vận hành, SQLite và dashboard. Dấu xoá được giữ trên Railway để cùng bản ghi không tự xuất hiện lại sau đồng bộ Google Sheets.</p></div>
+    <div class="row" style="justify-content:flex-end"><span class="muted" id="databaseDeleteStatus" style="font-size:12px;flex:1">${busy?"Quy trình dữ liệu đang bận. Vui lòng chờ hoàn tất.":matched?`Sẵn sàng xoá ${nf(matched)} dòng trong khoảng đã chọn.`:"Không có dữ liệu trong khoảng đã chọn."}</span><button class="btn danger" id="deleteDatabaseRows" ${!matched||busy?"disabled":""}>Xóa dữ liệu đã chọn</button></div>
+    <div><h3 style="margin:4px 0 8px;font-size:15px">Lịch sử xoá gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Module</th><th>Nhóm dữ liệu</th><th>Khoảng dữ liệu</th><th class="num">Số dòng</th><th>Người thao tác</th></tr></thead><tbody>${(data.history||[]).map(item=>`<tr><td class="muted">${item.at?new Date(item.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(item.moduleLabel||item.module)}</td><td>${esc(item.tableLabel||"Tất cả nhóm dữ liệu")}</td><td>${fmtD(item.from)} – ${fmtD(item.to)}</td><td class="num">${nf(item.rows)}</td><td>${esc(item.actor||"system")}</td></tr>`).join("")||'<tr><td colspan="6" class="empty">Chưa có lần xoá dữ liệu nào.</td></tr>'}</tbody></table></div></div>
+  </div>`;
+}
 function pgAdmin(){
   if(!canEdit("admin")) return `<div class="card"><h1>Không có quyền truy cập</h1><p class="prose">Tài khoản này chưa được cấp quyền quản trị.</p></div>`;
   const users=STATE.adminUsers;
@@ -1042,7 +1089,7 @@ function pgAdmin(){
     :!ops?'<div class="empty">Đang tải trạng thái vận hành…</div>'
     :(()=>{const p=ops.pipeline||{}, tag=p.status==="ok"?"bg-up":p.status==="error"?"bg-down":p.status==="running"?"bg-warn":"bg-neutral";
       const quality=ops.quality||{status:"unknown",issues:[]};
-      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","report.update":"Cập nhật báo cáo","report.delete":"Xóa báo cáo","pipeline.queue":"Yêu cầu chạy quy trình dữ liệu","pipeline.complete":"Quy trình dữ liệu hoàn tất"};
+      const actionLabel={"user.create":"Tạo tài khoản","user.update":"Cập nhật tài khoản","user.delete":"Xóa tài khoản","report.create":"Thêm báo cáo","report.update":"Cập nhật báo cáo","report.delete":"Xóa báo cáo","database.delete":"Xóa dữ liệu theo ngày","pipeline.queue":"Yêu cầu chạy quy trình dữ liệu","pipeline.complete":"Quy trình dữ liệu hoàn tất"};
       const busy=p.status==="running"||p.queuedJobs>0;
       const flowsPaused=ops.modules?.flowsEnabled===false;
       return `<div class="grid" style="gap:14px">${flowsPaused?`<div class="box" role="status"><b>Dòng tiền đang tạm dừng</b><p class="muted" style="font-size:12px;margin:4px 0 0">Đồng bộ Vận hành hiện chỉ xử lý Nhận định, Tin tức, Sự kiện và Tổng quan danh mục.</p></div>`:""}<div class="box"><div class="row"><div><div class="l">Trạng thái pipeline</div><div class="v" style="font-size:19px">${esc(p.status||"idle")}</div></div><span class="tag ${tag}">${p.queuedJobs?`Hàng đợi: ${p.queuedJobs}`:"Không có hàng đợi"}</span><button class="btn ghost" id="reloadOps">Làm mới</button></div>
@@ -1052,14 +1099,15 @@ function pgAdmin(){
         <div><h3 style="margin:0 0 8px;font-size:15px">Độ mới dữ liệu theo nguồn</h3><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Dữ liệu mới nhất</th></tr></thead><tbody>${(ops.freshness||[]).map(f=>`<tr><td>${esc(f.label)}</td><td class="t">${esc(f.value||"Chưa có dữ liệu")}</td></tr>`).join("")||'<tr><td colspan="2" class="empty">Chạy pipeline để tạo trạng thái độ mới.</td></tr>'}</tbody></table></div></div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Chất lượng dữ liệu <span class="tag ${quality.status==="ok"?"bg-up":quality.status==="warning"?"bg-warn":"bg-neutral"}">${quality.status==="ok"?"Đạt":quality.status==="warning"?"Cần rà soát":"Chưa kiểm định"}</span></h3>${quality.issues?.length?`<div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th>Cảnh báo</th><th class="num">Dòng</th></tr></thead><tbody>${quality.issues.map(i=>`<tr><td class="t">${esc(i.scope)}</td><td>${esc(i.message)}</td><td class="num">${nf(i.count)}</td></tr>`).join("")}</tbody></table></div>`:'<p class="muted" style="font-size:12px;margin:0">Không có cảnh báo dữ liệu từ lần cập nhật gần nhất.</p>'}</div>
         <div><h3 style="margin:0 0 8px;font-size:15px">Nhật ký thao tác gần đây</h3><div class="tbl-wrap"><table><thead><tr><th>Thời điểm</th><th>Người dùng</th><th>Thao tác</th><th>Chi tiết</th></tr></thead><tbody>${(ops.audit||[]).map(a=>`<tr><td class="muted">${a.at?new Date(a.at).toLocaleString("vi-VN"):"—"}</td><td class="t">${esc(a.actor)}</td><td>${esc(actionLabel[a.action]||a.action)}</td><td class="muted" style="white-space:normal">${esc(Object.entries(a.details||{}).map(([k,v])=>`${k}: ${v}`).join(" · "))}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Chưa có thao tác được ghi nhận.</td></tr>'}</tbody></table></div></div></div>`;})();
-  const tabs=`<div class="tabs section-tabs" role="tablist" aria-label="Khu vực quản trị">${["Người dùng","Vận hành"].map(t=>`<button role="tab" data-admintab="${t}" aria-selected="${STATE.adminTab===t}">${t}</button>`).join("")}</div>`;
+  const tabs=`<div class="tabs section-tabs" role="tablist" aria-label="Khu vực quản trị">${["Người dùng","Vận hành","Dữ liệu"].map(t=>`<button role="tab" data-admintab="${t}" aria-selected="${STATE.adminTab===t}">${t}</button>`).join("")}</div>`;
   const selected=STATE.adminTab==="Người dùng"?`<div class="card">${head("users","Người dùng",'<button class="btn" id="addUser">Thêm tài khoản</button>')}${content}
       <p class="muted" style="font-size:12px;margin:12px 0 0">Mật khẩu được băm trước khi lưu. Không thể xóa tài khoản đang đăng nhập hoặc admin cuối cùng.</p></div>`
-    :`<div class="card">${head("trend","Vận hành dữ liệu")}${operation}</div>`;
-  return `<h1>Quản trị tài khoản</h1><p class="sub">Cấp quyền xem và chỉnh sửa theo từng module, riêng cho từng tài khoản.</p>
-    <div class="grid cols-auto-220" style="margin-bottom:14px">
+    :STATE.adminTab==="Vận hành"?`<div class="card">${head("trend","Vận hành dữ liệu")}${operation}</div>`
+    :`<div class="card">${head("brief","Quản trị database")}${databasePanel()}</div>`;
+  return `<h1>Quản trị hệ thống</h1><p class="sub">Quản lý tài khoản, vận hành đồng bộ và dữ liệu theo từng module.</p>
+    ${STATE.adminTab==="Người dùng"?`<div class="grid cols-auto-220" style="margin-bottom:14px">
       ${Object.entries(roleLabel).map(([role,label])=>`<div class="card"><b>${esc(label)}</b><p class="muted" style="margin:6px 0 0">${esc(rolePermission[role])}</p></div>`).join("")}
-    </div>
+    </div>`:""}
     ${tabs}${selected}`;
 }
 async function loadAdminUsers(){
@@ -1076,12 +1124,39 @@ async function loadAdminOperations(){
   catch(e){ STATE.adminOps=null; STATE.adminOpsError=e.message; }
   if(STATE.page==="admin") { render(); scheduleAdminPoll(); }
 }
+async function loadAdminDatabase(){
+  if(!canEdit("admin")) return;
+  STATE.adminDatabaseError="";
+  try{ STATE.adminDatabase=await api("/api/admin/database"); }
+  catch(e){ STATE.adminDatabase=null; STATE.adminDatabaseError=e.message; }
+  if(STATE.page==="admin"&&STATE.adminTab==="Dữ liệu") render();
+}
 function scheduleAdminPoll(){
   clearTimeout(adminPollTimer);
   const pipeline=STATE.adminOps?.pipeline;
   if(STATE.page==="admin"&&canEdit("admin")&&(pipeline?.status==="running"||pipeline?.queuedJobs>0)){
     adminPollTimer=setTimeout(()=>{STATE.adminOps=null;loadAdminOperations();},3000);
   }
+}
+async function deleteDatabaseRows(){
+  const data=STATE.adminDatabase;
+  const module=(data?.modules||[]).find(item=>item.id===STATE.adminDbModule);
+  if(!module||!STATE.adminDbFrom||!STATE.adminDbTo||STATE.adminDbBusy) return;
+  const table=STATE.adminDbTable==="all"?{id:"all",label:"Tất cả nhóm dữ liệu",dates:module.dates||[]}:(module.tables||[]).find(item=>item.id===STATE.adminDbTable);
+  if(!table) return;
+  const count=(table.dates||[]).filter(item=>item.date>=STATE.adminDbFrom&&item.date<=STATE.adminDbTo).reduce((sum,item)=>sum+item.rows,0);
+  if(!count) return;
+  const message=`Xóa ${nf(count)} dòng ${table.label} của ${module.label} từ ${fmtD(STATE.adminDbFrom)} đến ${fmtD(STATE.adminDbTo)}?\n\nDữ liệu sẽ bị loại khỏi database, dashboard và được đánh dấu để không quay lại sau đồng bộ.`;
+  if(!confirm(message)) return;
+  STATE.adminDbBusy=true; render();
+  try{
+    await api("/api/admin/database",{module:module.id,table:table.id,from:STATE.adminDbFrom,to:STATE.adminDbTo,confirmation:"XOA DU LIEU"},"DELETE");
+    await refresh(true);
+    STATE.adminDatabase=null; STATE.adminDatabaseError=""; STATE.adminDbFrom=""; STATE.adminDbTo="";
+    await Promise.all([loadAdminDatabase(),loadAdminOperations()]);
+    notify(`Đã xoá ${nf(count)} dòng ${table.label} của ${module.label}.`);
+  }catch(e){notify("Không xoá được dữ liệu: "+e.message,"err");}
+  finally{STATE.adminDbBusy=false;if(STATE.page==="admin") render();}
 }
 async function runPipeline(mode){
   const details={
@@ -1252,6 +1327,7 @@ document.addEventListener("click",e=>{
   if(d.rt){STATE.repType=d.rt;render();}
   if(d.reptab){STATE.repTab=d.reptab;render();}
   if(d.admintab){STATE.adminTab=d.admintab;render();}
+  if(d.dbModule){STATE.adminDbModule=d.dbModule;STATE.adminDbTable="";STATE.adminDbFrom="";STATE.adminDbTo="";render();return;}
   if("rsel" in d){STATE.repSel=d.rsel||null;STATE.repTab="Thư viện";render();}
   if(d.ask){ask(d.ask);}
   if(d.editRep){editReport(d.editRep);}
@@ -1263,6 +1339,8 @@ document.addEventListener("click",e=>{
   if(t.id==="addUser") openUserDialog();
   if(t.id==="reloadUsers"){STATE.adminUsers=null;STATE.adminError="";loadAdminUsers();}
   if(t.id==="reloadOps"){STATE.adminOps=null;STATE.adminOpsError="";loadAdminOperations();}
+  if(t.id==="reloadDatabase"){STATE.adminDatabase=null;STATE.adminDatabaseError="";loadAdminDatabase();}
+  if(t.id==="deleteDatabaseRows") deleteDatabaseRows();
   if(t.id==="runBuild") runPipeline("build");
   if(t.id==="runFull") runPipeline("all");
   if(t.dataset.pipelineMode) runPipeline(t.dataset.pipelineMode);
@@ -1286,6 +1364,10 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="pdfIn") $("#pdfName").textContent=e.target.files[0]?.name||"";
+  if(e.target.id==="dbModule"){STATE.adminDbModule=e.target.value;STATE.adminDbTable="";STATE.adminDbFrom="";STATE.adminDbTo="";render();return;}
+  if(e.target.id==="dbTable"){STATE.adminDbTable=e.target.value;STATE.adminDbFrom="";STATE.adminDbTo="";render();return;}
+  if(e.target.id==="dbFrom"){STATE.adminDbFrom=e.target.value;if(!STATE.adminDbTo||STATE.adminDbTo<STATE.adminDbFrom)STATE.adminDbTo=STATE.adminDbFrom;render();return;}
+  if(e.target.id==="dbTo"){STATE.adminDbTo=e.target.value;if(!STATE.adminDbFrom||STATE.adminDbFrom>STATE.adminDbTo)STATE.adminDbFrom=STATE.adminDbTo;render();return;}
   if(e.target.id==="actionTicker"){STATE.actionTicker=e.target.value;render();return;}
   if(e.target.id==="actionSector"){STATE.actionSector=e.target.value;render();return;}
   if(e.target.id==="actionSource"){STATE.actionSource=e.target.value;render();return;}

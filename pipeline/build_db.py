@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 from config import DB_PATH, INPUT_DIR, FLOWS_MODULE_ENABLED
 from data_quality import raise_for_errors, validate
+from data_admin import apply_tombstones
 from schema import SCHEMA, table_name
 
 
@@ -46,6 +47,10 @@ def run() -> list:
                 warnings.append(f"{file}/{sh}: {dup} dòng trùng khóa {s['key']} → giữ dòng cuối")
                 df = df.drop_duplicates(subset=s["key"], keep="last")
             frames[(file, sh)] = df
+
+    deleted = apply_tombstones(frames)
+    if deleted:
+        print(f"  Đã loại {deleted} dòng theo lịch sử xoá của quản trị viên")
 
     if not FLOWS_MODULE_ENABLED:
         # Giữ nguyên workbook để có thể mở lại sau này, nhưng không đưa dữ liệu

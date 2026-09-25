@@ -169,6 +169,10 @@ test("report sections and administration panels preserve their controls", () => 
   assert.match(ui.run("pgAdmin()"), /Đồng bộ từng nguồn/);
   ui.run('STATE.adminTab="Người dùng"');
   assert.match(ui.run("pgAdmin()"), /id="addUser"/);
+  ui.run('STATE.adminTab="Dữ liệu"; STATE.adminDatabase={modules:[{id:"brief",label:"Bản tin",rows:8,from:"2026-09-01",to:"2026-09-02",dates:[{date:"2026-09-01",rows:5},{date:"2026-09-02",rows:3}],tables:[{id:"news",label:"Tin tức",rows:8,from:"2026-09-01",to:"2026-09-02",dates:[{date:"2026-09-01",rows:5},{date:"2026-09-02",rows:3}]}]}],history:[]};');
+  assert.match(ui.run("pgAdmin()"), /Quản trị database/);
+  assert.match(ui.run("pgAdmin()"), /id="deleteDatabaseRows"/);
+  assert.match(ui.run("pgAdmin()"), /5 dòng đã chọn/);
 });
 
 test("Khuyến nghị hành động giữ các điều khiển vận hành và cho phép tạo chủ động theo quyền", () => {

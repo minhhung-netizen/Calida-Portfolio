@@ -818,6 +818,39 @@ function enqueuePipeline(args, reason) {
   return job;
 }
 
+function runPythonJson(script, args = [], timeoutMs = 30_000) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(PYTHON, [path.join(ROOT, "pipeline", script), ...args], {
+      cwd: ROOT,
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    const finish = (error, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      error ? reject(error) : resolve(value);
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      finish(new Error("Đọc thống kê dữ liệu quá thời gian cho phép"));
+    }, timeoutMs);
+    child.stdout.on("data", (chunk) => { stdout = (stdout + chunk).slice(-2_000_000); });
+    child.stderr.on("data", (chunk) => { stderr = (stderr + chunk).slice(-4000); });
+    child.on("error", (error) => finish(new Error(`Không chạy được ${PYTHON}: ${error.message}`)));
+    child.on("close", (code) => {
+      if (settled) return;
+      if (code !== 0) return finish(new Error(stderr.trim() || `Tiện ích dữ liệu dừng với mã ${code}`));
+      try {
+        const line = stdout.trim().split(/\r?\n/).filter(Boolean).at(-1);
+        return finish(null, JSON.parse(line || "{}"));
+      } catch { return finish(new Error("Không đọc được kết quả thống kê dữ liệu")); }
+    });
+  });
+}
+
 // ---------- Gemini ----------
 async function gemini({ system, contents, json = false, temperature = 0.2 }) {
   if (!GEMINI_KEY) throw Object.assign(new Error("Chưa cấu hình GEMINI_API_KEY trên server"), { status: 503 });
@@ -1060,6 +1093,41 @@ app.get("/api/admin/operations", requireModule("admin", "edit"), (req, res) => {
     quality = data.meta?.quality || quality;
   } catch { /* Report the pipeline state even without dashboard data. */ }
   return res.json({ pipeline: { ...pipelineState, queuedJobs }, modules: { flowsEnabled: FLOWS_MODULE_ENABLED }, freshness, quality, audit: recentAudit() });
+});
+
+const DATA_ADMIN_MODULES = Object.freeze({ brief: "Bản tin", portfolio: "Danh mục", flows: "Dòng tiền", funds: "Quỹ đầu tư", reports: "Báo cáo CTCK" });
+const DATA_ADMIN_TABLES = Object.freeze({
+  brief: ["all", "view", "news", "events"],
+  portfolio: ["all", "positions", "prices", "transactions", "summary"],
+  flows: ["all", "investor_flow", "ticker_flow", "sector_flow"],
+  funds: ["all", "fund_summary", "asset_allocation", "industry", "top_holdings"],
+  reports: ["all", "reports", "report_stocks", "report_sectors", "report_risks"],
+});
+
+app.get("/api/admin/database", requireModule("admin", "edit"), async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await runPythonJson("data_admin.py", ["summary"]));
+  } catch (error) { return res.status(503).json({ error: `Không đọc được dữ liệu nguồn: ${error.message}` }); }
+});
+
+app.delete("/api/admin/database", requireModule("admin", "edit"), requireCsrf, pipelineLimit, async (req, res) => {
+  const module = String(req.body?.module || "");
+  const table = String(req.body?.table || "all");
+  const from = String(req.body?.from || "");
+  const to = String(req.body?.to || "");
+  if (!Object.hasOwn(DATA_ADMIN_MODULES, module)) return res.status(400).json({ error: "Module quản trị dữ liệu không hợp lệ" });
+  if (!DATA_ADMIN_TABLES[module].includes(table)) return res.status(400).json({ error: "Nhóm dữ liệu không thuộc module đã chọn" });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+    return res.status(400).json({ error: "Khoảng ngày xoá không hợp lệ" });
+  }
+  if (req.body?.confirmation !== "XOA DU LIEU") return res.status(400).json({ error: "Thiếu xác nhận xoá dữ liệu" });
+  try {
+    const label = DATA_ADMIN_MODULES[module];
+    await enqueuePipeline(["--purge-module", module, "--purge-table", table, "--from-date", from, "--to-date", to, "--actor", req.user.u], `xoá dữ liệu ${label} từ ${from} đến ${to}`);
+    audit(req, "database.delete", { module, table, label, from, to });
+    return res.json({ ok: true, module, table, label, from, to });
+  } catch (error) { return res.status(500).json({ error: error.message }); }
 });
 
 app.post("/api/chat", requireModule("reports", "edit"), requireCsrf, aiLimit, async (req, res) => {

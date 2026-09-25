@@ -37,9 +37,27 @@ def main():
     ap.add_argument("--no-gsheets", action="store_true")
     ap.add_argument("--source", action="append", choices=("portfolio", "operations", "funds", "reports"),
                     help="Chỉ đồng bộ nguồn Google Sheets được chỉ định; có thể lặp lại tham số.")
+    ap.add_argument("--purge-module", choices=("brief", "portfolio", "flows", "funds", "reports"))
+    ap.add_argument("--from-date")
+    ap.add_argument("--to-date")
+    ap.add_argument("--actor", default="system")
+    ap.add_argument("--purge-table", default="all")
     a = ap.parse_args()
     if a.build_only and a.source:
         ap.error("--build-only không dùng cùng --source")
+    if a.purge_module and (a.build_only or a.source or not a.from_date or not a.to_date):
+        ap.error("--purge-module cần --from-date và --to-date, không dùng cùng --build-only/--source")
+    if a.purge_module:
+        import data_admin
+        step("Nhập và quản lý báo cáo", import_inbox.run_all, required=True)
+        event = {}
+        def purge_data():
+            event.update(data_admin.purge(a.purge_module, a.from_date, a.to_date, a.actor, a.purge_table))
+            print(f"  Đã xoá {event['rows']} dòng {event['tableLabel']} của {event['moduleLabel']} từ {event['from']} đến {event['to']}")
+        step("Xoá dữ liệu theo module và ngày", purge_data, required=True)
+        step("Build database", build_db.run, required=True)
+        step("Xuất dashboard.json", export_json.run, required=True)
+        return
     source_failures = []
     if not a.build_only:
         if not a.no_gsheets:

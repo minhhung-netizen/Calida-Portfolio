@@ -7,6 +7,7 @@ data/logs/
 data/inbox/*.jsonl
 data/auth/
 data/push-subscriptions.json
+data/data-deletions.json
 __pycache__/
 
 .venv/

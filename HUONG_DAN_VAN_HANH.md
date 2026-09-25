@@ -73,6 +73,21 @@ Danh mục, Vận hành và Quỹ dùng **bản chụp nguồn**. Nghĩa là dò
 
 Báo cáo CTCK dùng **gộp theo mã** để không làm mất báo cáo được tạo trực tiếp trên web. Không nên sửa cùng một mã báo cáo trên Google Sheets và web trong cùng một lượt đồng bộ; thay đổi được nhập sau sẽ có hiệu lực.
 
+### Xoá dữ liệu cũ theo module và ngày
+
+Tài khoản có quyền **Quản trị → Chỉnh sửa** mở **Quản trị → Dữ liệu**:
+
+1. Chọn module: Bản tin, Danh mục, Dòng tiền, Quỹ đầu tư hoặc Báo cáo CTCK.
+2. Chọn **Nhóm dữ liệu** bên trong module. Ví dụ chọn **Tin tức** để không xoá nhầm Nhận định hoặc Sự kiện cùng ngày. Chỉ dùng **Tất cả nhóm dữ liệu** khi thực sự muốn dọn toàn bộ module trong khoảng thời gian đó.
+3. Chọn ngày bắt đầu và kết thúc từ đúng các mốc dữ liệu đang có. Muốn xoá một ngày thì chọn cùng ngày ở cả hai ô.
+4. Kiểm tra số dòng xem trước và các bảng nguồn bị ảnh hưởng.
+5. Bấm **Xóa dữ liệu đã chọn**, đọc nội dung xác nhận rồi đồng ý.
+6. Chờ hệ thống ghi nguồn vận hành, dựng lại SQLite và `dashboard.json`; sau đó kiểm tra module liên quan.
+
+Tổng quan, Khuyến nghị hành động và Trung tâm tín hiệu là dữ liệu tổng hợp nên không có nút xoá độc lập; chúng tự thay đổi theo các module nguồn. Với Quỹ, ngày hiển thị là ngày đầu tháng đại diện cho kỳ `MM/YYYY`. Với Báo cáo CTCK, xoá một báo cáo sẽ xoá kèm khuyến nghị cổ phiếu, quan điểm ngành và rủi ro có cùng ID.
+
+Mỗi bản ghi đã xoá được lưu dấu theo khóa trong `/app/data/data-deletions.json`. Vì vậy cùng bản ghi không tự xuất hiện lại khi đồng bộ Google Sheets. Đây là dữ liệu vận hành trên Railway Volume: phải nằm trong kế hoạch backup và không được xoá thủ công. Nếu cần khôi phục dữ liệu đã xoá, khôi phục Volume từ backup hoặc yêu cầu kỹ thuật gỡ đúng dấu xoá; giao diện hiện không có chức năng hoàn tác.
+
 ## 4. Dòng tiền đang tạm dừng
 
 Ở trạng thái hiện tại, `FLOWS_MODULE_ENABLED=false`.
@@ -161,6 +176,7 @@ Khi cần khôi phục:
 2. Kiểm tra Railway Variables không bị mất.
 3. Push GitHub, theo dõi Deploy Logs và `/api/ready`.
 4. Đăng nhập kiểm tra Quản trị → Vận hành dữ liệu.
+5. Mở **Quản trị → Dữ liệu** và xác nhận thống kê module vẫn đọc được từ Volume.
 
 ## 9. Mở rộng và tài liệu liên quan
 

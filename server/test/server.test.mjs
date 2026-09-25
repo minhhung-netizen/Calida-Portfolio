@@ -107,6 +107,8 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     const viewerSession = await (await request("/api/auth/me", { headers: { cookie: viewerCookie } })).json();
     response = await request("/api/admin/users", { headers: { cookie: viewerCookie } });
     assert.equal(response.status, 403, "viewer không có quyền quản trị");
+    response = await request("/api/admin/database", { headers: { cookie: viewerCookie } });
+    assert.equal(response.status, 403, "viewer không được xem quản trị database");
     response = await request("/api/reports", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ report: report() }) });
     assert.equal(response.status, 403, "viewer mặc định không có quyền chỉnh sửa báo cáo");
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ status: "completed" }) });
@@ -115,6 +117,8 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed" }) });
     assert.equal(response.status, 200, "admin phải cập nhật được trạng thái action");
     assert.equal((await response.json()).state.status, "completed");
+    response = await request("/api/admin/database", { method: "DELETE", ...common, body: JSON.stringify({ module: "unknown", from: "2026-09-01", to: "2026-09-02", confirmation: "XOA DU LIEU" }) });
+    assert.equal(response.status, 400, "không được xoá module database ngoài danh sách cho phép");
     response = await request("/api/actions/portfolio%3AFPT", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed", plannedQuantity: 20000, completedQuantity: 5000, deadline: "2026-09-24", note: "Đã khớp lệnh một phần" }) });
     assert.equal(response.status, 200, "admin phải khai báo được tiến độ action");
     assert.deepEqual((await response.json()).state.plannedQuantity, 20000);
