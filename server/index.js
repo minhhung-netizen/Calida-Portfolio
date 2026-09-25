@@ -282,6 +282,7 @@ function queuePush(payload) {
 const PRICE_ALERT_ID = /^price:[a-f0-9-]{36}$/;
 const PRICE_ALERT_TICKER = /^[A-Z0-9._-]{1,12}$/;
 const PRICE_ALERT_CONDITIONS = new Set(["above", "below", "range"]);
+const PRICE_ALERT_RANGE_ACTIONS = new Set(["buy", "sell"]);
 const PRICE_ALERT_FREQUENCIES = new Set(["once", "daily", "crossing"]);
 const PRICE_ALERT_SCHEDULES = new Set(["immediate", "at_time"]);
 const PRICE_ALERT_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -292,6 +293,7 @@ function normalizePriceAlert(alert) {
   return {
     ...alert,
     targetPriceHigh: Number.isFinite(alert?.targetPriceHigh) ? alert.targetPriceHigh : null,
+    rangeAction: alert?.condition === "range" && PRICE_ALERT_RANGE_ACTIONS.has(alert?.rangeAction) ? alert.rangeAction : (alert?.condition === "range" ? "buy" : null),
     frequency: PRICE_ALERT_FREQUENCIES.has(alert?.frequency) ? alert.frequency : "once",
     scheduleMode: scheduleMode === "at_time" && !notifyTime ? "immediate" : scheduleMode,
     notifyTime,
@@ -309,6 +311,7 @@ function cleanPriceAlertInput(value, previous = {}) {
   const targetPrice = Number(value.targetPrice ?? previous.targetPrice);
   const targetPriceHighValue = value.targetPriceHigh !== undefined ? value.targetPriceHigh : previous.targetPriceHigh;
   const targetPriceHigh = condition === "range" ? Number(targetPriceHighValue) : null;
+  const rangeAction = condition === "range" ? String(value.rangeAction ?? previous.rangeAction ?? "buy") : null;
   const note = String(value.note ?? previous.note ?? "").trim();
   const frequency = String(value.frequency ?? previous.frequency ?? "once");
   const scheduleMode = String(value.scheduleMode ?? previous.scheduleMode ?? "immediate");
@@ -320,6 +323,7 @@ function cleanPriceAlertInput(value, previous = {}) {
   if (!PRICE_ALERT_CONDITIONS.has(condition)) throw new Error("Điều kiện cảnh báo không hợp lệ");
   if (!Number.isFinite(targetPrice) || targetPrice <= 0 || targetPrice > 1_000_000_000) throw new Error("Giá cảnh báo phải là số lớn hơn 0");
   if (condition === "range" && (!Number.isFinite(targetPriceHigh) || targetPriceHigh <= targetPrice || targetPriceHigh > 1_000_000_000)) throw new Error("Giá cao phải lớn hơn giá thấp");
+  if (condition === "range" && !PRICE_ALERT_RANGE_ACTIONS.has(rangeAction)) throw new Error("Loại vùng giá phải là mua hoặc bán");
   if (note.length > 300) throw new Error("Ghi chú không được quá 300 ký tự");
   if (!PRICE_ALERT_FREQUENCIES.has(frequency)) throw new Error("Tần suất cảnh báo không hợp lệ");
   if (!PRICE_ALERT_SCHEDULES.has(scheduleMode)) throw new Error("Thời điểm cảnh báo không hợp lệ");
@@ -329,7 +333,7 @@ function cleanPriceAlertInput(value, previous = {}) {
     if (!Number.isFinite(deadline.getTime())) throw new Error("Hạn cảnh báo không hợp lệ");
     expiresAt = deadline.toISOString();
   }
-  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, targetPriceHigh: targetPriceHigh == null ? null : Math.round(targetPriceHigh * 100) / 100, note, frequency, scheduleMode, notifyTime, expiresAt };
+  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, targetPriceHigh: targetPriceHigh == null ? null : Math.round(targetPriceHigh * 100) / 100, rangeAction, note, frequency, scheduleMode, notifyTime, expiresAt };
 }
 
 function readPriceAlertStore() {
@@ -352,7 +356,10 @@ function writePriceAlertStore(alerts) {
 
 function currentPriceMap() {
   const data = readData();
-  const rows = Array.isArray(data.prices) && data.prices.length ? data.prices : (data.portfolio?.positions || []).map((item) => ({ t: item.t, price: item.price, chg: item.chg, date: item.priceDate }));
+  const dedicatedPrices = Array.isArray(data.prices) && data.prices.length;
+  const rows = dedicatedPrices
+    ? data.prices.map((item) => ({ ...item, previousPrice: Number.isFinite(item.previousPrice) ? item.previousPrice : (Number.isFinite(item.price) && Number.isFinite(item.chg) ? item.price - item.chg : null) }))
+    : (data.portfolio?.positions || []).map((item) => ({ t: item.t, price: item.price, date: item.priceDate }));
   return new Map(rows.filter((item) => item?.t).map((item) => [String(item.t).toUpperCase(), item]));
 }
 
@@ -400,14 +407,20 @@ async function evaluatePriceAlerts(targetUsername = null) {
       : alert.condition === "range"
         ? quote.price >= alert.targetPrice && quote.price <= alert.targetPriceHigh
         : quote.price <= alert.targetPrice;
+    const previousPrice = Number.isFinite(quote.previousPrice) ? quote.previousPrice : null;
+    const directionMatched = alert.condition !== "range" || (previousPrice != null && (
+      alert.rangeAction === "buy"
+        ? previousPrice > alert.targetPriceHigh
+        : previousPrice < alert.targetPrice
+    ));
     if (!conditionMatched) {
       if (alert.wasMatched !== false) { alert.wasMatched = false; changed = true; }
       continue;
     }
     if (!alert.enabled || !priceAlertScheduleDue(alert, nowDate)) continue;
-    const shouldTrigger = alert.frequency === "daily"
+    const shouldTrigger = directionMatched && (alert.frequency === "daily"
       ? alert.lastTriggeredPriceDate !== quoteDate
-      : alert.wasMatched !== true;
+      : alert.wasMatched !== true);
     if (alert.wasMatched !== true) { alert.wasMatched = true; changed = true; }
     if (!shouldTrigger) continue;
     if (alert.frequency === "once") alert.enabled = false;
@@ -423,7 +436,7 @@ async function evaluatePriceAlerts(targetUsername = null) {
   if (changed) writePriceAlertStore(alerts);
   for (const alert of triggered) {
     const threshold = alert.condition === "range"
-      ? `đã vào vùng ${alert.targetPrice.toLocaleString("en-US")} – ${alert.targetPriceHigh.toLocaleString("en-US")}`
+      ? `${alert.rangeAction === "buy" ? "đã đi xuống vào vùng mua" : "đã đi lên vào vùng bán"} ${alert.targetPrice.toLocaleString("en-US")} – ${alert.targetPriceHigh.toLocaleString("en-US")}`
       : `${alert.condition === "above" ? "đã tăng đến" : "đã giảm đến"} ${alert.targetPrice.toLocaleString("en-US")}`;
     await dispatchPush({ preference: "priceAlerts", module: "alerts", targetUsername: alert.username, title: `Calida · ${alert.ticker} chạm giá`, body: `${alert.ticker} ${threshold} (hiện tại ${alert.triggeredPrice.toLocaleString("en-US")}).`, url: "/#alerts", tag: `calida-${alert.id}` });
   }
@@ -833,7 +846,7 @@ app.post("/api/price-alerts", requireModule("alerts", "edit"), requireCsrf, writ
     if (enabled && details.expiresAt && new Date(details.expiresAt) <= new Date()) throw new Error("Hạn cảnh báo phải nằm trong tương lai");
     const alert = { id: `price:${crypto.randomUUID()}`, username: req.user.u, ...details, enabled, wasMatched: false, triggeredAt: null, triggeredPrice: null, triggerCount: 0, lastTriggeredPriceDate: null, expiredAt: null, lastPrice: null, lastPriceDate: null, lastCheckedAt: null, createdAt: now, updatedAt: now };
     writePriceAlertStore([...readPriceAlertStore(), alert]);
-    audit(req, "price-alert.create", { id: alert.id, ticker: alert.ticker, condition: alert.condition, targetPrice: alert.targetPrice, targetPriceHigh: alert.targetPriceHigh });
+    audit(req, "price-alert.create", { id: alert.id, ticker: alert.ticker, condition: alert.condition, targetPrice: alert.targetPrice, targetPriceHigh: alert.targetPriceHigh, rangeAction: alert.rangeAction });
     const result = await evaluatePriceAlerts(req.user.u);
     const saved = result.alerts.find((item) => item.id === alert.id) || alert;
     return res.status(201).json({ ok: true, alert: publicPriceAlert(saved, result.prices) });
@@ -851,11 +864,11 @@ app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf,
     const details = cleanPriceAlertInput(req.body?.alert || {}, previous);
     const enabled = typeof req.body?.alert?.enabled === "boolean" ? req.body.alert.enabled : previous.enabled;
     if (enabled && details.expiresAt && new Date(details.expiresAt) <= new Date()) throw new Error("Hạn cảnh báo phải nằm trong tương lai");
-    const triggerRuleChanged = details.ticker !== previous.ticker || details.condition !== previous.condition || details.targetPrice !== previous.targetPrice || details.targetPriceHigh !== previous.targetPriceHigh || details.frequency !== previous.frequency || details.scheduleMode !== previous.scheduleMode || details.notifyTime !== previous.notifyTime;
+    const triggerRuleChanged = details.ticker !== previous.ticker || details.condition !== previous.condition || details.targetPrice !== previous.targetPrice || details.targetPriceHigh !== previous.targetPriceHigh || details.rangeAction !== previous.rangeAction || details.frequency !== previous.frequency || details.scheduleMode !== previous.scheduleMode || details.notifyTime !== previous.notifyTime;
     const reset = enabled && (!previous.enabled || triggerRuleChanged);
     alerts[index] = { ...previous, ...details, enabled, wasMatched: triggerRuleChanged ? false : previous.wasMatched, triggeredAt: reset ? null : previous.triggeredAt, triggeredPrice: reset ? null : previous.triggeredPrice, expiredAt: enabled ? null : previous.expiredAt, updatedAt: new Date().toISOString() };
     writePriceAlertStore(alerts);
-    audit(req, "price-alert.update", { id, ticker: details.ticker, condition: details.condition, targetPrice: details.targetPrice, targetPriceHigh: details.targetPriceHigh, enabled });
+    audit(req, "price-alert.update", { id, ticker: details.ticker, condition: details.condition, targetPrice: details.targetPrice, targetPriceHigh: details.targetPriceHigh, rangeAction: details.rangeAction, enabled });
     const result = await evaluatePriceAlerts(req.user.u);
     const saved = result.alerts.find((item) => item.id === id) || alerts[index];
     return res.json({ ok: true, alert: publicPriceAlert(saved, result.prices) });

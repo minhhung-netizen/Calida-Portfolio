@@ -44,7 +44,7 @@ class FundPeriodExportTest(unittest.TestCase):
 
     def test_exports_latest_price_for_alert_tickers_outside_portfolio(self):
         prices = export_json.latest_prices(self.con, "2026-09-24")
-        self.assertEqual(prices, [{"t": "VNM", "price": 63.0, "chg": 2.0, "date": "2026-09-24"}])
+        self.assertEqual(prices, [{"t": "VNM", "price": 63.0, "previousPrice": 61.0, "chg": 2.0, "date": "2026-09-24"}])
 
 
 if __name__ == "__main__":

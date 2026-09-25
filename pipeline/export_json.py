@@ -161,6 +161,7 @@ def latest_prices(con, as_of):
         rows.append({
             "t": ticker,
             "price": num(quote.close),
+            "previousPrice": num(previous_close) if previous_close is not None else None,
             "chg": num(quote.close - previous_close) if previous_close is not None else None,
             "date": str(quote.date) if quote.date is not None else None,
         })

@@ -77,7 +77,12 @@ Báo cáo CTCK dùng **gộp theo mã** để không làm mất báo cáo đư�
 
 ### Cảnh báo giá cá nhân
 
-Người dùng mở **Cảnh báo giá → Thêm cảnh báo**, tự nhập mã chứng khoán rồi chọn một trong ba điều kiện: **Giá tăng đến hoặc vượt**, **Giá giảm đến hoặc thấp hơn**, hoặc **Giá nằm trong vùng**. Với vùng giá, nhập giá thấp và giá cao; hệ thống kích hoạt khi giá hiện tại nằm trong khoảng đó, tính cả hai đầu vùng. Cảnh báo này độc lập với Danh mục, Khuyến nghị hành động và Trung tâm tín hiệu; mỗi tài khoản chỉ thấy dữ liệu của chính mình.
+Người dùng mở **Cảnh báo giá → Thêm cảnh báo**, tự nhập mã chứng khoán rồi chọn một trong ba điều kiện: **Giá tăng đến hoặc vượt**, **Giá giảm đến hoặc thấp hơn**, hoặc **Giá nằm trong vùng**. Với vùng giá, nhập giá thấp, giá cao và loại vùng:
+
+- **Vùng mua:** chỉ kích hoạt khi giá trước đó nằm trên giá cao và giá mới đi xuống vào vùng. Giá đi từ dưới lên sẽ không kích hoạt.
+- **Vùng bán:** chỉ kích hoạt khi giá trước đó nằm dưới giá thấp và giá mới đi lên vào vùng. Giá đi từ trên xuống sẽ không kích hoạt.
+
+Hai đầu vùng đều được tính là nằm trong vùng. Nếu chưa có giá trước đó để xác định hướng, hệ thống tiếp tục chờ thay vì gửi cảnh báo không chắc chắn. Cảnh báo này độc lập với Danh mục, Khuyến nghị hành động và Trung tâm tín hiệu; mỗi tài khoản chỉ thấy dữ liệu của chính mình.
 
 Mỗi cảnh báo có thể đặt:
 
