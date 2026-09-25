@@ -19,6 +19,7 @@ Hệ thống phân tích gồm 6 trang: Tổng quan · Bản tin · Danh mục �
 - **Excel và dashboard là dữ liệu vận hành**: Excel, SQLite và `dashboard.json` được lưu trên Railway Volume. Đồng bộ Danh mục, Vận hành và Quỹ dùng **bản chụp nguồn** để thay đúng các sheet do Google Sheets quản lý, nhờ đó dữ liệu cũ đã bị xóa sẽ không còn lưu lại trên Railway. Báo cáo CTCK vẫn gộp theo khóa để bảo toàn báo cáo tạo từ giao diện.
 - **SQLite (`data/calida.db`)** được dựng lại toàn bộ từ Excel mỗi lần chạy, có kiểm tra cột, ngày và dòng trùng khóa.
 - **`dashboard.json`** chứa sẵn mọi chỉ số tổng hợp (MTD/YTD, bình quân gia quyền NAV, Δ kỳ trước). Giao diện chỉ việc hiển thị.
+- **Vnstock là nguồn giá tùy chọn**: Railway vẫn deploy và dựng dashboard từ dữ liệu đã có nếu kho cài đặt tạm thời không cung cấp được Vnstock. Khi đó chỉ bước làm mới giá bị bỏ qua; các đồng bộ Google Sheets vẫn dùng bình thường.
 
 ## Cài đặt (Windows)
 

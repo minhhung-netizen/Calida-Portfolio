@@ -3,6 +3,7 @@ Lấy OHLCV ngày cho VN-Index và các mã trong POSITIONS bằng vnstock.
 Ghi vào: market.xlsx/VNINDEX, portfolio.xlsx/PRICES (upsert theo ngày + mã).
 """
 from datetime import date, timedelta
+from importlib.util import find_spec
 import time
 import pandas as pd
 from config import PRICE_LOOKBACK_DAYS, VNSTOCK_SOURCE
@@ -38,6 +39,12 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def run(retries: int = 3, pause: float = 1.2):
+    # Vnstock là nguồn giá tùy chọn. Nếu image chưa cài được thư viện (ví dụ
+    # PyPI/registry tạm thời không trả phiên bản tương thích), trả lỗi nguồn
+    # một lần để dashboard vẫn được dựng từ dữ liệu hợp lệ đang có.
+    if find_spec("vnstock") is None:
+        print("  vnstock is unavailable in this environment - skipping price refresh.")
+        return ["vnstock"]
     end = date.today()
     start = end - timedelta(days=PRICE_LOOKBACK_DAYS)
     s, e = start.isoformat(), end.isoformat()
