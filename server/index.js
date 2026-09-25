@@ -288,6 +288,7 @@ const PRICE_ALERT_RANGE_ACTIONS = new Set(["buy", "sell"]);
 const PRICE_ALERT_FREQUENCIES = new Set(["once", "daily", "crossing"]);
 const PRICE_ALERT_SCHEDULES = new Set(["immediate", "at_time"]);
 const PRICE_ALERT_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DEFAULT_PRICE_ALERT_NOTIFY_TIME = "08:00";
 
 function normalizePriceAlert(alert) {
   const notifyTime = PRICE_ALERT_TIME.test(alert?.notifyTime || "") ? alert.notifyTime : null;
@@ -317,7 +318,7 @@ function cleanPriceAlertInput(value, previous = {}) {
   const note = String(value.note ?? previous.note ?? "").trim();
   const frequency = String(value.frequency ?? previous.frequency ?? "once");
   const scheduleMode = String(value.scheduleMode ?? previous.scheduleMode ?? "immediate");
-  const notifyTimeValue = value.notifyTime !== undefined ? value.notifyTime : previous.notifyTime;
+  const notifyTimeValue = value.notifyTime !== undefined ? value.notifyTime : (previous.notifyTime ?? DEFAULT_PRICE_ALERT_NOTIFY_TIME);
   const notifyTime = scheduleMode === "at_time" ? String(notifyTimeValue || "").trim() : null;
   const expiresValue = value.expiresAt !== undefined ? value.expiresAt : previous.expiresAt;
   let expiresAt = null;

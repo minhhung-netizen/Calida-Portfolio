@@ -125,12 +125,12 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(rearmedAlert.enabled, true, "bật lại không được kích hoạt lặp khi giá chưa rời ngưỡng");
     assert.equal(rearmedAlert.triggeredAt, null);
     const futureDeadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "VNM", condition: "above", targetPrice: 1000, frequency: "daily", scheduleMode: "at_time", notifyTime: "15:30", expiresAt: futureDeadline, note: "Cảnh báo có lịch" } }) });
+    response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "VNM", condition: "above", targetPrice: 1000, frequency: "daily", scheduleMode: "at_time", expiresAt: futureDeadline, note: "Cảnh báo có lịch" } }) });
     assert.equal(response.status, 201, "người dùng phải đặt được tần suất, giờ gửi và hạn cảnh báo");
     const scheduledAlert = (await response.json()).alert;
     assert.equal(scheduledAlert.frequency, "daily");
     assert.equal(scheduledAlert.scheduleMode, "at_time");
-    assert.equal(scheduledAlert.notifyTime, "15:30");
+    assert.equal(scheduledAlert.notifyTime, "08:00");
     assert.equal(scheduledAlert.expiresAt, futureDeadline);
     response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "FPT", condition: "below", targetPrice: 100, frequency: "daily", scheduleMode: "immediate", expiresAt: futureDeadline, note: "Nhắc lại theo ngày giá" } }) });
     assert.equal(response.status, 201);

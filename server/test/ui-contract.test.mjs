@@ -135,6 +135,7 @@ test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡn
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertExpires"/);
   ui.run("openPriceAlertDialog()");
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime" type="time" value="08:00"/);
   assert.equal(ui.element("#priceAlertCondition").value, "range");
   assert.equal(ui.element("#priceAlertHighWrap").hidden, false);
   assert.equal(ui.element("#priceAlertRangeActionWrap").hidden, false);
