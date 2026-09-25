@@ -118,6 +118,7 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(response.status, 201, "mọi người dùng mặc định được tự tạo cảnh báo giá cá nhân");
     const viewerAlert = (await response.json()).alert;
     assert.match(viewerAlert.id, /^price:/);
+    assert.equal(Number(viewerAlert.priceChangePct.toFixed(2)), -29.24, "API cảnh báo phải trả phần trăm thay đổi so với giá tham chiếu");
     assert.equal(viewerAlert.enabled, false, "cảnh báo phải kích hoạt một lần khi giá đã chạm ngưỡng");
     assert.ok(viewerAlert.triggeredAt);
     response = await request(`/api/price-alerts/${encodeURIComponent(viewerAlert.id)}`, { method: "PATCH", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { enabled: true } }) });

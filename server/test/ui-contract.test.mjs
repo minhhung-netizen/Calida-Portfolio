@@ -138,12 +138,13 @@ test("all ten modules render the existing dashboard fixture", () => {
 
 test("Cảnh báo giá hỗ trợ nguồn cá nhân, khuyến nghị và danh sách người nhận", () => {
   const ui = app();
-  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",username:"viewer",sourceType:"action",actionId:"portfolio:FPT",ticker:"FPT",condition:"range",targetPrice:95,targetPriceHigh:100,rangeAction:"buy",note:"Theo khuyến nghị",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceDate:"2026-09-24"}];STATE.priceAlertsCanAssign=true;STATE.priceAlertRecipients=[{username:"test",role:"admin"},{username:"viewer",role:"viewer"}]');
+  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",username:"viewer",sourceType:"action",actionId:"portfolio:FPT",ticker:"FPT",condition:"range",targetPrice:95,targetPriceHigh:100,rangeAction:"buy",note:"Theo khuyến nghị",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceChangePct:1.23,priceDate:"2026-09-24"}];STATE.priceAlertsCanAssign=true;STATE.priceAlertRecipients=[{username:"test",role:"admin"},{username:"viewer",role:"viewer"}]');
   const result = ui.run("pgPriceAlerts()");
   assert.match(result, /Quản lý cảnh báo theo khuyến nghị/);
   assert.match(result, /Vùng mua · giá đi xuống 95\.00 – 100\.00/);
   assert.match(result, /Theo khuyến nghị hành động/);
   assert.match(result, /Người nhận: viewer/);
+  assert.match(result, /\+1\.20 \(\+1\.23%\)/);
   assert.match(result, /data-edit-price-alert=/);
   ui.run('openPriceAlertDialog("price:123e4567-e89b-12d3-a456-426614174000")');
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertSourceType"/);

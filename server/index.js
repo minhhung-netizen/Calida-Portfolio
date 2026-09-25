@@ -408,7 +408,11 @@ function currentPriceMap() {
 
 function publicPriceAlert(alert, prices) {
   const quote = prices.get(alert.ticker) || {};
-  return { ...normalizePriceAlert(alert), expired: Boolean(alert.expiresAt && new Date(alert.expiresAt) <= new Date()), currentPrice: Number.isFinite(quote.price) ? quote.price : null, priceChange: Number.isFinite(quote.chg) ? quote.chg : null, priceDate: quote.date || null };
+  const currentPrice = Number.isFinite(quote.price) ? quote.price : null;
+  const priceChange = Number.isFinite(quote.chg) ? quote.chg : null;
+  const previousPrice = Number.isFinite(quote.previousPrice) ? quote.previousPrice : (currentPrice != null && priceChange != null ? currentPrice - priceChange : null);
+  const priceChangePct = priceChange != null && Number.isFinite(previousPrice) && previousPrice !== 0 ? (priceChange / previousPrice) * 100 : null;
+  return { ...normalizePriceAlert(alert), expired: Boolean(alert.expiresAt && new Date(alert.expiresAt) <= new Date()), currentPrice, priceChange, priceChangePct, priceDate: quote.date || null };
 }
 
 function priceAlertScheduleDue(alert, nowDate) {
