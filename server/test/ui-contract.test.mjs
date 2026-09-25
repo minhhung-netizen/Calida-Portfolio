@@ -6,6 +6,7 @@ import test from "node:test";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const html = readFileSync(path.join(ROOT, "web", "index.html"), "utf8");
+const configSource = readFileSync(path.join(ROOT, "web", "config.js"), "utf8");
 const serverSource = readFileSync(path.join(ROOT, "server", "index.js"), "utf8");
 const priceSource = readFileSync(path.join(ROOT, "pipeline", "fetch_prices.py"), "utf8");
 const pipelineSource = readFileSync(path.join(ROOT, "pipeline", "run.py"), "utf8");
@@ -66,6 +67,17 @@ test("giá có quy trình 1 phút độc lập, tuần tự và không chạy ch
   assert.match(priceSource, /DNSE_REQUESTS_PER_MINUTE/);
   assert.match(pipelineSource, /build_db\.refresh_prices/);
   assert.match(pipelineSource, /intraday=True/);
+});
+
+test("giao diện tự làm mới dữ liệu nền khi điều hướng hoặc quay lại ứng dụng", () => {
+  assert.match(configSource, /REFRESH_MINUTES:\s*1/);
+  assert.match(source, /DATA_REFRESH_MIN_AGE_MS\s*=\s*5_000/);
+  assert.match(source, /refreshPromise\s*\|\|\s*\(refreshPromise=loadData\(\)\)/);
+  assert.match(source, /function go\([^)]*\)[\s\S]*?refreshPageData\(id\)/);
+  assert.match(source, /setInterval\(\(\)=>void refreshPageData\(STATE\.page\)/);
+  assert.match(source, /addEventListener\("focus"[\s\S]*?refreshPageData\(STATE\.page\)/);
+  assert.match(source, /addEventListener\("visibilitychange"[\s\S]*?document\.hidden[\s\S]*?refreshPageData\(STATE\.page\)/);
+  assert.match(source, /page==="alerts"[\s\S]*?loadPriceAlerts\(announce\)/);
 });
 
 test("giao diện và thông báo API không hiển thị tên nhà cung cấp hạ tầng", () => {

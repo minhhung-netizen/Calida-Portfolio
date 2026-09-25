@@ -250,13 +250,17 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
    DATA LAYER — đọc dashboard.json do pipeline Python xuất ra.
    Cấu hình trong config.js (DATA_URL, API_BASE, REFRESH_MINUTES).
    ========================================================= */
-const CFG = Object.assign({DATA_URL:"data/dashboard.json", API_BASE:"", REFRESH_MINUTES:5}, window.CALIDA_CONFIG||{});
+const CFG = Object.assign({DATA_URL:"data/dashboard.json", API_BASE:"", REFRESH_MINUTES:1}, window.CALIDA_CONFIG||{});
 let DATA = null;
 let API_OK = false;
 let CURRENT_USER = null;
 let CSRF_TOKEN = "";
 let toastTimer = null;
 let adminPollTimer = null;
+let refreshPromise = null;
+let lastDataFetchAt = 0;
+let lastPriceAlertsFetchAt = 0;
+const DATA_REFRESH_MIN_AGE_MS = 5_000;
 let PUSH_CONFIG = {available:false, publicKey:null, subscribed:false, preferences:{signals:true,actions:true,priceAlerts:true,pipeline:true}};
 let PUSH_REGISTRATION = null;
 let PUSH_DEVICE_SUBSCRIBED = false;
@@ -558,7 +562,7 @@ function syncNav(){
   if(matchMedia("(max-width:860px)").matches) setNav(false);
   else { document.body.classList.remove("nav-open"); drawer.inert=false; drawer.setAttribute("aria-hidden","false"); }
 }
-function go(id){ if(!canView(id)||(id==="flows"&&!flowsEnabled())) return; setNav(false); STATE.page=id; location.hash=id; render(); window.scrollTo({top:0}); }
+function go(id){ if(!canView(id)||(id==="flows"&&!flowsEnabled())) return; setNav(false); STATE.page=id; location.hash=id; render(); void refreshPageData(id); window.scrollTo({top:0}); }
 function render(){
   if(STATE.page==="reports"&&$("#chatIn")) STATE.chatDraft=$("#chatIn").value;
   const pages=availablePages();
@@ -1036,10 +1040,10 @@ const priceAlertSchedule=alert=>alert.scheduleMode==="at_time"?`Từ ${alert.not
 const priceAlertSource=alert=>alert.sourceType==="action"?"Theo khuyến nghị hành động":"Cá nhân người dùng";
 const priceAlertState=alert=>alert.expired?{label:"Đã hết hạn",className:"bg-neutral"}:alert.enabled?{label:"Đang theo dõi",className:"bg-brand"}:alert.triggeredAt?{label:"Đã kích hoạt",className:"bg-warn"}:{label:"Đang tạm dừng",className:"bg-neutral"};
 const localDateTimeInput=value=>{if(!value)return "";const d=new Date(value),pad=n=>String(n).padStart(2,"0");return Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;};
-async function loadPriceAlerts(){
-  if(!API_OK||STATE.priceAlertsBusy) return;
+async function loadPriceAlerts(force=false){
+  if(!API_OK||STATE.priceAlertsBusy||(!force&&STATE.priceAlerts&&Date.now()-lastPriceAlertsFetchAt<DATA_REFRESH_MIN_AGE_MS)) return;
   STATE.priceAlertsBusy=true; STATE.priceAlertsError="";
-  try{const result=await api("/api/price-alerts");STATE.priceAlerts=result.alerts||[];STATE.priceAlertRecipients=result.recipients||[];STATE.priceAlertsCanAssign=Boolean(result.canAssignRecipients);STATE.priceRefresh=result.priceRefresh||null;}
+  try{const result=await api("/api/price-alerts");lastPriceAlertsFetchAt=Date.now();STATE.priceAlerts=result.alerts||[];STATE.priceAlertRecipients=result.recipients||[];STATE.priceAlertsCanAssign=Boolean(result.canAssignRecipients);STATE.priceRefresh=result.priceRefresh||null;}
   catch(e){STATE.priceAlerts=null;STATE.priceAlertsError=e.message;}
   finally{STATE.priceAlertsBusy=false;if(STATE.page==="alerts")render();}
 }
@@ -1486,7 +1490,7 @@ document.addEventListener("click",e=>{
   if(t.id==="dlgClose") $("#addDlg").close();
   if(t.id==="extractBtn") extract();
   if(t.id==="saveRep") saveRep();
-  if(t.id==="refreshBtn") refresh(true,true);
+  if(t.id==="refreshBtn") refreshPageData(STATE.page,true);
   if(t.id==="logoutBtn") logout();
   if(t.id==="themeBtn"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;setTheme(dark?"light":"dark");notify(dark?"Đã chuyển sang giao diện sáng.":"Đã chuyển sang giao diện tối.");}
 });
@@ -1556,14 +1560,25 @@ async function logout(){
   try{ await api("/api/auth/logout",{}); }catch(e){} finally{ location.assign("/login"); }
 }
 async function refresh(force, announce=false){
+  const pending=refreshPromise||(refreshPromise=loadData());
   try{
-    const d=await loadData();
-    if(force||!DATA||d.meta?.generatedAt!==DATA.meta?.generatedAt){ DATA=d;if(STATE.page==="alerts"){STATE.priceAlerts=null;STATE.priceAlertsError="";} paintHeader(); render(); if(announce) notify("Đã tải dữ liệu mới nhất."); }
-    else if(announce) notify("Dữ liệu đang là bản mới nhất.");
+    const d=await pending;
+    lastDataFetchAt=Date.now();
+    const changed=force||!DATA||d.meta?.generatedAt!==DATA.meta?.generatedAt;
+    if(changed){ DATA=d;paintHeader();render(); }
+    if(announce) notify(changed?"Đã tải dữ liệu mới nhất.":"Dữ liệu đang là bản mới nhất.");
+    return changed;
   }catch(e){
     if(!DATA) $("#page").innerHTML=`<div class="card"><h2>Không tải được dữ liệu</h2><p class="prose">${esc(e.message)}. Chạy <code>python pipeline/run.py</code> để tạo file dữ liệu, rồi tải lại trang.</p></div>`;
     else if(announce) notify("Không tải lại được dữ liệu: "+e.message,"err");
+    return false;
+  }finally{
+    if(refreshPromise===pending) refreshPromise=null;
   }
+}
+async function refreshPageData(page=STATE.page, announce=false){
+  if(announce||!lastDataFetchAt||Date.now()-lastDataFetchAt>=DATA_REFRESH_MIN_AGE_MS) await refresh(announce,announce);
+  if(page==="alerts"&&STATE.page==="alerts"&&API_OK) await loadPriceAlerts(announce);
 }
 (async function boot(){
   const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)) STATE.page=h;
@@ -1576,8 +1591,10 @@ async function refresh(force, announce=false){
   }catch(e){ API_OK=false; }
   await setupPush();
   await refresh(true);
-  if(CFG.REFRESH_MINUTES>0) setInterval(()=>refresh(false), CFG.REFRESH_MINUTES*60000);
-  window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page&&canView(h)){STATE.page=h;render();}});
+  if(CFG.REFRESH_MINUTES>0) setInterval(()=>void refreshPageData(STATE.page), CFG.REFRESH_MINUTES*60000);
+  window.addEventListener("hashchange",()=>{const h=location.hash.slice(1); if(PAGES.some(p=>p.id===h)&&h!==STATE.page&&canView(h)){STATE.page=h;render();void refreshPageData(h);}});
+  window.addEventListener("focus",()=>void refreshPageData(STATE.page));
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden) void refreshPageData(STATE.page);});
 })();
 </script>
 </body>
