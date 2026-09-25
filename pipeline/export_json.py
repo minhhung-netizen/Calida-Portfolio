@@ -298,10 +298,14 @@ def quality(con):
     return {"status": "warning" if rows else "ok", "issues": rows}
 
 
+def dashboard_as_of(con):
+    cands = [q(con, f"SELECT MAX(date) d FROM {t}").d.iloc[0] for t in ("investor_flow", "vnindex", "view", "prices")]
+    return max([c for c in cands if c] or [datetime.now().strftime("%Y-%m-%d")])
+
+
 def run():
     con = sqlite3.connect(DB_PATH)
-    cands = [q(con, f"SELECT MAX(date) d FROM {t}").d.iloc[0] for t in ("investor_flow", "vnindex", "view")]
-    as_of = max([c for c in cands if c] or [datetime.now().strftime("%Y-%m-%d")])
+    as_of = dashboard_as_of(con)
     meta = q(con, "SELECT * FROM _meta")
     data = {
         "asOf": as_of,

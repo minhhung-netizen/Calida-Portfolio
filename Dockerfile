@@ -13,11 +13,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pipeline/requirements.txt ./pipeline/requirements.txt
-# Vnstock phục vụ làm mới giá, không được chặn toàn bộ web khi kho package
-# tạm thời không có bản phù hợp. Pipeline sẽ báo rõ khi bước giá bị bỏ qua.
 RUN python3 -m venv /opt/venv \
-    && pip install --no-cache-dir -r pipeline/requirements.txt \
-    && (pip install --no-cache-dir "vnstock>=4.0.6" || echo "[build] Vnstock chưa cài được; tiếp tục deploy không kèm đồng bộ giá.")
+    && pip install --no-cache-dir -r pipeline/requirements.txt
 
 COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev

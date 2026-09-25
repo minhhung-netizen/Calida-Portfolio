@@ -67,7 +67,7 @@ def main():
         import fetch_prices
         failures = []
         def fetch_prices_strict():
-            failed = fetch_prices.run(lookback_days=PRICE_REFRESH_LOOKBACK_DAYS)
+            failed = fetch_prices.run(lookback_days=PRICE_REFRESH_LOOKBACK_DAYS, intraday=True)
             if failed:
                 failures.extend(failed)
                 raise RuntimeError("Không lấy được giá: " + ", ".join(failed))

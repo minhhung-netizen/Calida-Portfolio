@@ -20,6 +20,9 @@ class FundPeriodExportTest(unittest.TestCase):
             CREATE TABLE industry (period TEXT, fund_code TEXT, industry TEXT, weight_pct REAL);
             CREATE TABLE top_holdings (period TEXT, fund_code TEXT, ticker TEXT, weight_pct REAL);
             CREATE TABLE prices (date TEXT, ticker TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL);
+            CREATE TABLE investor_flow (date TEXT);
+            CREATE TABLE vnindex (date TEXT);
+            CREATE TABLE view (date TEXT);
         """)
         for period, nav, stock, cash in (("07/2026", 100, 80, 20), ("08/2026", 120, 85, 15)):
             self.con.execute("INSERT INTO fund_summary VALUES (?, 'FUND-A', 'Quỹ A', ?, 5)", (period, nav))
@@ -45,6 +48,13 @@ class FundPeriodExportTest(unittest.TestCase):
     def test_exports_latest_price_for_alert_tickers_outside_portfolio(self):
         prices = export_json.latest_prices(self.con, "2026-09-24")
         self.assertEqual(prices, [{"t": "VNM", "price": 63.0, "previousPrice": 61.0, "chg": 2.0, "date": "2026-09-24"}])
+
+    def test_dashboard_date_includes_new_intraday_prices(self):
+        self.con.execute("INSERT INTO vnindex VALUES ('2026-09-24')")
+        self.con.execute("INSERT INTO view VALUES ('2026-09-24')")
+        self.assertEqual(export_json.dashboard_as_of(self.con), "2026-09-24")
+        self.con.execute("INSERT INTO prices VALUES ('2026-09-25', 'FPT', 65, 66, 64, 65.2, 2000)")
+        self.assertEqual(export_json.dashboard_as_of(self.con), "2026-09-25")
 
 
 if __name__ == "__main__":

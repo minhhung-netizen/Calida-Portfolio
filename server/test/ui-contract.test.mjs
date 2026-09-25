@@ -57,9 +57,13 @@ test("SPA JavaScript parses", () => {
 test("giá có quy trình 10 phút độc lập, tuần tự và không chạy chồng", () => {
   assert.match(serverSource, /PRICE_REFRESH_MINUTES[^\n]+10/);
   assert.match(serverSource, /enqueuePipeline\(\["--prices-only"\]/);
+  assert.match(serverSource, /prices:\s*\{\s*args:\s*\["--prices-only"\]/);
   assert.match(serverSource, /if \(running \|\| queuedJobs > 0\)/);
   assert.match(priceSource, /min\(55, max\(1, int\(requests_per_minute\)\)\)/);
+  assert.match(priceSource, /Market\(\)\.equity\(symbol\)\.quote/);
+  assert.match(priceSource, /VNSTOCK_QUOTE_PRICE_DIVISOR/);
   assert.match(pipelineSource, /build_db\.refresh_prices/);
+  assert.match(pipelineSource, /intraday=True/);
 });
 
 test("giao diện và thông báo API không hiển thị tên nhà cung cấp hạ tầng", () => {
@@ -229,6 +233,8 @@ test("report sections and administration panels preserve their controls", () => 
   ui.run('STATE.repTab="Hỏi đáp"');
   assert.match(ui.run("pgReports()"), /id="chatIn"/);
   ui.run('STATE.adminTab="Vận hành"');
+  assert.match(ui.run("pgAdmin()"), /id="runPrices"/);
+  assert.match(ui.run("pgAdmin()"), /Cập nhật giá ngay/);
   assert.match(ui.run("pgAdmin()"), /id="runBuild"/);
   assert.match(ui.run("pgAdmin()"), /data-pipeline-mode="portfolio"/);
   assert.match(ui.run("pgAdmin()"), /Đồng bộ từng nguồn/);

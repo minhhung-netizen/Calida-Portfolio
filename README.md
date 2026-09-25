@@ -43,7 +43,7 @@ python pipeline/run.py --build-only
 |---|---|
 | `python pipeline/run.py` | Chạy đầy đủ: Google Sheets → vnstock → inbox → DB → JSON |
 | `python pipeline/run.py --build-only` | Chỉ dựng lại DB + JSON từ Excel hiện có |
-| `python pipeline/run.py --prices-only` | Chỉ lấy giá → cập nhật bảng giá trong DB → xuất lại JSON; không gọi Google Sheets |
+| `python pipeline/run.py --prices-only` | Lấy bảng giá trong phiên → cập nhật bảng giá trong DB → xuất lại JSON; không gọi Google Sheets |
 | `python pipeline/run.py --no-prices` | Bỏ bước vnstock |
 | `python pipeline/run.py --source funds --no-prices` | Đồng bộ riêng một nguồn: `portfolio`, `operations`, `funds` hoặc `reports` |
 | `python pipeline/make_templates.py` | Tạo template Excel trống. Mỗi file có sheet `_HUONG_DAN` mô tả cột |
@@ -62,7 +62,7 @@ Mỗi bước lấy dữ liệu chạy độc lập: một nguồn lỗi thì c�
 | `market.xlsx / VIEW, NEWS, EVENTS` | Nhập tay, hoặc ghi từ Bản Tin Ngày | ✍️ |
 | `flows.xlsx / *` | **Chưa có nguồn tự động.** Nhập từ bảng thống kê giao dịch theo nhóm NĐT | ✍️ |
 | `portfolio.xlsx / POSITIONS, TRANSACTIONS` | Google Sheet Portfolio Automation | ✅ |
-| `portfolio.xlsx / PRICES` | vnstock (các mã trong POSITIONS) | ✅ |
+| `portfolio.xlsx / PRICES` | Bảng giá trong phiên vnstock (các mã trong POSITIONS và cảnh báo đang bật) | ✅ |
 | `portfolio.xlsx / SUMMARY` | Nhập tay: hiệu suất YTD, phân bổ tài sản | ✍️ |
 | `funds.xlsx / *` | Google Sheet Fmarket DB (pipeline Colab hiện có) | ✅ |
 | `reports.xlsx / *` | Google Sheet Báo cáo CTCK (hoặc nút "Thêm báo cáo" trên giao diện) | ✅/✍️ |
@@ -84,6 +84,7 @@ Bên trái là tiêu đề cột trong sheet của bạn, bên phải là tên c
 - Server phục vụ giao diện và API.
 - Tự chạy pipeline lúc `PIPELINE_TIME` (T2–T6). Log nằm ở `data/logs/`.
 - Tự cập nhật giá theo `PRICE_REFRESH_MINUTES` và `PRICE_REFRESH_WINDOWS`; mặc định 10 phút/lần trong giờ theo dõi.
+- Dùng `VNSTOCK_API_KEY` cho hạn mức cộng đồng; nếu chưa khai báo, tiến trình tự hạ còn 18 lượt/phút để tránh giới hạn tài khoản khách.
 - Khi lưu báo cáo, server ghi vào `data/inbox/`, rồi dựng lại DB ngay.
 - Admin có thể sửa/xóa báo cáo trong thư viện; mỗi thay đổi được đưa vào inbox, áp dụng atomic vào `reports.xlsx` rồi mới dựng lại dashboard.
 - Đặt `ACCESS_TOKEN` hoặc `CALIDA_USERS_JSON` khi mở ra internet; phiên đăng nhập dùng cookie `HttpOnly`. Admin có thể cấp riêng quyền **xem/chỉnh sửa** cho từng module của từng user; dashboard qua server chỉ trả dữ liệu của các module đã được cấp.

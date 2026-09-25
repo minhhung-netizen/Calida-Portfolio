@@ -41,6 +41,8 @@ PRICE_REFRESH_LOOKBACK_DAYS = max(3, int(os.getenv("PRICE_REFRESH_LOOKBACK_DAYS"
 # tối đa 55 để một cấu hình sai không vô tình gây burst request.
 PRICE_REQUESTS_PER_MINUTE = int(os.getenv("PRICE_REQUESTS_PER_MINUTE", "50"))
 VNSTOCK_SOURCE = os.getenv("VNSTOCK_SOURCE", "VCI")
+VNSTOCK_QUOTE_SOURCE = os.getenv("VNSTOCK_QUOTE_SOURCE", "KBS").strip().lower()
+VNSTOCK_QUOTE_PRICE_DIVISOR = float(os.getenv("VNSTOCK_QUOTE_PRICE_DIVISOR", "1000"))
 
 # ---- Tổng số quỹ trong vũ trụ theo dõi (để hiển thị x/y quỹ đã cập nhật). 0 = tự đếm ----
 FUND_UNIVERSE_TOTAL = int(os.getenv("FUND_UNIVERSE_TOTAL", "0"))

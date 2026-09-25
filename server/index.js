@@ -884,7 +884,7 @@ app.get("/api/price-alerts", requireModule("alerts", "view"), async (req, res) =
       : [{ username: req.user.u, role: requestUser(req)?.role || "viewer" }];
     if (admin && req.user.u === "local" && !recipients.length) recipients.push({ username: "local", role: "admin" });
     res.set("Cache-Control", "no-store");
-    return res.json({ alerts: alerts.map((item) => publicPriceAlert(item, result.prices)), recipients, canAssignRecipients: admin });
+    return res.json({ alerts: alerts.map((item) => publicPriceAlert(item, result.prices)), recipients, canAssignRecipients: admin, priceRefresh: priceRefreshInfo() });
   } catch (error) { return res.status(500).json({ error: `Không tải được cảnh báo giá: ${error.message}` }); }
 });
 
@@ -1023,7 +1023,33 @@ let queuedJobs = 0;
 let scheduleTimer = null;
 let priceRefreshTimer = null;
 let priceAlertTimer = null;
+let nextPriceRefreshAt = null;
+let priceRefreshState = { lastAttemptAt: null, lastSuccessAt: null, lastSkippedAt: null, lastError: null };
 let pipelineState = { status: "idle", startedAt: null, finishedAt: null, reason: null, error: null };
+
+function priceRefreshInfo(includeError = false) {
+  return {
+    minutes: PRICE_REFRESH_MINUTES,
+    windows: PRICE_REFRESH_WINDOWS,
+    nextAt: nextPriceRefreshAt,
+    ...priceRefreshState,
+    lastError: priceRefreshState.lastError ? (includeError ? priceRefreshState.lastError : "Không cập nhật được giá") : null,
+  };
+}
+
+function trackPriceRefresh(job) {
+  priceRefreshState = { ...priceRefreshState, lastAttemptAt: new Date().toISOString(), lastError: null };
+  return job.then(
+    (result) => {
+      priceRefreshState = { ...priceRefreshState, lastSuccessAt: new Date().toISOString(), lastError: null };
+      return result;
+    },
+    (error) => {
+      priceRefreshState = { ...priceRefreshState, lastError: error.message };
+      throw error;
+    },
+  );
+}
 
 function startPipeline(args, reason, options = {}) {
   if (running) return running;
@@ -1364,7 +1390,7 @@ app.get("/api/status", (req, res) => {
     asOf = data.asOf;
     freshness = data.meta?.freshness || [];
   } catch { /* Status remains available during a failed build. */ }
-  return res.json({ asOf, freshness, dashboard: dashboardReadiness(), pipeline: { ...pipelineState, queuedJobs }, aiEnabled: Boolean(GEMINI_KEY) });
+  return res.json({ asOf, freshness, dashboard: dashboardReadiness(), pipeline: { ...pipelineState, queuedJobs }, priceRefresh: priceRefreshInfo(), aiEnabled: Boolean(GEMINI_KEY) });
 });
 
 app.get("/api/admin/operations", requireModule("admin", "edit"), (req, res) => {
@@ -1375,7 +1401,7 @@ app.get("/api/admin/operations", requireModule("admin", "edit"), (req, res) => {
     freshness = data.meta?.freshness || [];
     quality = data.meta?.quality || quality;
   } catch { /* Report the pipeline state even without dashboard data. */ }
-  return res.json({ pipeline: { ...pipelineState, queuedJobs }, modules: { flowsEnabled: FLOWS_MODULE_ENABLED }, freshness, quality, audit: recentAudit() });
+  return res.json({ pipeline: { ...pipelineState, queuedJobs }, priceRefresh: priceRefreshInfo(true), modules: { flowsEnabled: FLOWS_MODULE_ENABLED }, freshness, quality, audit: recentAudit() });
 });
 
 const DATA_ADMIN_MODULES = Object.freeze({ brief: "Bản tin", portfolio: "Danh mục", flows: "Dòng tiền", funds: "Quỹ đầu tư", reports: "Báo cáo CTCK" });
@@ -1519,6 +1545,7 @@ app.delete("/api/reports/:id", requireModule("reports", "edit"), requireCsrf, wr
 
 const PIPELINE_RUN_MODES = Object.freeze({
   build: { args: ["--build-only"], label: "dựng lại bảng điều hành" },
+  prices: { args: ["--prices-only"], label: "cập nhật giá trong phiên" },
   all: { args: [], label: "đồng bộ tất cả nguồn" },
   portfolio: { args: ["--source", "portfolio", "--no-prices"], label: "đồng bộ Danh mục" },
   operations: { args: ["--source", "operations", "--no-prices"], label: "đồng bộ Vận hành" },
@@ -1535,7 +1562,8 @@ app.post("/api/pipeline/run", requireModule("admin", "edit"), requireCsrf, pipel
   const args = mode.args;
   const wasQueued = queuedJobs > 0 || Boolean(running);
   audit(req, "pipeline.queue", { mode: requestedMode, label: mode.label, wasQueued });
-  enqueuePipeline(args, `chạy tay: ${mode.label}`).catch((error) => console.error(error.message));
+  const job = enqueuePipeline(args, `chạy tay: ${mode.label}`);
+  (requestedMode === "prices" ? trackPriceRefresh(job) : job).catch((error) => console.error(error.message));
   return res.status(202).json({ ok: true, queued: wasQueued, mode: requestedMode });
 });
 
@@ -1626,15 +1654,18 @@ function schedulePriceRefresh() {
   const now = new Date();
   const next = nextPriceRefreshTime(now);
   if (!next) {
+    nextPriceRefreshAt = null;
     if (PRICE_REFRESH_MINUTES > 0) console.error("PRICE_REFRESH_WINDOWS không hợp lệ; lịch cập nhật giá đã tắt.");
     return;
   }
+  nextPriceRefreshAt = next.toISOString();
   priceRefreshTimer = setTimeout(() => {
     priceRefreshTimer = null;
     if (running || queuedJobs > 0) {
+      priceRefreshState = { ...priceRefreshState, lastSkippedAt: new Date().toISOString() };
       console.log("Bỏ qua lượt cập nhật giá định kỳ vì quy trình dữ liệu khác đang chạy hoặc chờ.");
     } else {
-      enqueuePipeline(["--prices-only"], `cập nhật giá định kỳ ${PRICE_REFRESH_MINUTES} phút`, { quiet: true })
+      trackPriceRefresh(enqueuePipeline(["--prices-only"], `cập nhật giá định kỳ ${PRICE_REFRESH_MINUTES} phút`, { quiet: true }))
         .catch((error) => console.error(`Cập nhật giá định kỳ lỗi: ${error.message}`));
     }
     schedulePriceRefresh();

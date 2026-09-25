@@ -1,4 +1,7 @@
+--extra-index-url https://vnstocks.com/api/simple
 pandas>=2.0
 openpyxl>=3.1
 google-auth>=2.20
 requests>=2.31
+vnstock>=4.0.8
+vnai>=2.6.1

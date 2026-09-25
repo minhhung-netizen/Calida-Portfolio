@@ -2,12 +2,16 @@
 Lấy OHLCV ngày cho VN-Index và các mã trong POSITIONS bằng vnstock.
 Ghi vào: market.xlsx/VNINDEX, portfolio.xlsx/PRICES (upsert theo ngày + mã).
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from importlib.util import find_spec
 import json
+from numbers import Real
+import os
 import time
+from zoneinfo import ZoneInfo
 import pandas as pd
-from config import DATA_DIR, PRICE_LOOKBACK_DAYS, PRICE_REQUESTS_PER_MINUTE, VNSTOCK_SOURCE
+from config import (DATA_DIR, PRICE_LOOKBACK_DAYS, PRICE_REQUESTS_PER_MINUTE,
+                    VNSTOCK_QUOTE_PRICE_DIVISOR, VNSTOCK_QUOTE_SOURCE, VNSTOCK_SOURCE)
 from xlsx_io import read_sheet, upsert
 
 
@@ -62,6 +66,62 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     return df[["date", "open", "high", "low", "close", "volume"]]
 
 
+def _current_quote(symbol: str, pacer=None) -> pd.DataFrame:
+    """Lấy ảnh chụp giá trong phiên từ Unified UI của vnstock 4.x."""
+    if pacer:
+        pacer.wait()
+    from vnstock import Market
+    return Market().equity(symbol).quote(source=VNSTOCK_QUOTE_SOURCE)
+
+
+def _quote_timestamp_date(value):
+    if value is None or pd.isna(value):
+        return None
+    if isinstance(value, Real):
+        seconds = float(value) / 1000 if float(value) > 10_000_000_000 else float(value)
+        return datetime.fromtimestamp(seconds, ZoneInfo("Asia/Ho_Chi_Minh")).date()
+    parsed = pd.to_datetime(value, errors="coerce")
+    return None if pd.isna(parsed) else parsed.date()
+
+
+def _normalize_current_quote(symbol: str, quote: pd.DataFrame, today=None) -> pd.DataFrame:
+    """Đưa bảng giá VND về schema nghìn đồng đang dùng trong dashboard."""
+    if quote is None or quote.empty:
+        raise ValueError(f"Bảng giá {symbol} không có dữ liệu")
+    frame = quote.rename(columns={column: str(column).lower() for column in quote.columns})
+    if "symbol" in frame.columns:
+        matched = frame[frame["symbol"].astype(str).str.upper() == symbol.upper()]
+        if len(matched):
+            frame = matched
+    row = frame.iloc[-1]
+    expected_date = today or date.today()
+    quote_date = _quote_timestamp_date(row.get("time"))
+    if quote_date is not None and quote_date != expected_date:
+        raise ValueError(f"Bảng giá {symbol} mới nhất là {quote_date.isoformat()}, chưa có dữ liệu {expected_date.isoformat()}")
+    divisor = VNSTOCK_QUOTE_PRICE_DIVISOR
+    if not divisor or divisor <= 0:
+        raise ValueError("VNSTOCK_QUOTE_PRICE_DIVISOR phải lớn hơn 0")
+
+    def price(column, fallback=None):
+        value = pd.to_numeric(pd.Series([row.get(column)]), errors="coerce").iloc[0]
+        if pd.isna(value) or float(value) <= 0:
+            return fallback
+        return float(value) / divisor
+
+    close = price("close_price")
+    if close is None:
+        raise ValueError(f"Bảng giá {symbol} chưa có giá khớp trong phiên")
+    open_price = price("open_price", close)
+    high = price("high_price", max(open_price, close))
+    low = price("low_price", min(open_price, close))
+    volume = pd.to_numeric(pd.Series([row.get("volume_accumulated")]), errors="coerce").fillna(0).iloc[0]
+    return pd.DataFrame([{
+        "date": pd.Timestamp(expected_date), "ticker": symbol.upper(),
+        "open": open_price, "high": high, "low": low, "close": close,
+        "volume": max(0, int(volume)),
+    }])
+
+
 def _manual_alert_tickers():
     """Các mã cảnh báo cá nhân cũng cần được đưa vào nguồn giá."""
     try:
@@ -72,15 +132,16 @@ def _manual_alert_tickers():
         return set()
 
 
-def run(retries: int = 3, pause: float = 1.2, lookback_days: int = PRICE_LOOKBACK_DAYS):
-    # Vnstock là nguồn giá tùy chọn. Nếu image chưa cài được thư viện (ví dụ
-    # PyPI/registry tạm thời không trả phiên bản tương thích), trả lỗi nguồn
-    # một lần để dashboard vẫn được dựng từ dữ liệu hợp lệ đang có.
+def run(retries: int = 3, pause: float = 1.2, lookback_days: int = PRICE_LOOKBACK_DAYS, intraday: bool = False):
+    # Nguồn giá là bắt buộc đối với quy trình --prices-only. Không được âm thầm
+    # bỏ qua vì giao diện sẽ tiếp tục hiển thị giá cũ mà quản trị viên không biết.
     if find_spec("vnstock") is None:
-        print("  vnstock is unavailable in this environment - skipping price refresh.")
-        return ["vnstock"]
-    pacer = _RequestPacer(PRICE_REQUESTS_PER_MINUTE)
-    print(f"  Tuần tự tối đa {pacer.requests_per_minute} request/phút")
+        raise RuntimeError("Thiếu thư viện vnstock; không thể cập nhật giá")
+    has_api_key = bool(os.getenv("VNSTOCK_API_KEY", "").strip())
+    safe_request_rate = PRICE_REQUESTS_PER_MINUTE if has_api_key else min(18, PRICE_REQUESTS_PER_MINUTE)
+    pacer = _RequestPacer(safe_request_rate)
+    access_mode = "API key" if has_api_key else "khách"
+    print(f"  Tuần tự tối đa {pacer.requests_per_minute} request/phút (chế độ {access_mode})")
     end = date.today()
     start = end - timedelta(days=max(3, int(lookback_days)))
     s, e = start.isoformat(), end.isoformat()
@@ -104,13 +165,19 @@ def run(retries: int = 3, pause: float = 1.2, lookback_days: int = PRICE_LOOKBAC
     for t in tickers:
         for i in range(retries):
             try:
-                df = _normalize(_history(t, s, e, pacer)); df.insert(1, "ticker", t); frames.append(df); break
+                if intraday:
+                    df = _normalize_current_quote(t, _current_quote(t, pacer))
+                else:
+                    df = _normalize(_history(t, s, e, pacer)); df.insert(1, "ticker", t)
+                frames.append(df)
+                break
             except Exception as ex:  # noqa: BLE001
                 if i == retries - 1:
                     print(f"  {t}: {ex}"); failed.append(t)
                 time.sleep(pause * (i + 1) * 3)
     if frames:
-        print(f"  PRICES: {upsert('portfolio.xlsx', 'PRICES', pd.concat(frames))} dòng, {len(frames)} mã")
+        mode = "trong phiên" if intraday else "lịch sử"
+        print(f"  PRICES {mode}: {upsert('portfolio.xlsx', 'PRICES', pd.concat(frames))} dòng, {len(frames)} mã")
     if failed:
         print(f"  Lỗi: {', '.join(failed)}")
     return failed
