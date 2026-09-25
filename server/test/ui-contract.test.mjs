@@ -110,14 +110,16 @@ test("all ten modules render the existing dashboard fixture", () => {
 
 test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡng thủ công", () => {
   const ui = app();
-  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",ticker:"FPT",condition:"above",targetPrice:100,note:"Ngưỡng cá nhân",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceDate:"2026-09-24"}]');
+  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",ticker:"FPT",condition:"range",targetPrice:95,targetPriceHigh:100,note:"Ngưỡng cá nhân",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceDate:"2026-09-24"}]');
   const result = ui.run("pgPriceAlerts()");
   assert.match(result, /Các ngưỡng do chính bạn thiết lập/);
-  assert.match(result, /Tăng đến hoặc vượt 100\.00/);
+  assert.match(result, /Nằm trong vùng 95\.00 – 100\.00/);
   assert.match(result, /data-edit-price-alert=/);
   ui.run('openPriceAlertDialog("price:123e4567-e89b-12d3-a456-426614174000")');
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTicker"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTarget"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /value="range"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTargetHigh"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertFrequency"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertExpires"/);

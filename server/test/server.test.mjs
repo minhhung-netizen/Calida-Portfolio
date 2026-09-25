@@ -136,14 +136,23 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     const dailyAlert = (await response.json()).alert;
     assert.equal(dailyAlert.enabled, true, "cảnh báo theo ngày vẫn hoạt động sau lần gửi đầu");
     assert.equal(dailyAlert.triggerCount, 1);
+    response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "FPT", condition: "range", targetPrice: 0.01, targetPriceHigh: 100, frequency: "once", scheduleMode: "immediate", note: "Vùng giá tự chọn" } }) });
+    assert.equal(response.status, 201, "người dùng phải tạo được cảnh báo theo vùng giá");
+    const rangeAlert = (await response.json()).alert;
+    assert.equal(rangeAlert.targetPrice, 0.01);
+    assert.equal(rangeAlert.targetPriceHigh, 100);
+    assert.equal(rangeAlert.enabled, false, "cảnh báo vùng phải kích hoạt khi giá nằm trong khoảng");
+    assert.equal(rangeAlert.triggerCount, 1);
+    response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "FPT", condition: "range", targetPrice: 100, targetPriceHigh: 90 } }) });
+    assert.equal(response.status, 400, "vùng giá đảo ngược phải bị từ chối");
     response = await request("/api/price-alerts", { headers: { cookie: viewerCookie } });
     const viewerAlerts = (await response.json()).alerts;
-    assert.equal(viewerAlerts.length, 3);
+    assert.equal(viewerAlerts.length, 4);
     assert.equal(viewerAlerts.find((item) => item.id === dailyAlert.id).triggerCount, 1, "tải lại không được gửi lặp cùng ngày dữ liệu giá");
     response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "VNM", condition: "above", targetPrice: 100, expiresAt: new Date(Date.now() - 60_000).toISOString() } }) });
     assert.equal(response.status, 400, "không được bật cảnh báo có hạn đã qua");
     response = await request("/api/price-alerts", { headers: { cookie: viewerCookie } });
-    assert.equal((await response.json()).alerts.length, 3);
+    assert.equal((await response.json()).alerts.length, 4);
     response = await request("/api/price-alerts", { headers: { cookie } });
     assert.equal((await response.json()).alerts.length, 0, "admin không được nhìn thấy cảnh báo riêng của viewer");
     response = await request(`/api/price-alerts/${encodeURIComponent(viewerAlert.id)}`, { method: "DELETE", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken } });
@@ -152,6 +161,8 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(response.status, 200, "chủ sở hữu phải xóa được cảnh báo có lịch của mình");
     response = await request(`/api/price-alerts/${encodeURIComponent(dailyAlert.id)}`, { method: "DELETE", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken } });
     assert.equal(response.status, 200, "chủ sở hữu phải xóa được cảnh báo theo ngày của mình");
+    response = await request(`/api/price-alerts/${encodeURIComponent(rangeAlert.id)}`, { method: "DELETE", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken } });
+    assert.equal(response.status, 200, "chủ sở hữu phải xóa được cảnh báo vùng giá của mình");
 
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed" }) });
     assert.equal(response.status, 200, "admin phải cập nhật được trạng thái action");
