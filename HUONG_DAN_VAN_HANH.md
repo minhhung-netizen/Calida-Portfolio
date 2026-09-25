@@ -75,6 +75,12 @@ Riêng dữ liệu Quỹ, cần giữ các dòng của mọi kỳ `MM/YYYY` tron
 
 Báo cáo CTCK dùng **gộp theo mã** để không làm mất báo cáo được tạo trực tiếp trên web. Không nên sửa cùng một mã báo cáo trên Google Sheets và web trong cùng một lượt đồng bộ; thay đổi được nhập sau sẽ có hiệu lực.
 
+### Cảnh báo giá cá nhân
+
+Người dùng mở **Cảnh báo giá → Thêm cảnh báo**, tự nhập mã chứng khoán, chọn điều kiện **Giá tăng đến hoặc vượt** hoặc **Giá giảm đến hoặc thấp hơn**, sau đó nhập mức giá và ghi chú. Cảnh báo này độc lập với Danh mục, Khuyến nghị hành động và Trung tâm tín hiệu; mỗi tài khoản chỉ thấy dữ liệu của chính mình.
+
+Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật và chỉ gửi một lần. Sau khi kích hoạt, người dùng chọn **Bật lại** để theo dõi tiếp. Nếu mã chưa tồn tại trong danh mục, hệ thống sẽ bổ sung mã đó vào lượt lấy giá tiếp theo; trước khi có dữ liệu, thẻ cảnh báo hiển thị trạng thái chờ. File `price-alerts.json` nằm trong vùng dữ liệu vận hành và cần được đưa vào kế hoạch sao lưu.
+
 ### Xoá dữ liệu cũ theo module và ngày
 
 Tài khoản có quyền **Quản trị → Chỉnh sửa** mở **Quản trị → Dữ liệu**:

@@ -50,10 +50,11 @@ const USER_STORE_DIR = path.join(STATE_DIR, "auth");
 const USER_STORE = path.join(USER_STORE_DIR, "users.json");
 const WORKSPACE_STORE = path.join(STATE_DIR, "workspace-state.json");
 const PUSH_STORE = path.join(STATE_DIR, "push-subscriptions.json");
+const PRICE_ALERT_STORE = path.join(STATE_DIR, "price-alerts.json");
 const ROLE_RANK = Object.freeze({ viewer: 0, analyst: 1, admin: 2 });
 const isRole = (role) => Object.hasOwn(ROLE_RANK, role);
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,64}$/;
-const MODULES = Object.freeze(["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "admin"]);
+const MODULES = Object.freeze(["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "alerts", "admin"]);
 const MODULE_SET = new Set(MODULES);
 const STARTED_AT = new Date().toISOString();
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
@@ -159,6 +160,8 @@ function validateNewUser(username, password, role) {
 function defaultPermissions(role) {
   const allView = Object.fromEntries(MODULES.map((module) => [module, { view: module !== "admin", edit: false }]));
   if (role === "analyst") ["reports", "actions", "signals"].forEach((module) => { allView[module].edit = true; });
+  // Cảnh báo giá là dữ liệu cá nhân: mọi người dùng được tự quản lý cảnh báo của mình.
+  allView.alerts.edit = true;
   if (role === "admin") return Object.fromEntries(MODULES.map((module) => [module, { view: true, edit: true }]));
   return allView;
 }
@@ -183,8 +186,8 @@ function writeWorkspaceState(state) {
   return safe;
 }
 
-const PUSH_PREFERENCES = Object.freeze(["signals", "actions", "pipeline"]);
-const defaultPushPreferences = () => ({ signals: true, actions: true, pipeline: true });
+const PUSH_PREFERENCES = Object.freeze(["signals", "actions", "priceAlerts", "pipeline"]);
+const defaultPushPreferences = () => ({ signals: true, actions: true, priceAlerts: true, pipeline: true });
 
 function cleanPushPreferences(value) {
   const preferences = defaultPushPreferences();
@@ -251,11 +254,11 @@ function removePushSubscription(username, endpoint) {
   return current.length - next.length;
 }
 
-async function dispatchPush({ preference, module, title, body, url = "/", tag = "calida" }) {
+async function dispatchPush({ preference, module, title, body, url = "/", tag = "calida", targetUsername = null }) {
   if (!PUSH_ENABLED) return { delivered: 0, skipped: true };
   const candidates = readPushStore().filter((entry) => {
     const user = findUser(entry.username);
-    return user && entry.preferences[preference] && hasModulePermission(user, module, "view");
+    return user && (!targetUsername || entry.username === targetUsername) && entry.preferences[preference] && hasModulePermission(user, module, "view");
   });
   const expired = new Set();
   let delivered = 0;
@@ -274,6 +277,87 @@ async function dispatchPush({ preference, module, title, body, url = "/", tag = 
 
 function queuePush(payload) {
   void dispatchPush(payload).catch((error) => console.error(`Push notification lỗi: ${error.message}`));
+}
+
+const PRICE_ALERT_ID = /^price:[a-f0-9-]{36}$/;
+const PRICE_ALERT_TICKER = /^[A-Z0-9._-]{1,12}$/;
+const PRICE_ALERT_CONDITIONS = new Set(["above", "below"]);
+
+function cleanPriceAlertInput(value, previous = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Cảnh báo giá không hợp lệ");
+  const ticker = String(value.ticker ?? previous.ticker ?? "").trim().toUpperCase();
+  const condition = String(value.condition ?? previous.condition ?? "");
+  const targetPrice = Number(value.targetPrice ?? previous.targetPrice);
+  const note = String(value.note ?? previous.note ?? "").trim();
+  if (!PRICE_ALERT_TICKER.test(ticker)) throw new Error("Mã chứng khoán gồm 1–12 ký tự chữ, số, dấu chấm, gạch dưới hoặc gạch ngang");
+  if (!PRICE_ALERT_CONDITIONS.has(condition)) throw new Error("Điều kiện cảnh báo không hợp lệ");
+  if (!Number.isFinite(targetPrice) || targetPrice <= 0 || targetPrice > 1_000_000_000) throw new Error("Giá cảnh báo phải là số lớn hơn 0");
+  if (note.length > 300) throw new Error("Ghi chú không được quá 300 ký tự");
+  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, note };
+}
+
+function readPriceAlertStore() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(PRICE_ALERT_STORE, "utf8"));
+    if (!parsed || !Array.isArray(parsed.alerts)) throw new Error("invalid price alert store");
+    return parsed.alerts.filter((item) => PRICE_ALERT_ID.test(item?.id || "") && USERNAME_RE.test(item?.username || "") && PRICE_ALERT_CONDITIONS.has(item?.condition) && PRICE_ALERT_TICKER.test(item?.ticker || "") && Number.isFinite(item?.targetPrice));
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    console.error(`Không đọc được kho cảnh báo giá: ${error.message}`);
+    return [];
+  }
+}
+
+function writePriceAlertStore(alerts) {
+  const temp = `${PRICE_ALERT_STORE}.${crypto.randomUUID()}.tmp`;
+  fs.writeFileSync(temp, `${JSON.stringify({ version: 1, alerts }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(temp, PRICE_ALERT_STORE);
+}
+
+function currentPriceMap() {
+  const data = readData();
+  const rows = Array.isArray(data.prices) && data.prices.length ? data.prices : (data.portfolio?.positions || []).map((item) => ({ t: item.t, price: item.price, chg: item.chg, date: item.priceDate }));
+  return new Map(rows.filter((item) => item?.t).map((item) => [String(item.t).toUpperCase(), item]));
+}
+
+function publicPriceAlert(alert, prices) {
+  const quote = prices.get(alert.ticker) || {};
+  return { ...alert, currentPrice: Number.isFinite(quote.price) ? quote.price : null, priceChange: Number.isFinite(quote.chg) ? quote.chg : null, priceDate: quote.date || null };
+}
+
+async function evaluatePriceAlerts(targetUsername = null) {
+  const alerts = readPriceAlertStore();
+  let prices;
+  try { prices = currentPriceMap(); }
+  catch { prices = new Map(); }
+  const now = new Date().toISOString();
+  const triggered = [];
+  let changed = false;
+  for (const alert of alerts) {
+    if (targetUsername && alert.username !== targetUsername) continue;
+    const quote = prices.get(alert.ticker);
+    if (!quote || !Number.isFinite(quote.price)) continue;
+    if (alert.lastPrice !== quote.price || alert.lastCheckedAt !== now) {
+      alert.lastPrice = quote.price;
+      alert.lastCheckedAt = now;
+      changed = true;
+    }
+    const conditionMatched = alert.condition === "above" ? quote.price >= alert.targetPrice : quote.price <= alert.targetPrice;
+    const crossedThreshold = conditionMatched && alert.wasMatched !== true;
+    if (alert.wasMatched !== conditionMatched) { alert.wasMatched = conditionMatched; changed = true; }
+    if (!alert.enabled || !crossedThreshold) continue;
+    alert.enabled = false;
+    alert.triggeredAt = now;
+    alert.triggeredPrice = quote.price;
+    alert.updatedAt = now;
+    triggered.push(alert);
+  }
+  if (changed) writePriceAlertStore(alerts);
+  for (const alert of triggered) {
+    const condition = alert.condition === "above" ? "đã tăng đến" : "đã giảm đến";
+    await dispatchPush({ preference: "priceAlerts", module: "alerts", targetUsername: alert.username, title: `Calida · ${alert.ticker} chạm giá`, body: `${alert.ticker} ${condition} ${alert.targetPrice.toLocaleString("en-US")} (hiện tại ${alert.triggeredPrice.toLocaleString("en-US")}).`, url: "/#alerts", tag: `calida-${alert.id}` });
+  }
+  return { alerts, prices, triggered };
 }
 
 function publicWorkspaceState(user) {
@@ -662,6 +746,59 @@ app.post("/api/notifications/test", requireCsrf, writeLimit, async (req, res) =>
   return delivered ? res.json({ ok: true, delivered }) : res.status(502).json({ error: "Không gửi được thông báo; hãy bật lại quyền thông báo trên thiết bị." });
 });
 
+// ---------- personal price alerts ----------
+app.get("/api/price-alerts", requireModule("alerts", "view"), async (req, res) => {
+  try {
+    const result = await evaluatePriceAlerts(req.user.u);
+    res.set("Cache-Control", "no-store");
+    return res.json({ alerts: result.alerts.filter((item) => item.username === req.user.u).map((item) => publicPriceAlert(item, result.prices)) });
+  } catch (error) { return res.status(500).json({ error: `Không tải được cảnh báo giá: ${error.message}` }); }
+});
+
+app.post("/api/price-alerts", requireModule("alerts", "edit"), requireCsrf, writeLimit, async (req, res) => {
+  try {
+    const details = cleanPriceAlertInput(req.body?.alert);
+    const now = new Date().toISOString();
+    const alert = { id: `price:${crypto.randomUUID()}`, username: req.user.u, ...details, enabled: true, wasMatched: false, triggeredAt: null, triggeredPrice: null, lastPrice: null, lastCheckedAt: null, createdAt: now, updatedAt: now };
+    writePriceAlertStore([...readPriceAlertStore(), alert]);
+    audit(req, "price-alert.create", { id: alert.id, ticker: alert.ticker, condition: alert.condition, targetPrice: alert.targetPrice });
+    const result = await evaluatePriceAlerts(req.user.u);
+    const saved = result.alerts.find((item) => item.id === alert.id) || alert;
+    return res.status(201).json({ ok: true, alert: publicPriceAlert(saved, result.prices) });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf, writeLimit, async (req, res) => {
+  try {
+    const id = String(req.params.id || "");
+    if (!PRICE_ALERT_ID.test(id)) return res.status(404).json({ error: "Không tìm thấy cảnh báo giá" });
+    const alerts = readPriceAlertStore();
+    const index = alerts.findIndex((item) => item.id === id && item.username === req.user.u);
+    if (index < 0) return res.status(404).json({ error: "Không tìm thấy cảnh báo giá" });
+    const previous = alerts[index];
+    const details = cleanPriceAlertInput(req.body?.alert || {}, previous);
+    const enabled = typeof req.body?.alert?.enabled === "boolean" ? req.body.alert.enabled : previous.enabled;
+    const thresholdChanged = details.ticker !== previous.ticker || details.condition !== previous.condition || details.targetPrice !== previous.targetPrice;
+    const reset = enabled && (!previous.enabled || thresholdChanged);
+    alerts[index] = { ...previous, ...details, enabled, wasMatched: thresholdChanged ? false : previous.wasMatched, triggeredAt: reset ? null : previous.triggeredAt, triggeredPrice: reset ? null : previous.triggeredPrice, updatedAt: new Date().toISOString() };
+    writePriceAlertStore(alerts);
+    audit(req, "price-alert.update", { id, ticker: details.ticker, condition: details.condition, targetPrice: details.targetPrice, enabled });
+    const result = await evaluatePriceAlerts(req.user.u);
+    const saved = result.alerts.find((item) => item.id === id) || alerts[index];
+    return res.json({ ok: true, alert: publicPriceAlert(saved, result.prices) });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+
+app.delete("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf, writeLimit, (req, res) => {
+  const id = String(req.params.id || "");
+  const alerts = readPriceAlertStore();
+  const existing = alerts.find((item) => item.id === id && item.username === req.user.u);
+  if (!PRICE_ALERT_ID.test(id) || !existing) return res.status(404).json({ error: "Không tìm thấy cảnh báo giá" });
+  writePriceAlertStore(alerts.filter((item) => item.id !== id));
+  audit(req, "price-alert.delete", { id, ticker: existing.ticker });
+  return res.json({ ok: true, id });
+});
+
 // ---------- administration: users and access roles ----------
 const publicUser = (user) => ({ username: user.username, role: user.role, permissions: effectivePermissions(user), createdAt: user.createdAt, updatedAt: user.updatedAt });
 const findUser = (username) => USERS.find((user) => user.username === username);
@@ -790,9 +927,11 @@ function startPipeline(args, reason) {
     });
   });
   running = job.then(
-    (result) => {
+    async (result) => {
       pipelineState = { ...pipelineState, status: "ok", finishedAt: new Date().toISOString() };
       audit(null, "pipeline.complete", { reason, status: "ok" });
+      try { await evaluatePriceAlerts(); }
+      catch (error) { console.error(`Không kiểm tra được cảnh báo giá: ${error.message}`); }
       return result;
     },
     (error) => {
@@ -896,7 +1035,7 @@ function dashboardForUser(data, user) {
     asOf: data.asOf, features,
     meta: data.meta,
     market: { index: data.market?.index ?? null },
-    news: [], events: [], reports: [], funds: null,
+    news: [], events: [], reports: [], funds: null, prices: [],
     flows: pausedFlows,
     portfolio: { ytd: null, alloc: {}, positions: [], today: [], history: [] }, workspace: publicWorkspaceState(user),
   };
@@ -905,6 +1044,7 @@ function dashboardForUser(data, user) {
   if (FLOWS_MODULE_ENABLED && permissions.flows.view) result.flows = data.flows;
   if (permissions.funds.view) result.funds = data.funds;
   if (permissions.reports.view) result.reports = data.reports;
+  if (permissions.alerts.view) result.prices = data.prices || [];
   // Hai module mới chỉ trình bày action/signal có căn cứ từ danh mục và báo cáo.
   // Cấp riêng một trong hai module vẫn nhận đúng nguồn dữ liệu cần thiết của nó.
   if (permissions.actions.view) result.portfolio = data.portfolio;

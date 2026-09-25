@@ -11,7 +11,7 @@ const source = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
   .map((match) => match[1]).find((script) => script.includes("function pgOverview"));
 const fixture = JSON.parse(readFileSync(path.join(ROOT, "web", "data", "dashboard.json"), "utf8"));
 const manifest = JSON.parse(readFileSync(path.join(ROOT, "web", "manifest.webmanifest"), "utf8"));
-const modules = ["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "admin"];
+const modules = ["overview", "brief", "portfolio", "flows", "funds", "reports", "actions", "signals", "alerts", "admin"];
 
 // Exercise the real render functions without fetching data or starting polling.
 // This is a render-contract check, not a substitute for browser layout testing.
@@ -21,6 +21,7 @@ function app(allowed = modules, editable = modules) {
     if (!elements.has(selector)) elements.set(selector, {
       innerHTML: "", textContent: "", dataset: {}, style: {}, hidden: false,
       setAttribute() {}, removeAttribute() {}, addEventListener() {},
+      showModal() {}, close() {}, focus() {},
       querySelectorAll: () => [], querySelector: () => null,
       classList: { add() {}, remove() {}, toggle() {} },
     });
@@ -98,13 +99,25 @@ test("theme text tokens meet normal-text contrast on their surfaces", () => {
   }
 });
 
-test("all nine modules render the existing dashboard fixture", () => {
+test("all ten modules render the existing dashboard fixture", () => {
   const ui = app();
-  for (const name of ["Overview", "Brief", "Portfolio", "Flows", "Funds", "Reports", "Actions", "Signals", "Admin"]) {
+  for (const name of ["Overview", "Brief", "Portfolio", "Flows", "Funds", "Reports", "Actions", "Signals", "PriceAlerts", "Admin"]) {
     const result = ui.run(`pg${name}()`);
     assert.match(result, /<h1\b/, name);
     assert.doesNotMatch(result, /\b(?:NaN|undefined)\b/, name);
   }
+});
+
+test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡng thủ công", () => {
+  const ui = app();
+  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",ticker:"FPT",condition:"above",targetPrice:100,note:"Ngưỡng cá nhân",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceDate:"2026-09-24"}]');
+  const result = ui.run("pgPriceAlerts()");
+  assert.match(result, /Các ngưỡng do chính bạn thiết lập/);
+  assert.match(result, /Tăng đến hoặc vượt 100\.00/);
+  assert.match(result, /data-edit-price-alert=/);
+  ui.run('openPriceAlertDialog("price:123e4567-e89b-12d3-a456-426614174000")');
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTicker"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTarget"/);
 });
 
 test("trang quỹ có bố cục riêng cho bảng Top quỹ trên điện thoại", () => {

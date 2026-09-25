@@ -36,4 +36,4 @@ jobs:
       - name: Test Python pipeline
         run: |
           python -m pip install "pandas>=2.0" "openpyxl>=3.1"
-          python -m unittest pipeline/test_import_inbox.py pipeline/test_data_quality.py pipeline/test_export_json.py
+          python -m unittest pipeline/test_import_inbox.py pipeline/test_data_quality.py pipeline/test_export_json.py pipeline/test_fetch_prices.py

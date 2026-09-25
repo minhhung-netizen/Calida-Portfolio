@@ -148,6 +148,25 @@ def portfolio(con, as_of):
     return {"ytd": ytd, "alloc": alloc, "positions": out, "today": today, "history": history}
 
 
+# Giá mới nhất của mọi mã đang được theo dõi, gồm cả mã do người dùng tự tạo
+# cảnh báo nhưng không nằm trong danh mục khuyến nghị.
+def latest_prices(con, as_of):
+    px = q(con, "SELECT * FROM prices WHERE date <= ? ORDER BY ticker, date", as_of)
+    if px.empty:
+        return []
+    rows = []
+    for ticker, history in px.groupby("ticker", sort=True):
+        quote = history.iloc[-1]
+        previous_close = history.iloc[-2].close if len(history) > 1 else None
+        rows.append({
+            "t": ticker,
+            "price": num(quote.close),
+            "chg": num(quote.close - previous_close) if previous_close is not None else None,
+            "date": str(quote.date) if quote.date is not None else None,
+        })
+    return rows
+
+
 # ------------------------------------------------------------------ funds
 def _pkey(p):
     m, y = str(p).split("/")
@@ -291,7 +310,7 @@ def run():
                  "freshness": freshness(con), "quality": quality(con)},
         "features": {"flowsEnabled": FLOWS_MODULE_ENABLED},
         "market": market(con, as_of), "news": news(con, as_of), "events": events(con, as_of),
-        "flows": flows(con, as_of), "portfolio": portfolio(con, as_of),
+        "flows": flows(con, as_of), "portfolio": portfolio(con, as_of), "prices": latest_prices(con, as_of),
         "funds": funds(con), "reports": reports(con),
     }
     con.close()

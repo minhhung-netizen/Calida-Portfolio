@@ -19,6 +19,7 @@ class FundPeriodExportTest(unittest.TestCase):
             CREATE TABLE asset_allocation (period TEXT, fund_code TEXT, asset_type TEXT, weight_pct REAL);
             CREATE TABLE industry (period TEXT, fund_code TEXT, industry TEXT, weight_pct REAL);
             CREATE TABLE top_holdings (period TEXT, fund_code TEXT, ticker TEXT, weight_pct REAL);
+            CREATE TABLE prices (date TEXT, ticker TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL);
         """)
         for period, nav, stock, cash in (("07/2026", 100, 80, 20), ("08/2026", 120, 85, 15)):
             self.con.execute("INSERT INTO fund_summary VALUES (?, 'FUND-A', 'Quỹ A', ?, 5)", (period, nav))
@@ -26,6 +27,8 @@ class FundPeriodExportTest(unittest.TestCase):
             self.con.execute("INSERT INTO asset_allocation VALUES (?, 'FUND-A', 'Tiền mặt', ?)", (period, cash))
             self.con.execute("INSERT INTO industry VALUES (?, 'FUND-A', 'Ngân hàng', ?)", (period, stock))
             self.con.execute("INSERT INTO top_holdings VALUES (?, 'FUND-A', 'VCB', 10)", (period,))
+        self.con.execute("INSERT INTO prices VALUES ('2026-09-23', 'VNM', 60, 62, 59, 61, 1000)")
+        self.con.execute("INSERT INTO prices VALUES ('2026-09-24', 'VNM', 61, 64, 60, 63, 1200)")
 
     def tearDown(self):
         self.con.close()
@@ -38,6 +41,10 @@ class FundPeriodExportTest(unittest.TestCase):
         self.assertIsNone(data["periods"][1]["prevPeriod"])
         self.assertEqual(data["periods"][0]["nav"], 120.0)
         self.assertEqual(data["periods"][1]["nav"], 100.0)
+
+    def test_exports_latest_price_for_alert_tickers_outside_portfolio(self):
+        prices = export_json.latest_prices(self.con, "2026-09-24")
+        self.assertEqual(prices, [{"t": "VNM", "price": 63.0, "chg": 2.0, "date": "2026-09-24"}])
 
 
 if __name__ == "__main__":

@@ -203,6 +203,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 .status-flow span{background:var(--panel-2);padding:4px 9px;border-radius:7px}.status-flow b{color:var(--muted)}
 .progress-line{display:block;width:70px;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin-top:5px}.progress-line i{display:block;height:100%;background:var(--brand);border-radius:inherit}
 .signal-strength{display:inline-flex;align-items:flex-end;gap:2px;height:14px;vertical-align:middle}.signal-strength i{width:5px;height:5px;border-radius:2px;background:var(--line)}.signal-strength i:nth-child(2){height:9px}.signal-strength i:nth-child(3){height:13px}.signal-strength i.on{background:var(--brand)}
+.price-alert-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}.price-alert-card{display:grid;gap:12px}.price-alert-card .price-alert-head{display:flex;align-items:flex-start;gap:10px}.price-alert-card .price-alert-head>div{flex:1;min-width:0}.price-alert-values{display:grid;grid-template-columns:1fr 1fr;gap:8px}.price-alert-values .box{padding:10px}.price-alert-values .v{font-size:19px}.price-alert-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto}
 .fund-top-mobile{display:none}
 .funds-header{display:flex;align-items:flex-end;gap:16px;margin-bottom:0}.funds-title{flex:1 1 460px;min-width:0}.funds-period{display:flex;align-items:flex-end;gap:10px;margin-bottom:16px;flex-wrap:wrap}.funds-period-control{display:grid;gap:5px}.funds-period-select{min-width:142px;min-height:44px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 34px 8px 12px;font:inherit;font-size:14px;font-weight:600;line-height:1.3;cursor:pointer}.funds-period-select:disabled{cursor:default;opacity:.8}
 .work-actions{display:flex;gap:6px;flex-wrap:wrap}.work-actions .btn{padding:7px 10px;font-size:12.5px}.work-empty{padding:22px 8px;text-align:center;color:var(--muted)}
@@ -239,6 +240,7 @@ dialog::backdrop{background:rgba(8,18,50,.45)}
 <dialog id="adminDlg"><div class="dlg" id="adminBody"></div></dialog>
 <dialog id="actionDlg"><div class="dlg" id="actionBody"></div></dialog>
 <dialog id="notificationDlg"><div class="dlg" id="notificationBody"></div></dialog>
+<dialog id="priceAlertDlg"><div class="dlg" id="priceAlertBody"></div></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="config.js"></script>
@@ -254,7 +256,7 @@ let CURRENT_USER = null;
 let CSRF_TOKEN = "";
 let toastTimer = null;
 let adminPollTimer = null;
-let PUSH_CONFIG = {available:false, publicKey:null, subscribed:false, preferences:{signals:true,actions:true,pipeline:true}};
+let PUSH_CONFIG = {available:false, publicKey:null, subscribed:false, preferences:{signals:true,actions:true,priceAlerts:true,pipeline:true}};
 let PUSH_REGISTRATION = null;
 let PUSH_DEVICE_SUBSCRIBED = false;
 try {
@@ -329,7 +331,7 @@ function base64UrlToUint8Array(value){
   const raw=atob(base64); return Uint8Array.from(raw,c=>c.charCodeAt(0));
 }
 function pushPreferencesFromDialog(){
-  return Object.fromEntries(["signals","actions","pipeline"].map(key=>[key,!!$(`#notificationBody [data-push-pref="${key}"]`)?.checked]));
+  return Object.fromEntries(["signals","actions","priceAlerts","pipeline"].map(key=>[key,!!$(`#notificationBody [data-push-pref="${key}"]`)?.checked]));
 }
 function paintNotificationButton(){
   const button=$("#notificationBtn"); if(!button) return;
@@ -362,7 +364,7 @@ function openNotificationDialog(){
   body.innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">Thông báo</h2><button class="icon-btn" id="notificationClose" aria-label="Đóng cài đặt thông báo">✕</button></div>
     <p class="muted" style="margin:6px 0 14px">${esc(status)}</p>
     <fieldset ${unavailable?"disabled":""} style="border:0;padding:0;margin:0"><legend style="font-size:14px;font-weight:600;margin-bottom:8px">Nhận thông báo khi</legend>
-      ${[["signals","Tín hiệu mới"],["actions","Hành động cần xử lý"],["pipeline","Quy trình dữ liệu lỗi (chỉ tài khoản có quyền Quản trị)"]].map(([key,label])=>`<label class="row" style="padding:8px 0;align-items:flex-start"><input type="checkbox" data-push-pref="${key}" ${pref[key]!==false?"checked":""} style="width:18px;height:18px;margin:1px 2px 0 0;accent-color:var(--brand)"><span>${esc(label)}</span></label>`).join("")}
+      ${[["signals","Tín hiệu mới"],["actions","Hành động cần xử lý"],["priceAlerts","Cảnh báo giá cá nhân"],["pipeline","Quy trình dữ liệu lỗi (chỉ tài khoản có quyền Quản trị)"]].map(([key,label])=>`<label class="row" style="padding:8px 0;align-items:flex-start"><input type="checkbox" data-push-pref="${key}" ${pref[key]!==false?"checked":""} style="width:18px;height:18px;margin:1px 2px 0 0;accent-color:var(--brand)"><span>${esc(label)}</span></label>`).join("")}
     </fieldset>
     <p class="muted" style="font-size:12px;margin:12px 0 0">Thông báo chỉ gửi cho phân hệ bạn được phép xem. Bạn có thể tắt bất kỳ lúc nào trên thiết bị này.</p>
     <div class="row" style="margin-top:16px;justify-content:flex-end;flex-wrap:wrap"><button class="btn ghost" id="testNotification" ${unavailable||!PUSH_DEVICE_SUBSCRIBED?"disabled":""}>Gửi thử</button>${PUSH_DEVICE_SUBSCRIBED?`<button class="btn ghost" id="disableNotifications" ${unavailable?"disabled":""}>Tắt trên thiết bị này</button>`:""}<button class="btn" id="enableNotifications" ${unavailable?"disabled":""}>${PUSH_DEVICE_SUBSCRIBED?"Lưu lựa chọn":"Bật thông báo"}</button></div>`;
@@ -525,11 +527,12 @@ const PAGES=[
   {id:"reports",label:"Báo cáo CTCK",icon:"rep"},
   {id:"actions",label:"Khuyến nghị hành động",icon:"desk"},
   {id:"signals",label:"Trung tâm tín hiệu",icon:"bolt"},
+  {id:"alerts",label:"Cảnh báo giá",icon:"alert"},
   {id:"admin",label:"Quản trị",icon:"settings",adminOnly:true}
 ];
 const STATE={page:"overview",ovTab:"Hôm nay",newsTab:"Thế giới",pfTab:"Tổng quan",pfSel:"FPT",pfDetailTab:"Tổng quan",invTab:"Hôm nay",fundTab:"Tổng quan",fundPeriod:"",
   repTab:"Tổng hợp",repPeriod:"30 ngày",repType:"Tất cả",repSel:null,editingReportId:"",chat:[],chatDraft:"",chatBusy:false,
-  actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:"",adminDatabase:null,adminDatabaseError:"",adminDbModule:"brief",adminDbTable:"news",adminDbFrom:"",adminDbTo:"",adminDbBusy:false};
+  actionTab:"Tất cả",actionQuery:"",actionTicker:"",actionSector:"",actionSource:"",signalTab:"Mới",signalQuery:"",priceAlerts:null,priceAlertsError:"",priceAlertsBusy:false,adminTab:"Người dùng",adminUsers:null,adminError:"",adminOps:null,adminOpsError:"",adminDatabase:null,adminDatabaseError:"",adminDbModule:"brief",adminDbTable:"news",adminDbFrom:"",adminDbTo:"",adminDbBusy:false};
 
 const flowsEnabled=()=>DATA?.features?.flowsEnabled!==false;
 const availablePages=()=>PAGES.filter(p=>canView(p.id)&&(p.id!=="flows"||flowsEnabled()));
@@ -562,12 +565,13 @@ function render(){
   const pausedFlowRoute=STATE.page==="flows"&&!flowsEnabled()&&canView("flows");
   if(!pages.some(p=>p.id===STATE.page)&&!pausedFlowRoute) STATE.page=pages[0].id;
   renderNav();
-  const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,actions:pgActions,signals:pgSignals,admin:pgAdmin}[STATE.page]||pgOverview;
+  const fn={overview:pgOverview,brief:pgBrief,portfolio:pgPortfolio,flows:pgFlows,funds:pgFunds,reports:pgReports,actions:pgActions,signals:pgSignals,alerts:pgPriceAlerts,admin:pgAdmin}[STATE.page]||pgOverview;
   $("#page").innerHTML=fn();
   if(STATE.page==="reports") paintChat();
   if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminUsers&&!STATE.adminError) loadAdminUsers();
   if(STATE.page==="admin"&&canEdit("admin")&&!STATE.adminOps&&!STATE.adminOpsError) loadAdminOperations();
   if(STATE.page==="admin"&&STATE.adminTab==="Dữ liệu"&&canEdit("admin")&&!STATE.adminDatabase&&!STATE.adminDatabaseError) loadAdminDatabase();
+  if(STATE.page==="alerts"&&API_OK&&canView("alerts")&&!STATE.priceAlerts&&!STATE.priceAlertsError&&!STATE.priceAlertsBusy) loadPriceAlerts();
 }
 
 function latestFlowValues(flows){
@@ -1023,14 +1027,62 @@ function pgSignals(){
     <div class="card">${head("bolt","Danh sách tín hiệu",writable?"":'<span class="muted" style="margin-left:auto;font-size:12px">Quyền chỉ xem</span>')}<div class="tbl-wrap"><table><thead><tr><th>Mã</th><th class="num">Giá</th><th>Đồng thuận</th><th>Nguồn</th><th>Độ mạnh</th><th>Trạng thái</th>${writable?'<th></th>':""}</tr></thead><tbody>${rows.map(row=>`<tr><td class="t">${esc(row.t)}<div class="muted" style="font-size:11.5px">${esc(row.sector)}</div></td><td class="num">${nf(row.price,2)}<div class="${cls(row.chg)}" style="font-size:11.5px">${row.chg==null?"—":sgn(row.chg,1,"%")}</div></td><td style="white-space:normal;min-width:220px">${statusTag(row.recommendation)}<div class="muted" style="font-size:12px;margin-top:4px">${esc(row.evidence)}</div></td><td>${esc(row.source)}</td><td>${strength(row.strength)}</td><td>${stateTag(row.status,"signal")}</td>${writable?`<td><div class="work-actions">${row.status!=="watch"?`<button class="btn ghost" data-signal-status="watch" data-work-id="${row.id}">Theo dõi</button>`:""}${row.status!=="dismissed"?`<button class="link" data-signal-status="dismissed" data-work-id="${row.id}">Bỏ qua</button>`:""}${row.hasAction&&canView("actions")?`<button class="link" data-open-action="${row.t}">Mở hành động</button>`:""}</div></td>`:""}</tr>`).join("")||`<tr><td colspan="${writable?7:6}" class="work-empty">Không có tín hiệu phù hợp với bộ lọc.</td></tr>`}</tbody></table></div><p class="muted" style="font-size:12px;margin:10px 0 0">Độ mạnh dựa trên tỷ lệ CTCK Mua/Khả quan hoặc cảnh báo danh mục; không dùng dữ liệu bot mô phỏng.</p></div>`;
 }
 
+/* ============ PAGE: Cảnh báo giá cá nhân ============ */
+const priceAlertCondition=alert=>alert.condition==="above"?`Tăng đến hoặc vượt ${nf(alert.targetPrice,2)}`:`Giảm đến hoặc thấp hơn ${nf(alert.targetPrice,2)}`;
+const priceAlertState=alert=>alert.enabled?{label:"Đang theo dõi",className:"bg-brand"}:alert.triggeredAt?{label:"Đã kích hoạt",className:"bg-warn"}:{label:"Đang tạm dừng",className:"bg-neutral"};
+async function loadPriceAlerts(){
+  if(!API_OK||STATE.priceAlertsBusy) return;
+  STATE.priceAlertsBusy=true; STATE.priceAlertsError="";
+  try{const result=await api("/api/price-alerts");STATE.priceAlerts=result.alerts||[];}
+  catch(e){STATE.priceAlerts=null;STATE.priceAlertsError=e.message;}
+  finally{STATE.priceAlertsBusy=false;if(STATE.page==="alerts")render();}
+}
+function pgPriceAlerts(){
+  const writable=canEdit("alerts"), alerts=STATE.priceAlerts||[];
+  if(!API_OK) return `<h1>Cảnh báo giá</h1><p class="sub">Tạo ngưỡng giá riêng theo nhu cầu cá nhân</p><div class="card empty">Cảnh báo cá nhân cần kết nối máy chủ để lưu theo tài khoản.</div>`;
+  if(STATE.priceAlertsError) return `<h1>Cảnh báo giá</h1><p class="sub">Tạo ngưỡng giá riêng theo nhu cầu cá nhân</p><div class="card empty"><b>Không tải được cảnh báo</b><p>${esc(STATE.priceAlertsError)}</p><button class="btn ghost" id="reloadPriceAlerts">Thử lại</button></div>`;
+  if(!STATE.priceAlerts) return `<h1>Cảnh báo giá</h1><p class="sub">Tạo ngưỡng giá riêng theo nhu cầu cá nhân</p><div class="card empty">Đang tải cảnh báo…</div>`;
+  const active=alerts.filter(item=>item.enabled).length, triggered=alerts.filter(item=>item.triggeredAt).length, waiting=alerts.filter(item=>item.currentPrice==null).length;
+  return `<h1>Cảnh báo giá</h1><p class="sub">Các ngưỡng do chính bạn thiết lập, độc lập với khuyến nghị và tín hiệu của hệ thống.</p>${sectionStamp("portfolio","Giá cập nhật đến")}
+    <div class="row" style="margin:14px 0;align-items:stretch"><div class="grid cols-auto-220" style="flex:1">${kpiCard("alert","bg-brand",active,"đang theo dõi")}${kpiCard("target","bg-warn",triggered,"đã kích hoạt")}${kpiCard("cal","bg-neutral",waiting,"đang chờ dữ liệu giá")}</div>${writable?'<button class="btn" id="addPriceAlert">+ Thêm cảnh báo</button>':'<span class="muted">Quyền chỉ xem</span>'}</div>
+    <div class="price-alert-grid">${alerts.map(alert=>{const state=priceAlertState(alert);return `<article class="card price-alert-card"><div class="price-alert-head"><span class="badge ${alert.condition==="above"?"bg-up":"bg-down"}">${svg("alert")}</span><div><div class="row"><h2 style="margin:0;font-size:19px">${esc(alert.ticker)}</h2><span class="tag ${state.className}">${state.label}</span></div><div class="muted" style="font-size:12px;margin-top:3px">${esc(priceAlertCondition(alert))}</div></div></div><div class="price-alert-values"><div class="box"><div class="l">Giá hiện tại</div><div class="v">${nf(alert.currentPrice,2)}</div><div class="${cls(alert.priceChange)}" style="font-size:12px">${alert.priceChange==null?"Chưa có dữ liệu":sgn(alert.priceChange,2)}</div></div><div class="box"><div class="l">Giá cảnh báo</div><div class="v">${nf(alert.targetPrice,2)}</div><div class="muted" style="font-size:12px">${alert.condition==="above"?"Giá tăng":"Giá giảm"}</div></div></div>${alert.note?`<p class="prose" style="font-size:13px;margin:0">${esc(alert.note)}</p>`:""}${alert.triggeredAt?`<p class="muted" style="font-size:12px;margin:0">Kích hoạt lúc ${new Date(alert.triggeredAt).toLocaleString("vi-VN")} tại giá ${nf(alert.triggeredPrice,2)}.</p>`:alert.priceDate?`<p class="muted" style="font-size:12px;margin:0">Giá ngày ${fmtD(String(alert.priceDate).slice(0,10))}.</p>`:'<p class="muted" style="font-size:12px;margin:0">Mã mới sẽ có giá sau lần đồng bộ nguồn giá tiếp theo.</p>'}<div class="price-alert-actions">${writable?`<button class="btn ghost" data-edit-price-alert="${alert.id}">Chỉnh sửa</button><button class="link" data-toggle-price-alert="${alert.id}" data-enabled="${alert.enabled?"false":"true"}">${alert.enabled?"Tạm dừng":alert.triggeredAt?"Bật lại":"Bật cảnh báo"}</button><button class="link actions-danger" data-delete-price-alert="${alert.id}">Xóa</button>`:""}</div></article>`}).join("")||`<div class="card empty" style="grid-column:1/-1"><b>Chưa có cảnh báo giá</b><p>Tạo cảnh báo đầu tiên bằng mã, chiều giá và mức giá bạn tự chọn.</p>${writable?'<button class="btn" id="addPriceAlert">+ Thêm cảnh báo</button>':""}</div>`}</div>
+    <p class="muted" style="font-size:12px;margin-top:12px">Cảnh báo được kiểm tra sau mỗi lần nguồn giá cập nhật, không phải dữ liệu thời gian thực. Mỗi cảnh báo chỉ kích hoạt một lần; chọn “Bật lại” nếu muốn tiếp tục theo dõi cùng ngưỡng.</p>`;
+}
+function openPriceAlertDialog(id=""){
+  const alert=(STATE.priceAlerts||[]).find(item=>item.id===id);
+  const tickers=[...new Set([...(DATA.prices||[]).map(item=>item.t),...(DATA.portfolio?.positions||[]).map(item=>item.t)])].filter(Boolean).sort();
+  $("#priceAlertBody").innerHTML=`<div class="row"><h2 style="margin:0;flex:1;font-size:20px">${alert?"Chỉnh sửa cảnh báo":"Thêm cảnh báo giá"}</h2><button class="icon-btn" id="priceAlertDlgClose" aria-label="Đóng">✕</button></div><p class="muted" style="margin:4px 0 12px">Ngưỡng này do bạn tự nhập và không thay đổi khuyến nghị của hệ thống.</p><div class="fgrid"><label>Mã chứng khoán<input id="priceAlertTicker" list="priceAlertTickers" maxlength="12" autocomplete="off" value="${esc(alert?.ticker||"")}" placeholder="Ví dụ: FPT" required><datalist id="priceAlertTickers">${tickers.map(ticker=>`<option value="${esc(ticker)}"></option>`).join("")}</datalist></label><label>Điều kiện<select id="priceAlertCondition"><option value="above" ${alert?.condition!=="below"?"selected":""}>Giá tăng đến hoặc vượt</option><option value="below" ${alert?.condition==="below"?"selected":""}>Giá giảm đến hoặc thấp hơn</option></select></label><label>Giá cảnh báo<input id="priceAlertTarget" inputmode="decimal" autocomplete="off" value="${alert?nf(alert.targetPrice,2):""}" placeholder="Ví dụ: 95.50" required></label><label style="grid-column:1/-1">Ghi chú (tùy chọn)<textarea id="priceAlertNote" maxlength="300" rows="3" placeholder="Ví dụ: Theo dõi để cân nhắc mua">${esc(alert?.note||"")}</textarea></label></div><label class="row" style="margin-top:10px;align-items:center"><input id="priceAlertEnabled" type="checkbox" ${alert?.enabled===false&&!alert?.triggeredAt?"":"checked"} style="width:18px;height:18px;accent-color:var(--brand)"><span>Bật cảnh báo sau khi lưu</span></label><div class="row" style="margin-top:14px;justify-content:flex-end"><span id="priceAlertSaveStatus" class="muted" style="font-size:12.5px;flex:1" role="status"></span><button class="btn" id="savePriceAlert" data-alert-id="${esc(alert?.id||"")}">${alert?"Lưu thay đổi":"Tạo cảnh báo"}</button></div>`;
+  $("#priceAlertDlg").showModal();setTimeout(()=>$("#priceAlertTicker")?.focus(),0);
+}
+async function savePriceAlert(id=""){
+  const status=$("#priceAlertSaveStatus"), button=$("#savePriceAlert");
+  const ticker=$("#priceAlertTicker").value.trim().toUpperCase(), condition=$("#priceAlertCondition").value;
+  const targetPrice=Number($("#priceAlertTarget").value.replace(/,/g,"")), note=$("#priceAlertNote").value.trim(), enabled=$("#priceAlertEnabled").checked;
+  if(!/^[A-Z0-9._-]{1,12}$/.test(ticker)){status.textContent="Nhập mã chứng khoán hợp lệ.";return;}
+  if(!Number.isFinite(targetPrice)||targetPrice<=0){status.textContent="Giá cảnh báo phải lớn hơn 0.";return;}
+  button.disabled=true;status.textContent="Đang lưu…";
+  try{await api(id?`/api/price-alerts/${encodeURIComponent(id)}`:"/api/price-alerts",{alert:{ticker,condition,targetPrice,note,enabled}},id?"PATCH":undefined);$("#priceAlertDlg").close();STATE.priceAlerts=null;await loadPriceAlerts();notify(id?"Đã cập nhật cảnh báo giá.":"Đã tạo cảnh báo giá.");}
+  catch(e){status.textContent="Không lưu được: "+e.message;button.disabled=false;}
+}
+async function togglePriceAlert(id,enabled){
+  const alert=(STATE.priceAlerts||[]).find(item=>item.id===id);if(!alert)return;
+  try{await api(`/api/price-alerts/${encodeURIComponent(id)}`,{alert:{enabled}},"PATCH");STATE.priceAlerts=null;await loadPriceAlerts();notify(enabled?"Đã bật lại cảnh báo.":"Đã tạm dừng cảnh báo.");}
+  catch(e){notify("Không cập nhật được cảnh báo: "+e.message,"err");}
+}
+async function deletePriceAlert(id){
+  const alert=(STATE.priceAlerts||[]).find(item=>item.id===id);if(!alert||!confirm(`Xóa cảnh báo ${alert.ticker} tại giá ${nf(alert.targetPrice,2)}?`))return;
+  try{await api(`/api/price-alerts/${encodeURIComponent(id)}`,undefined,"DELETE");STATE.priceAlerts=(STATE.priceAlerts||[]).filter(item=>item.id!==id);render();notify("Đã xóa cảnh báo giá.");}
+  catch(e){notify("Không xóa được cảnh báo: "+e.message,"err");}
+}
+
 /* ============ Administration ============ */
 const roleLabel={viewer:"Chỉ xem",analyst:"Phân tích",admin:"Quản trị viên"};
 const rolePermission={viewer:"Xem các phân hệ được cấp",analyst:"Xem dữ liệu, dùng AI, thêm báo cáo và cập nhật hành động/tín hiệu",admin:"Toàn quyền dữ liệu, quy trình dữ liệu và quản lý tài khoản"};
-const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",actions:"Khuyến nghị hành động",signals:"Trung tâm tín hiệu",admin:"Quản trị"};
-const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||(role==="analyst"&&["reports","actions","signals"].includes(module))} ]));
+const moduleLabel={overview:"Tổng quan",brief:"Bản tin",portfolio:"Danh mục",flows:"Dòng tiền",funds:"Quỹ đầu tư",reports:"Báo cáo CTCK",actions:"Khuyến nghị hành động",signals:"Trung tâm tín hiệu",alerts:"Cảnh báo giá",admin:"Quản trị"};
+const moduleDefaults=role=>Object.fromEntries(Object.keys(moduleLabel).map(module=>[module,{view:role==="admin"||module!=="admin",edit:role==="admin"||module==="alerts"||(role==="analyst"&&["reports","actions","signals"].includes(module))} ]));
 function permissionSummary(permissions){
   const rights=Object.entries(permissions||{}).filter(([,p])=>p?.view).map(([module,p])=>{
-    const editLabel=p.edit?(["reports","actions","signals","admin"].includes(module)?" (chỉnh sửa)":" (quyền lưu sẵn)"):"";
+    const editLabel=p.edit?(["reports","actions","signals","alerts","admin"].includes(module)?" (chỉnh sửa)":" (quyền lưu sẵn)"):"";
     return `${moduleLabel[module]||module}${editLabel}`;
   });
   return rights.length?`Quyền hiện có: ${rights.join(", ")}`:"Chưa được cấp quyền module";
@@ -1189,7 +1241,7 @@ function openUserDialog(username=""){
     <div class="fgrid"><label>Tên đăng nhập<input id="adminUsername" value="${esc(existing?.username||"")}" ${existing?"disabled":""} autocomplete="username"></label>
       <label>Vai trò<select id="adminRole" ${self?"disabled":""}>${Object.entries(roleLabel).map(([role,label])=>`<option value="${role}" ${role===selected?"selected":""}>${esc(label)}</option>`).join("")}</select></label>
       <label style="grid-column:1/-1">${existing?"Mật khẩu mới (tùy chọn)":"Mật khẩu"}<input id="adminPassword" type="password" autocomplete="new-password" ${existing?"":"required"}></label></div>
-    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo phân hệ</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Có thể cấp quyền chỉnh sửa Báo cáo CTCK, Khuyến nghị hành động, Trung tâm tín hiệu và Quản trị theo từng tài khoản.</p>
+    <h3 style="margin:16px 0 0;font-size:15px">Quyền theo phân hệ</h3><p class="muted" style="font-size:12px;margin:4px 0 0">Có thể cấp quyền chỉnh sửa Báo cáo CTCK, Khuyến nghị hành động, Trung tâm tín hiệu, Cảnh báo giá và Quản trị theo từng tài khoản.</p>
     ${permissionMatrix(existing?.permissions||moduleDefaults(selected),selected)}
     ${self?'<p class="muted" style="font-size:12px">Bạn không thể tự hạ vai trò; hệ thống luôn phải có ít nhất một quản trị viên có quyền quản trị.</p>':""}
     <div class="row" style="margin-top:12px;justify-content:flex-end"><span class="muted" id="adminSaveStatus" style="font-size:12.5px;flex:1"></span><button class="btn" id="saveUser" data-user-id="${esc(existing?.username||"")}">${existing?"Lưu thay đổi":"Tạo tài khoản"}</button></div>`;
@@ -1326,6 +1378,11 @@ document.addEventListener("click",e=>{
   if(d.editAction){openActionDialog(d.editAction);return;}
   if(d.setupNextAction){openActionDialog(d.setupNextAction);return;}
   if(t.id==="addAction"){openManualActionDialog();return;}
+  if(t.id==="addPriceAlert"){openPriceAlertDialog();return;}
+  if(t.id==="reloadPriceAlerts"){STATE.priceAlerts=null;STATE.priceAlertsError="";loadPriceAlerts();return;}
+  if(d.editPriceAlert){openPriceAlertDialog(d.editPriceAlert);return;}
+  if(d.togglePriceAlert){togglePriceAlert(d.togglePriceAlert,d.enabled==="true");return;}
+  if(d.deletePriceAlert){deletePriceAlert(d.deletePriceAlert);return;}
   if("clearActionFilter" in d){STATE.actionTicker="";render();return;}
   if(d.rp){STATE.repPeriod=d.rp;render();}
   if(d.rt){STATE.repType=d.rt;render();}
@@ -1355,8 +1412,10 @@ document.addEventListener("click",e=>{
   if(t.id==="testNotification") testNotification();
   if(t.id==="adminDlgClose") $("#adminDlg").close();
   if(t.id==="actionDlgClose") $("#actionDlg").close();
+  if(t.id==="priceAlertDlgClose") $("#priceAlertDlg").close();
   if(t.id==="saveAction") saveActionDetails(t.dataset.actionId||"");
   if(t.id==="saveManualAction") saveManualAction();
+  if(t.id==="savePriceAlert") savePriceAlert(t.dataset.alertId||"");
   if(t.id==="deleteManualAction") deleteManualAction(t.dataset.actionId||"");
   if(t.id==="saveUser") saveUser(t.dataset.userId||"");
   if(t.id==="dlgClose") $("#addDlg").close();
@@ -1434,7 +1493,7 @@ async function logout(){
 async function refresh(force, announce=false){
   try{
     const d=await loadData();
-    if(force||!DATA||d.meta?.generatedAt!==DATA.meta?.generatedAt){ DATA=d; paintHeader(); render(); if(announce) notify("Đã tải dữ liệu mới nhất."); }
+    if(force||!DATA||d.meta?.generatedAt!==DATA.meta?.generatedAt){ DATA=d;if(STATE.page==="alerts"){STATE.priceAlerts=null;STATE.priceAlertsError="";} paintHeader(); render(); if(announce) notify("Đã tải dữ liệu mới nhất."); }
     else if(announce) notify("Dữ liệu đang là bản mới nhất.");
   }catch(e){
     if(!DATA) $("#page").innerHTML=`<div class="card"><h2>Không tải được dữ liệu</h2><p class="prose">${esc(e.message)}. Chạy <code>python pipeline/run.py</code> để tạo file dữ liệu, rồi tải lại trang.</p></div>`;

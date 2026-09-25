@@ -113,6 +113,22 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     assert.equal(response.status, 403, "viewer mặc định không có quyền chỉnh sửa báo cáo");
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ status: "completed" }) });
     assert.equal(response.status, 403, "viewer mặc định không có quyền cập nhật Action Desk");
+    response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "FPT", condition: "below", targetPrice: 100, note: "Ngưỡng riêng của viewer" } }) });
+    assert.equal(response.status, 201, "mọi người dùng mặc định được tự tạo cảnh báo giá cá nhân");
+    const viewerAlert = (await response.json()).alert;
+    assert.match(viewerAlert.id, /^price:/);
+    assert.equal(viewerAlert.enabled, false, "cảnh báo phải kích hoạt một lần khi giá đã chạm ngưỡng");
+    assert.ok(viewerAlert.triggeredAt);
+    response = await request(`/api/price-alerts/${encodeURIComponent(viewerAlert.id)}`, { method: "PATCH", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { enabled: true } }) });
+    const rearmedAlert = (await response.json()).alert;
+    assert.equal(rearmedAlert.enabled, true, "bật lại không được kích hoạt lặp khi giá chưa rời ngưỡng");
+    assert.equal(rearmedAlert.triggeredAt, null);
+    response = await request("/api/price-alerts", { headers: { cookie: viewerCookie } });
+    assert.equal((await response.json()).alerts.length, 1);
+    response = await request("/api/price-alerts", { headers: { cookie } });
+    assert.equal((await response.json()).alerts.length, 0, "admin không được nhìn thấy cảnh báo riêng của viewer");
+    response = await request(`/api/price-alerts/${encodeURIComponent(viewerAlert.id)}`, { method: "DELETE", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken } });
+    assert.equal(response.status, 200, "chủ sở hữu phải xóa được cảnh báo của mình");
 
     response = await request("/api/actions/portfolio%3AFPT/status", { method: "PATCH", ...common, body: JSON.stringify({ status: "completed" }) });
     assert.equal(response.status, 200, "admin phải cập nhật được trạng thái action");
@@ -147,7 +163,7 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
 
     const scopedPermissions = {
       overview: { view: false, edit: false }, brief: { view: false, edit: false }, portfolio: { view: false, edit: false },
-      flows: { view: false, edit: false }, funds: { view: false, edit: false }, reports: { view: true, edit: true }, actions: { view: false, edit: false }, signals: { view: false, edit: false }, admin: { view: false, edit: false },
+      flows: { view: false, edit: false }, funds: { view: false, edit: false }, reports: { view: true, edit: true }, actions: { view: false, edit: false }, signals: { view: false, edit: false }, alerts: { view: false, edit: false }, admin: { view: false, edit: false },
     };
     response = await request("/api/admin/users/viewer", { method: "PATCH", ...common, body: JSON.stringify({ user: { permissions: scopedPermissions } }) });
     assert.equal(response.status, 200, "admin phải cấp được quyền riêng theo module");

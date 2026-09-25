@@ -4,9 +4,10 @@ Ghi vào: market.xlsx/VNINDEX, portfolio.xlsx/PRICES (upsert theo ngày + mã).
 """
 from datetime import date, timedelta
 from importlib.util import find_spec
+import json
 import time
 import pandas as pd
-from config import PRICE_LOOKBACK_DAYS, VNSTOCK_SOURCE
+from config import DATA_DIR, PRICE_LOOKBACK_DAYS, VNSTOCK_SOURCE
 from xlsx_io import read_sheet, upsert
 
 
@@ -38,6 +39,16 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     return df[["date", "open", "high", "low", "close", "volume"]]
 
 
+def _manual_alert_tickers():
+    """Các mã cảnh báo cá nhân cũng cần được đưa vào nguồn giá."""
+    try:
+        payload = json.loads((DATA_DIR / "price-alerts.json").read_text(encoding="utf-8"))
+        return {str(item.get("ticker", "")).strip().upper() for item in payload.get("alerts", [])
+                if item.get("enabled") is True and str(item.get("ticker", "")).strip()}
+    except (FileNotFoundError, json.JSONDecodeError, OSError, AttributeError):
+        return set()
+
+
 def run(retries: int = 3, pause: float = 1.2):
     # Vnstock là nguồn giá tùy chọn. Nếu image chưa cài được thư viện (ví dụ
     # PyPI/registry tạm thời không trả phiên bản tương thích), trả lỗi nguồn
@@ -50,7 +61,7 @@ def run(retries: int = 3, pause: float = 1.2):
     s, e = start.isoformat(), end.isoformat()
 
     pos = read_sheet("portfolio.xlsx", "POSITIONS")
-    tickers = sorted({str(t).strip().upper() for t in pos.get("ticker", []) if str(t).strip() and str(t) != "nan"})
+    tickers = sorted({str(t).strip().upper() for t in pos.get("ticker", []) if str(t).strip() and str(t) != "nan"} | _manual_alert_tickers())
     failed = []
 
     idx = None
