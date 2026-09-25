@@ -118,14 +118,19 @@ test("all ten modules render the existing dashboard fixture", () => {
   }
 });
 
-test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡng thủ công", () => {
+test("Cảnh báo giá hỗ trợ nguồn cá nhân, khuyến nghị và danh sách người nhận", () => {
   const ui = app();
-  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",ticker:"FPT",condition:"range",targetPrice:95,targetPriceHigh:100,rangeAction:"buy",note:"Ngưỡng cá nhân",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceDate:"2026-09-24"}]');
+  ui.run('STATE.priceAlerts=[{id:"price:123e4567-e89b-12d3-a456-426614174000",username:"viewer",sourceType:"action",actionId:"portfolio:FPT",ticker:"FPT",condition:"range",targetPrice:95,targetPriceHigh:100,rangeAction:"buy",note:"Theo khuyến nghị",enabled:true,triggeredAt:null,currentPrice:98.5,priceChange:1.2,priceDate:"2026-09-24"}];STATE.priceAlertsCanAssign=true;STATE.priceAlertRecipients=[{username:"test",role:"admin"},{username:"viewer",role:"viewer"}]');
   const result = ui.run("pgPriceAlerts()");
-  assert.match(result, /Các ngưỡng do chính bạn thiết lập/);
+  assert.match(result, /Quản lý cảnh báo theo khuyến nghị/);
   assert.match(result, /Vùng mua · giá đi xuống 95\.00 – 100\.00/);
+  assert.match(result, /Theo khuyến nghị hành động/);
+  assert.match(result, /Người nhận: viewer/);
   assert.match(result, /data-edit-price-alert=/);
   ui.run('openPriceAlertDialog("price:123e4567-e89b-12d3-a456-426614174000")');
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertSourceType"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertActionId"/);
+  assert.match(ui.element("#priceAlertBody").innerHTML, /Người nhận cảnh báo/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTicker"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertTarget"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /value="range"/);
@@ -135,6 +140,7 @@ test("Cảnh báo giá là module cá nhân và có biểu mẫu nhập ngưỡn
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime"/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertExpires"/);
   ui.run("openPriceAlertDialog()");
+  assert.match(ui.element("#priceAlertBody").innerHTML, /data-price-alert-recipient/);
   assert.match(ui.element("#priceAlertBody").innerHTML, /id="priceAlertNotifyTime" type="time" value="08:00"/);
   assert.equal(ui.element("#priceAlertCondition").value, "range");
   assert.equal(ui.element("#priceAlertHighWrap").hidden, false);

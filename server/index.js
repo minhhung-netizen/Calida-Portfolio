@@ -287,6 +287,8 @@ const PRICE_ALERT_CONDITIONS = new Set(["above", "below", "range"]);
 const PRICE_ALERT_RANGE_ACTIONS = new Set(["buy", "sell"]);
 const PRICE_ALERT_FREQUENCIES = new Set(["once", "daily", "crossing"]);
 const PRICE_ALERT_SCHEDULES = new Set(["immediate", "at_time"]);
+const PRICE_ALERT_SOURCE_TYPES = new Set(["personal", "action"]);
+const PRICE_ALERT_ACTION_ID = /^(?:portfolio:[A-Z0-9._-]{1,16}|manual:[a-f0-9-]{36})$/;
 const PRICE_ALERT_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DEFAULT_PRICE_ALERT_NOTIFY_TIME = "08:00";
 
@@ -295,6 +297,9 @@ function normalizePriceAlert(alert) {
   const scheduleMode = PRICE_ALERT_SCHEDULES.has(alert?.scheduleMode) ? alert.scheduleMode : "immediate";
   return {
     ...alert,
+    sourceType: PRICE_ALERT_SOURCE_TYPES.has(alert?.sourceType) ? alert.sourceType : "personal",
+    actionId: alert?.sourceType === "action" && PRICE_ALERT_ACTION_ID.test(alert?.actionId || "") ? alert.actionId : null,
+    createdBy: USERNAME_RE.test(alert?.createdBy || "") ? alert.createdBy : alert.username,
     targetPriceHigh: Number.isFinite(alert?.targetPriceHigh) ? alert.targetPriceHigh : null,
     rangeAction: alert?.condition === "range" && PRICE_ALERT_RANGE_ACTIONS.has(alert?.rangeAction) ? alert.rangeAction : (alert?.condition === "range" ? "buy" : null),
     frequency: PRICE_ALERT_FREQUENCIES.has(alert?.frequency) ? alert.frequency : "once",
@@ -318,6 +323,8 @@ function cleanPriceAlertInput(value, previous = {}) {
   const note = String(value.note ?? previous.note ?? "").trim();
   const frequency = String(value.frequency ?? previous.frequency ?? "once");
   const scheduleMode = String(value.scheduleMode ?? previous.scheduleMode ?? "immediate");
+  const sourceType = String(value.sourceType ?? previous.sourceType ?? "personal");
+  const actionId = sourceType === "action" ? String(value.actionId ?? previous.actionId ?? "").trim() : null;
   const notifyTimeValue = value.notifyTime !== undefined ? value.notifyTime : (previous.notifyTime ?? DEFAULT_PRICE_ALERT_NOTIFY_TIME);
   const notifyTime = scheduleMode === "at_time" ? String(notifyTimeValue || "").trim() : null;
   const expiresValue = value.expiresAt !== undefined ? value.expiresAt : previous.expiresAt;
@@ -330,13 +337,44 @@ function cleanPriceAlertInput(value, previous = {}) {
   if (note.length > 300) throw new Error("Ghi chú không được quá 300 ký tự");
   if (!PRICE_ALERT_FREQUENCIES.has(frequency)) throw new Error("Tần suất cảnh báo không hợp lệ");
   if (!PRICE_ALERT_SCHEDULES.has(scheduleMode)) throw new Error("Thời điểm cảnh báo không hợp lệ");
+  if (!PRICE_ALERT_SOURCE_TYPES.has(sourceType)) throw new Error("Nguồn thiết lập cảnh báo không hợp lệ");
+  if (sourceType === "action" && !PRICE_ALERT_ACTION_ID.test(actionId)) throw new Error("Hãy chọn một khuyến nghị hành động hợp lệ");
   if (scheduleMode === "at_time" && !PRICE_ALERT_TIME.test(notifyTime)) throw new Error("Giờ cảnh báo phải theo định dạng HH:MM");
   if (expiresValue) {
     const deadline = new Date(expiresValue);
     if (!Number.isFinite(deadline.getTime())) throw new Error("Hạn cảnh báo không hợp lệ");
     expiresAt = deadline.toISOString();
   }
-  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, targetPriceHigh: targetPriceHigh == null ? null : Math.round(targetPriceHigh * 100) / 100, rangeAction, note, frequency, scheduleMode, notifyTime, expiresAt };
+  return { ticker, condition, targetPrice: Math.round(targetPrice * 100) / 100, targetPriceHigh: targetPriceHigh == null ? null : Math.round(targetPriceHigh * 100) / 100, rangeAction, note, frequency, scheduleMode, notifyTime, expiresAt, sourceType, actionId };
+}
+
+function isPriceAlertAdmin(req) {
+  return hasModulePermission(requestUser(req), "admin", "edit");
+}
+
+function canManagePriceAlert(req, alert) {
+  return alert?.username === req.user.u || isPriceAlertAdmin(req);
+}
+
+function priceAlertRecipients(req, rawRecipients) {
+  if (!isPriceAlertAdmin(req)) {
+    if (rawRecipients !== undefined && (!Array.isArray(rawRecipients) || rawRecipients.some((username) => username !== req.user.u))) {
+      const error = new Error("Bạn chỉ có thể tạo cảnh báo cho chính mình");
+      error.status = 403;
+      throw error;
+    }
+    return [req.user.u];
+  }
+  const recipients = Array.isArray(rawRecipients)
+    ? [...new Set(rawRecipients.map((username) => String(username || "").trim()).filter(Boolean))]
+    : [req.user.u];
+  if (!recipients.length) throw new Error("Hãy chọn ít nhất một người nhận cảnh báo");
+  if (recipients.length > 100) throw new Error("Mỗi lần chỉ được chọn tối đa 100 người nhận");
+  for (const username of recipients) {
+    const user = USERS.find((item) => item.username === username) || (username === "local" && req.user.u === "local" ? requestUser(req) : null);
+    if (!user || !hasModulePermission(user, "alerts", "view")) throw new Error(`Tài khoản ${username} không tồn tại hoặc không có quyền xem cảnh báo`);
+  }
+  return recipients;
 }
 
 function readPriceAlertStore() {
@@ -835,28 +873,36 @@ app.post("/api/notifications/test", requireCsrf, writeLimit, async (req, res) =>
   return delivered ? res.json({ ok: true, delivered }) : res.status(502).json({ error: "Không gửi được thông báo; hãy bật lại quyền thông báo trên thiết bị." });
 });
 
-// ---------- personal price alerts ----------
+// ---------- price alerts ----------
 app.get("/api/price-alerts", requireModule("alerts", "view"), async (req, res) => {
   try {
-    const result = await evaluatePriceAlerts(req.user.u);
+    const admin = isPriceAlertAdmin(req);
+    const result = await evaluatePriceAlerts(admin ? null : req.user.u);
+    const alerts = admin ? result.alerts : result.alerts.filter((item) => item.username === req.user.u);
+    const recipients = admin
+      ? USERS.filter((user) => hasModulePermission(user, "alerts", "view")).map((user) => ({ username: user.username, role: user.role }))
+      : [{ username: req.user.u, role: requestUser(req)?.role || "viewer" }];
+    if (admin && req.user.u === "local" && !recipients.length) recipients.push({ username: "local", role: "admin" });
     res.set("Cache-Control", "no-store");
-    return res.json({ alerts: result.alerts.filter((item) => item.username === req.user.u).map((item) => publicPriceAlert(item, result.prices)) });
+    return res.json({ alerts: alerts.map((item) => publicPriceAlert(item, result.prices)), recipients, canAssignRecipients: admin });
   } catch (error) { return res.status(500).json({ error: `Không tải được cảnh báo giá: ${error.message}` }); }
 });
 
 app.post("/api/price-alerts", requireModule("alerts", "edit"), requireCsrf, writeLimit, async (req, res) => {
   try {
     const details = cleanPriceAlertInput(req.body?.alert);
+    const recipients = priceAlertRecipients(req, req.body?.recipients);
     const now = new Date().toISOString();
     const enabled = typeof req.body?.alert?.enabled === "boolean" ? req.body.alert.enabled : true;
     if (enabled && details.expiresAt && new Date(details.expiresAt) <= new Date()) throw new Error("Hạn cảnh báo phải nằm trong tương lai");
-    const alert = { id: `price:${crypto.randomUUID()}`, username: req.user.u, ...details, enabled, wasMatched: false, triggeredAt: null, triggeredPrice: null, triggerCount: 0, lastTriggeredPriceDate: null, expiredAt: null, lastPrice: null, lastPriceDate: null, lastCheckedAt: null, createdAt: now, updatedAt: now };
-    writePriceAlertStore([...readPriceAlertStore(), alert]);
-    audit(req, "price-alert.create", { id: alert.id, ticker: alert.ticker, condition: alert.condition, targetPrice: alert.targetPrice, targetPriceHigh: alert.targetPriceHigh, rangeAction: alert.rangeAction });
-    const result = await evaluatePriceAlerts(req.user.u);
-    const saved = result.alerts.find((item) => item.id === alert.id) || alert;
-    return res.status(201).json({ ok: true, alert: publicPriceAlert(saved, result.prices) });
-  } catch (error) { return res.status(400).json({ error: error.message }); }
+    const batchId = recipients.length > 1 ? `batch:${crypto.randomUUID()}` : null;
+    const created = recipients.map((username) => ({ id: `price:${crypto.randomUUID()}`, username, createdBy: req.user.u, batchId, ...details, enabled, wasMatched: false, triggeredAt: null, triggeredPrice: null, triggerCount: 0, lastTriggeredPriceDate: null, expiredAt: null, lastPrice: null, lastPriceDate: null, lastCheckedAt: null, createdAt: now, updatedAt: now }));
+    writePriceAlertStore([...readPriceAlertStore(), ...created]);
+    audit(req, "price-alert.create", { ids: created.map((alert) => alert.id), recipients, sourceType: details.sourceType, actionId: details.actionId, ticker: details.ticker, condition: details.condition, targetPrice: details.targetPrice, targetPriceHigh: details.targetPriceHigh, rangeAction: details.rangeAction });
+    const result = await evaluatePriceAlerts(isPriceAlertAdmin(req) ? null : req.user.u);
+    const saved = created.map((alert) => result.alerts.find((item) => item.id === alert.id) || alert).map((alert) => publicPriceAlert(alert, result.prices));
+    return res.status(201).json({ ok: true, alert: saved[0], alerts: saved });
+  } catch (error) { return res.status(error.status || 400).json({ error: error.message }); }
 });
 
 app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf, writeLimit, async (req, res) => {
@@ -864,7 +910,7 @@ app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf,
     const id = String(req.params.id || "");
     if (!PRICE_ALERT_ID.test(id)) return res.status(404).json({ error: "Không tìm thấy cảnh báo giá" });
     const alerts = readPriceAlertStore();
-    const index = alerts.findIndex((item) => item.id === id && item.username === req.user.u);
+    const index = alerts.findIndex((item) => item.id === id && canManagePriceAlert(req, item));
     if (index < 0) return res.status(404).json({ error: "Không tìm thấy cảnh báo giá" });
     const previous = alerts[index];
     const details = cleanPriceAlertInput(req.body?.alert || {}, previous);
@@ -875,7 +921,7 @@ app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf,
     alerts[index] = { ...previous, ...details, enabled, wasMatched: triggerRuleChanged ? false : previous.wasMatched, triggeredAt: reset ? null : previous.triggeredAt, triggeredPrice: reset ? null : previous.triggeredPrice, expiredAt: enabled ? null : previous.expiredAt, updatedAt: new Date().toISOString() };
     writePriceAlertStore(alerts);
     audit(req, "price-alert.update", { id, ticker: details.ticker, condition: details.condition, targetPrice: details.targetPrice, targetPriceHigh: details.targetPriceHigh, rangeAction: details.rangeAction, enabled });
-    const result = await evaluatePriceAlerts(req.user.u);
+    const result = await evaluatePriceAlerts(isPriceAlertAdmin(req) ? null : req.user.u);
     const saved = result.alerts.find((item) => item.id === id) || alerts[index];
     return res.json({ ok: true, alert: publicPriceAlert(saved, result.prices) });
   } catch (error) { return res.status(400).json({ error: error.message }); }
@@ -884,10 +930,10 @@ app.patch("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf,
 app.delete("/api/price-alerts/:id", requireModule("alerts", "edit"), requireCsrf, writeLimit, (req, res) => {
   const id = String(req.params.id || "");
   const alerts = readPriceAlertStore();
-  const existing = alerts.find((item) => item.id === id && item.username === req.user.u);
+  const existing = alerts.find((item) => item.id === id && canManagePriceAlert(req, item));
   if (!PRICE_ALERT_ID.test(id) || !existing) return res.status(404).json({ error: "Không tìm thấy cảnh báo giá" });
   writePriceAlertStore(alerts.filter((item) => item.id !== id));
-  audit(req, "price-alert.delete", { id, ticker: existing.ticker });
+  audit(req, "price-alert.delete", { id, ticker: existing.ticker, username: existing.username });
   return res.json({ ok: true, id });
 });
 
@@ -962,6 +1008,8 @@ app.delete("/api/admin/users/:username", requireModule("admin", "edit"), require
     if (!moduleAdminCount(nextUsers)) return res.status(400).json({ error: "Hệ thống phải luôn còn ít nhất một quản trị viên có quyền quản trị" });
     writeUserStore(nextUsers);
     USERS = nextUsers;
+    const alerts = readPriceAlertStore();
+    if (alerts.some((alert) => alert.username === username)) writePriceAlertStore(alerts.filter((alert) => alert.username !== username));
     audit(req, "user.delete", { username, role: current.role });
     return res.json({ ok: true });
   } catch (error) { return res.status(400).json({ error: error.message }); }

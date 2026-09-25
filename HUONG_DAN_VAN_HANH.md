@@ -79,14 +79,18 @@ Riêng dữ liệu Quỹ, cần giữ các dòng của mọi kỳ `MM/YYYY` tron
 
 Báo cáo CTCK dùng **gộp theo mã** để không làm mất báo cáo được tạo trực tiếp trên web. Không nên sửa cùng một mã báo cáo trên Google Sheets và web trong cùng một lượt đồng bộ; thay đổi được nhập sau sẽ có hiệu lực.
 
-### Cảnh báo giá cá nhân
+### Cảnh báo giá
 
-Người dùng mở **Cảnh báo giá → Thêm cảnh báo**, tự nhập mã chứng khoán rồi chọn một trong ba điều kiện: **Giá tăng đến hoặc vượt**, **Giá giảm đến hoặc thấp hơn**, hoặc **Giá nằm trong vùng**. Với vùng giá, nhập giá thấp, giá cao và loại vùng:
+Người dùng mở **Cảnh báo giá → Thêm cảnh báo**, chọn **Nguồn thiết lập** là **Cá nhân người dùng** để tự nhập mã hoặc **Theo Khuyến nghị hành động** để chọn một khuyến nghị đang có. Khi chọn theo khuyến nghị, hệ thống tự điền mã, loại vùng, vùng giá và ngữ cảnh nếu nguồn có đủ dữ liệu; người tạo vẫn được kiểm tra và điều chỉnh trước khi lưu.
+
+Tiếp theo chọn một trong ba điều kiện: **Giá tăng đến hoặc vượt**, **Giá giảm đến hoặc thấp hơn**, hoặc **Giá nằm trong vùng**. Với vùng giá, nhập giá thấp, giá cao và loại vùng:
 
 - **Vùng mua:** chỉ kích hoạt khi giá trước đó nằm trên giá cao và giá mới đi xuống vào vùng. Giá đi từ dưới lên sẽ không kích hoạt.
 - **Vùng bán:** chỉ kích hoạt khi giá trước đó nằm dưới giá thấp và giá mới đi lên vào vùng. Giá đi từ trên xuống sẽ không kích hoạt.
 
-Hai đầu vùng đều được tính là nằm trong vùng. Nếu chưa có giá trước đó để xác định hướng, hệ thống tiếp tục chờ thay vì gửi cảnh báo không chắc chắn. Cảnh báo này độc lập với Danh mục, Khuyến nghị hành động và Trung tâm tín hiệu; mỗi tài khoản chỉ thấy dữ liệu của chính mình.
+Hai đầu vùng đều được tính là nằm trong vùng. Nếu chưa có giá trước đó để xác định hướng, hệ thống tiếp tục chờ thay vì gửi cảnh báo không chắc chắn. Liên kết Khuyến nghị hành động chỉ dùng để xác định nguồn thiết lập; cảnh báo đã lưu vẫn giữ nguyên nếu khuyến nghị sau đó thay đổi.
+
+Quản trị viên có thêm phần **Danh sách nhận cảnh báo** khi tạo mới và có thể chọn một hoặc nhiều tài khoản. Hệ thống tạo một cảnh báo riêng cho từng người nhận để lịch sử gửi, trạng thái và quyền quản lý không bị trộn lẫn. Quản trị viên xem, sửa, tạm dừng và xoá được toàn bộ cảnh báo; người dùng thường chỉ thấy cảnh báo của chính mình.
 
 Mỗi cảnh báo có thể đặt:
 

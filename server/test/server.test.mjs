@@ -169,7 +169,27 @@ test("đăng nhập, phân quyền và pipeline lỗi vẫn giữ server hoạt 
     response = await request("/api/price-alerts", { headers: { cookie: viewerCookie } });
     assert.equal((await response.json()).alerts.length, 6);
     response = await request("/api/price-alerts", { headers: { cookie } });
-    assert.equal((await response.json()).alerts.length, 0, "admin không được nhìn thấy cảnh báo riêng của viewer");
+    const adminAlertList = await response.json();
+    assert.equal(adminAlertList.alerts.length, 6, "admin phải xem được danh sách cảnh báo để quản trị người nhận");
+    assert.ok(adminAlertList.canAssignRecipients);
+    assert.ok(adminAlertList.recipients.some((item) => item.username === "viewer"));
+    response = await request("/api/price-alerts", { method: "POST", ...common, body: JSON.stringify({ alert: { sourceType: "action", actionId: "portfolio:FPT", ticker: "FPT", condition: "above", targetPrice: 1000, note: "Theo khuyến nghị FPT" }, recipients: ["viewer", "admin"] }) });
+    assert.equal(response.status, 201, "admin phải tạo được cảnh báo theo khuyến nghị cho nhiều người dùng");
+    const assignedResult = await response.json();
+    const assignedAlert = assignedResult.alert;
+    assert.equal(assignedResult.alerts.length, 2);
+    assert.equal(assignedAlert.username, "viewer");
+    assert.equal(assignedAlert.createdBy, "admin");
+    assert.equal(assignedAlert.sourceType, "action");
+    assert.equal(assignedAlert.actionId, "portfolio:FPT");
+    response = await request("/api/price-alerts", { method: "POST", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken }, body: JSON.stringify({ alert: { ticker: "FPT", condition: "above", targetPrice: 1000 }, recipients: ["admin"] }) });
+    assert.equal(response.status, 403, "người dùng thường không được tạo cảnh báo cho tài khoản khác");
+    response = await request("/api/price-alerts", { headers: { cookie: viewerCookie } });
+    assert.equal((await response.json()).alerts.length, 7, "người nhận phải thấy cảnh báo được admin giao");
+    for (const assigned of assignedResult.alerts) {
+      response = await request(`/api/price-alerts/${encodeURIComponent(assigned.id)}`, { method: "DELETE", ...common });
+      assert.equal(response.status, 200, "admin phải xóa được cảnh báo đã giao cho người dùng");
+    }
     response = await request(`/api/price-alerts/${encodeURIComponent(viewerAlert.id)}`, { method: "DELETE", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken } });
     assert.equal(response.status, 200, "chủ sở hữu phải xóa được cảnh báo của mình");
     response = await request(`/api/price-alerts/${encodeURIComponent(scheduledAlert.id)}`, { method: "DELETE", headers: { cookie: viewerCookie, "content-type": "application/json", "x-csrf-token": viewerSession.csrfToken } });
