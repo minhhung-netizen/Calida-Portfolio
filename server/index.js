@@ -34,6 +34,8 @@ const PYTHON = process.env.PYTHON_BIN || (process.platform === "win32" ? "python
 const PIPELINE_TIME = process.env.PIPELINE_TIME ?? "16:30";
 const PRICE_REFRESH_MINUTES = Number(process.env.PRICE_REFRESH_MINUTES ?? 10);
 const PRICE_REFRESH_WINDOWS = process.env.PRICE_REFRESH_WINDOWS || "09:00-11:30,13:00-15:10";
+const PRICE_PRIMARY_PROVIDER = String(process.env.PRICE_PRIMARY_PROVIDER || "auto").trim().toLowerCase();
+const DNSE_CONFIGURED = Boolean(String(process.env.DNSE_API_KEY || "").trim() && String(process.env.DNSE_API_SECRET || "").trim());
 const FLOWS_MODULE_ENABLED = String(process.env.FLOWS_MODULE_ENABLED || "false").trim().toLowerCase() === "true";
 const PIPELINE_TIMEOUT_MS = Number(process.env.PIPELINE_TIMEOUT_MS || 20 * 60 * 1000);
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS || 60 * 1000);
@@ -1028,9 +1030,13 @@ let priceRefreshState = { lastAttemptAt: null, lastSuccessAt: null, lastSkippedA
 let pipelineState = { status: "idle", startedAt: null, finishedAt: null, reason: null, error: null };
 
 function priceRefreshInfo(includeError = false) {
+  const primaryProvider = PRICE_PRIMARY_PROVIDER === "vnstock" ? "Vnstock" : PRICE_PRIMARY_PROVIDER === "dnse" ? (DNSE_CONFIGURED ? "DNSE" : "Vnstock") : (DNSE_CONFIGURED ? "DNSE" : "Vnstock");
   return {
     minutes: PRICE_REFRESH_MINUTES,
     windows: PRICE_REFRESH_WINDOWS,
+    primaryProvider,
+    fallbackProvider: primaryProvider === "DNSE" ? "Vnstock" : (DNSE_CONFIGURED ? "DNSE" : null),
+    dnseConfigured: DNSE_CONFIGURED,
     nextAt: nextPriceRefreshAt,
     ...priceRefreshState,
     lastError: priceRefreshState.lastError ? (includeError ? priceRefreshState.lastError : "Không cập nhật được giá") : null,

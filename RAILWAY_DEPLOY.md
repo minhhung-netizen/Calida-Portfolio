@@ -40,6 +40,11 @@ Tối thiểu cho server:
 - `PRICE_REFRESH_WINDOWS=09:00-11:30,13:00-15:10`
 - `PRICE_REQUESTS_PER_MINUTE=50`
 - `PRICE_REFRESH_LOOKBACK_DAYS=10`
+- `PRICE_PRIMARY_PROVIDER=dnse`
+- `DNSE_API_KEY=<API Key DNSE OpenAPI>`
+- `DNSE_API_SECRET=<API Secret DNSE OpenAPI>`
+- `DNSE_API_VERSION=2026-07-23`
+- `DNSE_BOARD_ID=G1`
 - `TZ=Asia/Ho_Chi_Minh`
 - `REBUILD_ON_BOOT=false` — giữ mặc định này để web khởi động độc lập với Google Sheets/vnstock. Chỉ đặt `true` cho **một lần deploy có chủ đích** khi cần dựng lại từ dữ liệu trên Volume; đặt lại `false` ngay sau đó.
 
@@ -85,7 +90,7 @@ Sau đó mở domain Railway.
 - `railway.json` đã khai báo readiness healthcheck `/api/ready`; `/api/health` là liveness check. Cả hai không yêu cầu đăng nhập. Railway chỉ dùng healthcheck khi deploy, do đó vẫn cần theo dõi **Metrics**, Deploy Logs hoặc một dịch vụ uptime bên ngoài cho giám sát liên tục.
 - `/api/ready` trả `200` chỉ khi `web/data/dashboard.json` tồn tại và đọc được; trả `503` khi dashboard không sẵn sàng. `/api/status` (cần đăng nhập) cho biết freshness, thời điểm dữ liệu và trạng thái pipeline.
 - Vnstock được cài theo cơ chế tùy chọn khi build. Nếu kho package tạm thời không có bản tương thích, Railway vẫn deploy; dashboard và các nguồn Google Sheets vẫn hoạt động, chỉ bước làm mới giá bị bỏ qua. Khi nguồn giá sẵn sàng, deploy lại để image cài Vnstock.
-- Máy chủ chạy quy trình giá độc lập mặc định mỗi 10 phút trong các khung `PRICE_REFRESH_WINDOWS` từ thứ Hai đến thứ Sáu. Từng mã được gọi tuần tự ở tối đa `PRICE_REQUESTS_PER_MINUTE=50`; mã nguồn chặn cứng mức 55 để không chạm giới hạn 60/phút. Nếu quy trình khác đang bận, lượt giá được bỏ qua thay vì dồn hàng đợi.
+- Máy chủ chạy quy trình giá độc lập mặc định mỗi 10 phút trong các khung `PRICE_REFRESH_WINDOWS` từ thứ Hai đến thứ Sáu. Khi đủ hai khóa DNSE, DNSE là nguồn ưu tiên và Vnstock tự làm dự phòng. Từng mã được gọi tuần tự; nếu Vnstock không có API key, nhịp chung tự hạ xuống 18 lượt/phút để việc chuyển nguồn không vượt hạn mức khách. Nếu quy trình khác đang bận, lượt giá được bỏ qua thay vì dồn hàng đợi.
 - Pipeline có thể lỗi khi lấy Google Sheets hoặc vnstock mà không làm web dừng: dashboard hợp lệ gần nhất vẫn phục vụ. Kiểm tra Deploy Logs và **Quản trị → Vận hành dữ liệu** sau mỗi lượt chạy.
 - Admin có thể vào **Quản trị → Vận hành dữ liệu** để xem độ mới của từng nguồn, nhật ký thao tác và chạy pipeline. **Đồng bộ tất cả nguồn** lấy mới 4 Google Sheets và vnstock. Có thể đồng bộ riêng **Danh mục**, **Vận hành**, **Quỹ** hoặc **Báo cáo CTCK** khi chỉ một nguồn vừa được sửa. Danh mục, Vận hành và Quỹ thay thế bản dữ liệu cũ trên Volume bằng bản chụp Google Sheets; Báo cáo CTCK gộp theo mã để không làm mất báo cáo tạo trên web. **Dựng lại bảng điều hành** chỉ dùng Excel đã có trên Volume.
 - **Quản trị → Dữ liệu** cho phép admin xem số dòng theo module/ngày và xoá một ngày hoặc khoảng ngày. Lịch sử/dấu xoá nằm tại `/app/data/data-deletions.json` để cùng bản ghi không quay lại sau đồng bộ; file này phải được giữ cùng Railway Volume và backup.

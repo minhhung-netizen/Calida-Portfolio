@@ -1,7 +1,7 @@
 """
 Chạy toàn bộ pipeline:  python pipeline/run.py
   --build-only   bỏ bước lấy dữ liệu (chỉ nhập inbox → DB → JSON)
-  --no-prices    bỏ vnstock
+  --no-prices    bỏ nguồn giá thị trường
   --no-gsheets   bỏ Google Sheets
 Thoát mã 1 nếu bước build/export lỗi (để server/GitHub Actions nhận biết).
 """
@@ -92,8 +92,8 @@ def main():
                 failed = fetch_prices.run()
                 if failed:
                     raise RuntimeError("Không lấy được giá: " + ", ".join(failed))
-            if not step("Giá vnstock", fetch_prices_strict):
-                source_failures.append("vnstock")
+            if not step("Giá thị trường", fetch_prices_strict):
+                source_failures.append("nguồn giá")
     # Báo cáo được tạo/sửa/xóa qua web là dữ liệu nguồn. Không tiếp tục dựng
     # dashboard nếu chưa ghi an toàn được các thay đổi này vào Excel.
     step("Nhập và quản lý báo cáo", import_inbox.run_all, required=True)

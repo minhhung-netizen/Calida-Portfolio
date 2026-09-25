@@ -39,6 +39,11 @@ Google Sheets ──► Railway Volume (/app/data) ──► SQLite ──► Da
 | `PIPELINE_TIME=16:30` | Lịch chạy ngày làm việc, giờ Việt Nam |
 | `PRICE_REFRESH_MINUTES=10` | Chu kỳ cập nhật riêng VN-Index và giá cổ phiếu; đặt `0` để tắt |
 | `PRICE_REFRESH_WINDOWS=09:00-11:30,13:00-15:10` | Khung chạy giá từ thứ Hai đến thứ Sáu, theo `TZ` |
+| `PRICE_PRIMARY_PROVIDER=dnse` | Ưu tiên DNSE; nếu lỗi sẽ tự chuyển sang Vnstock |
+| `DNSE_API_KEY` | API Key tạo trong DNSE OpenAPI; chỉ lưu trong biến môi trường |
+| `DNSE_API_SECRET` | API Secret DNSE; secret chỉ hiển thị một lần, không đưa vào Git hoặc log |
+| `DNSE_API_VERSION=2026-07-23` | Phiên bản REST API khớp SDK chính thức hiện tại |
+| `DNSE_BOARD_ID=G1` | Bảng giao dịch liên tục của cổ phiếu cơ sở |
 | `VNSTOCK_API_KEY` | API key cộng đồng lấy tại `https://vnstocks.com/account#api-key`; không đưa khóa vào Git |
 | `PRICE_REQUESTS_PER_MINUTE=50` | Gọi tuần tự; hệ thống luôn chặn tối đa 55 để thấp hơn giới hạn 60/phút |
 | `PRICE_REFRESH_LOOKBACK_DAYS=10` | Số ngày tải trong lượt giá định kỳ; đủ giữ giá hiện tại và giá phiên trước |
@@ -162,8 +167,10 @@ Ví dụ lỗi `flows.xlsx/SECTOR_FLOW: weight_pct phải là số` nghĩa là p
 
 - Chờ hết khoảng thời gian giới hạn rồi chạy lại.
 - Giữ `PRICE_REQUESTS_PER_MINUTE=50`; không tăng lên 60. Hệ thống vẫn chặn tối đa 55 ngay cả khi cấu hình cao hơn.
-- Khai báo `VNSTOCK_API_KEY`. Nếu chưa có khóa, hệ thống tự hạ xuống tối đa 18 lượt/phút để không vượt hạn mức tài khoản khách 20 lượt/phút.
-- Quy trình giá định kỳ dùng bảng giá trong phiên, gọi từng mã lần lượt và không chạy chồng với pipeline khác. Giá KBS được đổi từ đồng sang nghìn đồng bằng `VNSTOCK_QUOTE_PRICE_DIVISOR=1000`.
+- Khai báo `PRICE_PRIMARY_PROVIDER=dnse`, `DNSE_API_KEY` và `DNSE_API_SECRET` để dùng DNSE làm nguồn chính. Không dán hai khóa vào mã nguồn, file hướng dẫn, ảnh chụp hoặc Google Sheets.
+- Nếu DNSE trả lỗi kết nối, xác thực, giới hạn hoặc thiếu giá của một mã, cùng lượt đó sẽ tự thử Vnstock. Khai báo thêm `VNSTOCK_API_KEY` để nguồn dự phòng có hạn mức ổn định; nếu bỏ trống, hệ thống tự hạ xuống tối đa 18 lượt/phút.
+- Quy trình giá định kỳ gọi từng mã lần lượt và không chạy chồng với pipeline khác. DNSE trả giá theo nghìn đồng (`DNSE_PRICE_DIVISOR=1`); KBS trả theo đồng và được đổi bằng `VNSTOCK_QUOTE_PRICE_DIVISOR=1000`.
+- Kiểm tra tại **Quản trị → Vận hành dữ liệu** hoặc **Cảnh báo giá**: giao diện hiển thị nguồn ưu tiên, nguồn dự phòng, lần thành công gần nhất và lịch chạy kế tiếp. Có thể bấm **Cập nhật giá ngay** để kiểm thử sau khi thêm khóa.
 - Trong **Quản trị → Vận hành**, xem thời điểm cập nhật kế tiếp hoặc chọn **Cập nhật giá ngay** để kiểm tra thủ công mà không gọi Google Sheets.
 - Có thể đồng bộ riêng Danh mục, Vận hành, Quỹ hoặc Báo cáo CTCK; các thao tác này không gọi nguồn giá.
 - Không liên tục bấm Đồng bộ tất cả khi nguồn giá đang bị giới hạn.

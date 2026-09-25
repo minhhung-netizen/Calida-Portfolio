@@ -11,7 +11,10 @@ import time
 from zoneinfo import ZoneInfo
 import pandas as pd
 from config import (DATA_DIR, PRICE_LOOKBACK_DAYS, PRICE_REQUESTS_PER_MINUTE,
+                    DNSE_API_KEY, DNSE_API_SECRET, DNSE_API_VERSION, DNSE_BASE_URL,
+                    DNSE_BOARD_ID, DNSE_PRICE_DIVISOR, PRICE_PRIMARY_PROVIDER,
                     VNSTOCK_QUOTE_PRICE_DIVISOR, VNSTOCK_QUOTE_SOURCE, VNSTOCK_SOURCE)
+from dnse_market_data import DNSEMarketDataClient
 from xlsx_io import read_sheet, upsert
 
 
@@ -122,6 +125,105 @@ def _normalize_current_quote(symbol: str, quote: pd.DataFrame, today=None) -> pd
     }])
 
 
+def _dnse_trade_row(payload):
+    if isinstance(payload, dict):
+        trades = payload.get("trades") or payload.get("data")
+        if isinstance(trades, list) and trades:
+            return trades[-1]
+        if isinstance(trades, dict):
+            return trades
+        if any(key in payload for key in ("matchPrice", "price", "lastPrice")):
+            return payload
+    if isinstance(payload, list) and payload:
+        return payload[-1]
+    raise ValueError("DNSE chưa trả về giao dịch gần nhất")
+
+
+def _dnse_timestamp_date(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, Real):
+        seconds = float(value)
+        # Một số nguồn chỉ trả HHMMSS dưới dạng số; giá trị này không đủ để
+        # xác định ngày nên không được coi nhầm là Unix timestamp năm 1970.
+        if seconds < 1_000_000_000:
+            return None
+        if seconds > 100_000_000_000_000_000:
+            seconds /= 1_000_000_000
+        elif seconds > 100_000_000_000_000:
+            seconds /= 1_000_000
+        elif seconds > 100_000_000_000:
+            seconds /= 1_000
+        return datetime.fromtimestamp(seconds, ZoneInfo("Asia/Ho_Chi_Minh")).date()
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed) or (isinstance(value, str) and len(value.strip()) <= 12):
+        return None
+    return parsed.date()
+
+
+def _normalize_dnse_trade(symbol: str, payload, today=None) -> pd.DataFrame:
+    """Đưa latest trade của DNSE về schema nghìn đồng của dashboard."""
+    row = _dnse_trade_row(payload)
+    raw_price = next((row.get(key) for key in ("matchPrice", "price", "lastPrice", "closePrice")
+                      if row.get(key) is not None), None)
+    close = pd.to_numeric(pd.Series([raw_price]), errors="coerce").iloc[0]
+    if pd.isna(close) or float(close) <= 0:
+        raise ValueError(f"DNSE chưa có giá khớp hợp lệ cho {symbol}")
+    if not DNSE_PRICE_DIVISOR or DNSE_PRICE_DIVISOR <= 0:
+        raise ValueError("DNSE_PRICE_DIVISOR phải lớn hơn 0")
+    close = float(close) / DNSE_PRICE_DIVISOR
+    expected_date = today or date.today()
+    timestamp = next((row.get(key) for key in ("time", "matchTime", "tradingTime", "timestamp")
+                      if row.get(key) is not None), None)
+    trade_date = _dnse_timestamp_date(timestamp)
+    if trade_date is not None and trade_date != expected_date:
+        raise ValueError(f"Giá DNSE của {symbol} mới nhất là {trade_date.isoformat()}, chưa có dữ liệu {expected_date.isoformat()}")
+    raw_volume = next((row.get(key) for key in ("matchQtty", "matchQuantity", "quantity", "volume")
+                       if row.get(key) is not None), 0)
+    volume = pd.to_numeric(pd.Series([raw_volume]), errors="coerce").fillna(0).iloc[0]
+    return pd.DataFrame([{
+        "date": pd.Timestamp(expected_date), "ticker": symbol.upper(),
+        "open": close, "high": close, "low": close, "close": close,
+        "volume": max(0, int(volume)),
+    }])
+
+
+def _dnse_configured():
+    return bool(DNSE_API_KEY and DNSE_API_SECRET)
+
+
+def _provider_order(vnstock_available=True):
+    preferred = PRICE_PRIMARY_PROVIDER if PRICE_PRIMARY_PROVIDER in {"dnse", "vnstock"} else "auto"
+    providers = []
+    if preferred == "dnse" or (preferred == "auto" and _dnse_configured()):
+        if _dnse_configured():
+            providers.append("dnse")
+        if vnstock_available:
+            providers.append("vnstock")
+    else:
+        if vnstock_available:
+            providers.append("vnstock")
+        if _dnse_configured():
+            providers.append("dnse")
+    return providers
+
+
+def _intraday_quote(symbol: str, pacer, dnse_client, vnstock_available=True):
+    errors = []
+    for provider in _provider_order(vnstock_available):
+        try:
+            if provider == "dnse":
+                if pacer:
+                    pacer.wait()
+                return _normalize_dnse_trade(
+                    symbol, dnse_client.get_latest_trade(symbol, DNSE_BOARD_ID)
+                ), "DNSE"
+            return _normalize_current_quote(symbol, _current_quote(symbol, pacer)), "Vnstock"
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{provider.upper()}: {exc}")
+    raise RuntimeError(" | ".join(errors) or "Không có nguồn giá nào được cấu hình")
+
+
 def _manual_alert_tickers():
     """Các mã cảnh báo cá nhân cũng cần được đưa vào nguồn giá."""
     try:
@@ -135,13 +237,22 @@ def _manual_alert_tickers():
 def run(retries: int = 3, pause: float = 1.2, lookback_days: int = PRICE_LOOKBACK_DAYS, intraday: bool = False):
     # Nguồn giá là bắt buộc đối với quy trình --prices-only. Không được âm thầm
     # bỏ qua vì giao diện sẽ tiếp tục hiển thị giá cũ mà quản trị viên không biết.
-    if find_spec("vnstock") is None:
-        raise RuntimeError("Thiếu thư viện vnstock; không thể cập nhật giá")
-    has_api_key = bool(os.getenv("VNSTOCK_API_KEY", "").strip())
-    safe_request_rate = PRICE_REQUESTS_PER_MINUTE if has_api_key else min(18, PRICE_REQUESTS_PER_MINUTE)
+    vnstock_available = find_spec("vnstock") is not None
+    if not intraday and not vnstock_available:
+        raise RuntimeError("Thiếu thư viện vnstock; không thể cập nhật giá lịch sử")
+    if intraday and not _provider_order(vnstock_available):
+        raise RuntimeError("Chưa cấu hình được nguồn giá DNSE hoặc Vnstock")
+    has_vnstock_api_key = bool(os.getenv("VNSTOCK_API_KEY", "").strip())
+    # Luôn giữ nhịp tương thích với nguồn dự phòng. Nếu DNSE tạm lỗi mà
+    # Vnstock đang ở chế độ khách, việc chuyển nguồn cũng không tạo burst >20/phút.
+    safe_request_rate = PRICE_REQUESTS_PER_MINUTE if has_vnstock_api_key else min(18, PRICE_REQUESTS_PER_MINUTE)
     pacer = _RequestPacer(safe_request_rate)
-    access_mode = "API key" if has_api_key else "khách"
-    print(f"  Tuần tự tối đa {pacer.requests_per_minute} request/phút (chế độ {access_mode})")
+    access_mode = "Vnstock có API key" if has_vnstock_api_key else "nhịp an toàn cho nguồn dự phòng"
+    providers = _provider_order(vnstock_available) if intraday else (["vnstock"] if vnstock_available else [])
+    print(f"  Nguồn giá: {' → '.join(providers)}; tuần tự tối đa {pacer.requests_per_minute} request/phút ({access_mode})")
+    dnse_client = DNSEMarketDataClient(
+        DNSE_API_KEY, DNSE_API_SECRET, DNSE_BASE_URL, DNSE_API_VERSION,
+    ) if "dnse" in providers else None
     end = date.today()
     start = end - timedelta(days=max(3, int(lookback_days)))
     s, e = start.isoformat(), end.isoformat()
@@ -151,13 +262,16 @@ def run(retries: int = 3, pause: float = 1.2, lookback_days: int = PRICE_LOOKBAC
     failed = []
 
     idx = None
-    for i in range(retries):
-        try:
-            idx = _normalize(_history("VNINDEX", s, e, pacer)); break
-        except Exception as ex:  # noqa: BLE001
-            print(f"  VNINDEX lần {i+1}: {ex}"); time.sleep(pause * (i + 1) * 3)
+    if vnstock_available:
+        for i in range(retries):
+            try:
+                idx = _normalize(_history("VNINDEX", s, e, pacer)); break
+            except Exception as ex:  # noqa: BLE001
+                print(f"  VNINDEX lần {i+1}: {ex}"); time.sleep(pause * (i + 1) * 3)
     if idx is not None:
         print(f"  VNINDEX: {upsert('market.xlsx', 'VNINDEX', idx)} dòng")
+    elif intraday:
+        print("  VNINDEX: giữ dữ liệu hiện có; lượt này chỉ cập nhật giá cổ phiếu")
     else:
         failed.append("VNINDEX")
 
@@ -166,7 +280,8 @@ def run(retries: int = 3, pause: float = 1.2, lookback_days: int = PRICE_LOOKBAC
         for i in range(retries):
             try:
                 if intraday:
-                    df = _normalize_current_quote(t, _current_quote(t, pacer))
+                    df, provider = _intraday_quote(t, pacer, dnse_client, vnstock_available)
+                    print(f"  {t}: {provider}")
                 else:
                     df = _normalize(_history(t, s, e, pacer)); df.insert(1, "ticker", t)
                 frames.append(df)

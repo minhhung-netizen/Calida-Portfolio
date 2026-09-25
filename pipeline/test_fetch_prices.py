@@ -14,6 +14,7 @@ import pandas as pd
 PIPELINE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(PIPELINE_DIR))
 import fetch_prices  # noqa: E402
+from dnse_market_data import build_auth_headers, build_signature  # noqa: E402
 
 
 class FetchPricesTest(unittest.TestCase):
@@ -80,6 +81,62 @@ class FetchPricesTest(unittest.TestCase):
         quote = pd.DataFrame([{"symbol": "FPT", "time": timestamp, "close_price": 65200}])
         with self.assertRaisesRegex(ValueError, "chưa có dữ liệu 2026-09-25"):
             fetch_prices._normalize_current_quote("FPT", quote, today=date(2026, 9, 25))
+
+    def test_dnse_signature_matches_documented_hmac_contract(self):
+        signature = build_signature(
+            "secret", "GET", "/price/FPT/trades/latest",
+            "Thu, 25 Sep 2026 03:15:00 +0000", "fixednonce",
+        )
+        self.assertEqual(signature, "cNIcPQIuUaB8875TIpdyVYC2iW5YeEg5UoTaKxMwHTg%3D")
+        headers = build_auth_headers(
+            "public-key", "secret", "GET", "/price/FPT/trades/latest", "2026-07-23",
+            date_value="Thu, 25 Sep 2026 03:15:00 +0000", nonce="fixednonce",
+        )
+        self.assertEqual(headers["x-api-key"], "public-key")
+        self.assertEqual(headers["version"], "2026-07-23")
+        self.assertIn('headers="(request-target) date"', headers["X-Signature"])
+
+    def test_dnse_latest_trade_uses_thousand_vnd_without_extra_division(self):
+        payload = {"trades": [{
+            "symbol": "FPT", "matchPrice": 65.2, "matchQtty": 500,
+            "time": int(datetime(2026, 9, 25, 10, 15, tzinfo=ZoneInfo("Asia/Ho_Chi_Minh")).timestamp()),
+        }]}
+        with patch.object(fetch_prices, "DNSE_PRICE_DIVISOR", 1):
+            result = fetch_prices._normalize_dnse_trade("FPT", payload, today=date(2026, 9, 25))
+        row = result.iloc[0]
+        self.assertEqual(row.close, 65.2)
+        self.assertEqual(row.volume, 500)
+        self.assertEqual(row.date.date(), date(2026, 9, 25))
+
+    def test_dnse_is_primary_and_vnstock_is_fallback(self):
+        class StubDNSE:
+            def get_latest_trade(self, symbol, board_id):
+                return {"trades": [{"matchPrice": 65.2, "matchQtty": 100}]}
+
+        with patch.object(fetch_prices, "PRICE_PRIMARY_PROVIDER", "dnse"), \
+                patch.object(fetch_prices, "DNSE_API_KEY", "key"), \
+                patch.object(fetch_prices, "DNSE_API_SECRET", "secret"), \
+                patch.object(fetch_prices, "DNSE_PRICE_DIVISOR", 1), \
+                patch("fetch_prices._current_quote") as vnstock_quote:
+            result, provider = fetch_prices._intraday_quote("FPT", None, StubDNSE(), True)
+        self.assertEqual(provider, "DNSE")
+        self.assertEqual(result.iloc[0].close, 65.2)
+        vnstock_quote.assert_not_called()
+
+    def test_dnse_failure_falls_back_to_vnstock(self):
+        class BrokenDNSE:
+            def get_latest_trade(self, symbol, board_id):
+                raise RuntimeError("DNSE unavailable")
+
+        quote = pd.DataFrame([{"symbol": "FPT", "close_price": 65_200}])
+        with patch.object(fetch_prices, "PRICE_PRIMARY_PROVIDER", "dnse"), \
+                patch.object(fetch_prices, "DNSE_API_KEY", "key"), \
+                patch.object(fetch_prices, "DNSE_API_SECRET", "secret"), \
+                patch.object(fetch_prices, "VNSTOCK_QUOTE_PRICE_DIVISOR", 1000), \
+                patch("fetch_prices._current_quote", return_value=quote):
+            result, provider = fetch_prices._intraday_quote("FPT", None, BrokenDNSE(), True)
+        self.assertEqual(provider, "Vnstock")
+        self.assertEqual(result.iloc[0].close, 65.2)
 
 
 if __name__ == "__main__":

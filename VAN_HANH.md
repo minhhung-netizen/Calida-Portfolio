@@ -7,7 +7,7 @@
 | Portfolio Automation | `DM cơ bản`, `DM lướt sóng`, `Transaction Log` | Danh mục, Tổng quan, Action Desk, Signal Center |
 | Fmarket DB | `FUND SUMMARY`, `ASSET ALLOCATION`, `INDUSTRY`, `TOP HOLDINGS` | Quỹ đầu tư |
 | Operations Data | `VIEW`, `NEWS`, `EVENTS`, các bảng `*_FLOW`, `SUMMARY` | Tổng quan, Bản tin, Dòng tiền, hiệu suất danh mục |
-| vnstock | VN-Index và giá các mã trong danh mục | Tổng quan, Bản tin, Danh mục, Action Desk |
+| DNSE + Vnstock dự phòng | Giá các mã trong danh mục/cảnh báo; VN-Index tiếp tục dùng Vnstock | Tổng quan, Bản tin, Danh mục, Khuyến nghị hành động, Cảnh báo giá |
 | Báo cáo CTCK | `BAO_CAO_CTCK`, `KHUYEN_NGHI_CP`, `QUAN_DIEM_NGANH`, `RUI_RO` | Báo cáo CTCK, Signal Center |
 
 Action Desk và Signal Center không có Google Sheet riêng. Action được suy ra từ trạng thái `MUA`, `TĂNG TỶ TRỌNG`, `GIẢM TỶ TRỌNG` trong danh mục. Khối lượng, deadline, tiến độ, ghi chú và trạng thái Signal được người có quyền cập nhật trực tiếp trong web.

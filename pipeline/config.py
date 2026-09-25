@@ -43,6 +43,13 @@ PRICE_REQUESTS_PER_MINUTE = int(os.getenv("PRICE_REQUESTS_PER_MINUTE", "50"))
 VNSTOCK_SOURCE = os.getenv("VNSTOCK_SOURCE", "VCI")
 VNSTOCK_QUOTE_SOURCE = os.getenv("VNSTOCK_QUOTE_SOURCE", "KBS").strip().lower()
 VNSTOCK_QUOTE_PRICE_DIVISOR = float(os.getenv("VNSTOCK_QUOTE_PRICE_DIVISOR", "1000"))
+PRICE_PRIMARY_PROVIDER = os.getenv("PRICE_PRIMARY_PROVIDER", "auto").strip().lower()
+DNSE_API_KEY = os.getenv("DNSE_API_KEY", "").strip()
+DNSE_API_SECRET = os.getenv("DNSE_API_SECRET", "").strip()
+DNSE_BASE_URL = os.getenv("DNSE_BASE_URL", "https://openapi.dnse.com.vn").strip().rstrip("/")
+DNSE_API_VERSION = os.getenv("DNSE_API_VERSION", "2026-07-23").strip()
+DNSE_BOARD_ID = os.getenv("DNSE_BOARD_ID", "G1").strip()
+DNSE_PRICE_DIVISOR = float(os.getenv("DNSE_PRICE_DIVISOR", "1"))
 
 # ---- Tổng số quỹ trong vũ trụ theo dõi (để hiển thị x/y quỹ đã cập nhật). 0 = tự đếm ----
 FUND_UNIVERSE_TOTAL = int(os.getenv("FUND_UNIVERSE_TOTAL", "0"))
